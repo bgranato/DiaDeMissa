@@ -195,10 +195,10 @@ class TestPrimeiraLeitura:
         assert "Leitura dos Atos" in (leitura.introducao or "")
 
     def test_conclusao(self, leitura):
-        assert "Senhor" in (leitura.conclusao or "")
+        assert leitura.conclusao == "Palavra do Senhor."
 
     def test_resposta(self, leitura):
-        assert "Graças" in (leitura.resposta or "")
+        assert leitura.resposta == "Graças a Deus."
 
     def test_tem_versiculos_numerados(self, leitura):
         assert len(leitura.versiculos) >= 11

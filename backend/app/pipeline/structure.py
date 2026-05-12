@@ -153,26 +153,37 @@ def estruturar(texto_limpo: str) -> Missa:
             introducao = ""
             resposta = ""
             conclusao = ""
-            linhas_texto = []
-            for j, l in enumerate(todas):
-                ll = l.strip()
-                if j == 0 and ll and not ll[0].isdigit() and not ll.startswith("("):
-                    introducao = ll
-                elif ll.rstrip(".").lower().endswith("senhor"):
-                    partes_pos = " ".join(todas[j:])
-                    if "graças" in partes_pos.lower():
-                        for x in todas[j:]:
-                            if "graças" in x.lower():
-                                resposta = x
-                                break
-                        conclusao = todas[j]
-                    else:
-                        conclusao = todas[j]
-                    break
+            texto_completo = " ".join(todas)
+
+            # Extrai introducao (primeira linha com a fonte, ex: "Leitura dos Atos dos Apóstolos")
+            primeira_linha = todas[0].strip() if todas else ""
+            if primeira_linha and not primeira_linha[0].isdigit() and not primeira_linha.startswith("("):
+                introducao = primeira_linha
+                texto_sem_intro = " ".join(todas[1:])
+            else:
+                texto_sem_intro = texto_completo
+
+            # Busca conclusao + resposta no texto restante
+            # "Palavra do Senhor" pode estar em uma ou duas linhas (ex: "...Palavra do\nSenhor.")
+            texto_plano = re.sub(r"\s+", " ", texto_sem_intro)
+            m_concl = re.search(r"(Palavra\s+(?:do|da)\s+[\wÀ-ú]+)\s*\.?", texto_plano)
+            if m_concl:
+                conclusao = m_concl.group(1) + "."
+                # Tudo antes da conclusao sao os versiculos
+                texto_versiculos = texto_plano[:texto_plano.find(m_concl.group(0))].strip()
+                # Depois da conclusao, busca a resposta
+                depois = texto_plano[texto_plano.find(m_concl.group(0)) + len(m_concl.group(0)):]
+                m_resp = re.search(r"T\.\s*([^.]+\.)", depois)
+                if m_resp:
+                    resposta = m_resp.group(1).strip()
                 else:
-                    linhas_texto.append(ll)
-            linhas_texto = [l for l in linhas_texto if l and not l.startswith("(")]
-            texto = re.sub(r"\s+", " ", " ".join(linhas_texto)).strip()
+                    m_resp2 = re.search(r"(Graças\s+a\s+Deus[^.]*\.)", depois, re.IGNORECASE)
+                    if m_resp2:
+                        resposta = m_resp2.group(1)
+            else:
+                texto_versiculos = texto_sem_intro
+
+            texto = texto_versiculos
             versiculos = _extrair_versiculos(texto)
             if not versiculos:
                 versiculos = []
