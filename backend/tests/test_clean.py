@@ -1,5 +1,6 @@
 import pytest
 from app.pipeline.clean import limpar
+from app.pipeline.structure import extrair_postura, remover_marcacao_postura
 
 
 class TestClean:
@@ -34,3 +35,42 @@ class TestClean:
         texto = "Ale-\nluia! P.Em nome\n\n\nFim."
         esperado = "Aleluia! P. Em nome\n\nFim."
         assert limpar(texto) == esperado
+
+
+class TestExtrairPostura:
+    def test_mesma_linha(self):
+        linhas = ["1. Canto de Entrada (De pé)"]
+        assert extrair_postura(linhas) == "de_pe"
+
+    def test_linha_seguinte(self):
+        linhas = ["1. Canto de Entrada", "(De pé)", "REFRÃO: ..."]
+        assert extrair_postura(linhas) == "de_pe"
+
+    def test_apos_referencia(self):
+        linhas = ["6. Primeira Leitura (At 1,1-11) (Sentados)"]
+        assert extrair_postura(linhas) == "sentado"
+
+    def test_sentados_isolado(self):
+        linhas = ["11. Homilia", "(Sentados)", "Momento de silêncio..."]
+        assert extrair_postura(linhas) == "sentado"
+
+    def test_sem_postura(self):
+        linhas = ["2. Saudação", "P. Em nome do Pai..."]
+        assert extrair_postura(linhas) is None
+
+    def test_nao_confunde_referencia_biblica(self):
+        linhas = ["Antífona da Entrada (At 1,11)", "Homens da Galileia..."]
+        assert extrair_postura(linhas) is None
+
+
+class TestRemoverMarcacaoPostura:
+    def test_remove_de_pe(self):
+        assert remover_marcacao_postura("Canto de Entrada (De pé)") == "Canto de Entrada"
+
+    def test_remove_sentados(self):
+        assert remover_marcacao_postura("Primeira Leitura (At 1,1-11) (Sentados)") == \
+               "Primeira Leitura (At 1,1-11)"
+
+    def test_preserva_referencia_biblica(self):
+        assert remover_marcacao_postura("Antífona da Entrada (At 1,11)") == \
+               "Antífona da Entrada (At 1,11)"

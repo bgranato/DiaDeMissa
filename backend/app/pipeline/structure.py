@@ -9,6 +9,46 @@ from app.schema.missa import (
 )
 
 
+POSTURAS = {
+    "de pé": "de_pe", "de pe": "de_pe",
+    "sentado": "sentado", "sentados": "sentado",
+    "ajoelhado": "ajoelhado", "ajoelhados": "ajoelhado",
+}
+
+
+def extrair_postura(linhas_bloco: list[str], janela: int = 3) -> Optional[str]:
+    """
+    Procura marcacao '(De pe)', '(Sentados)', etc. nas primeiras N linhas do bloco.
+    Retorna o valor normalizado ou None.
+    Suporta:
+    - '1. Canto de Entrada (De pe)'          → mesma linha
+    - '1. Canto de Entrada\\n(De pe)'         → linha seguinte
+    - '6. Primeira Leitura (At 1,1-11) (Sentados)' → mesma linha com referencia
+    """
+    contexto = " ".join(linhas_bloco[:janela])
+    match = re.search(r"\(([^)]+)\)", contexto)
+    while match:
+        candidato = match.group(1).strip().lower()
+        if candidato in POSTURAS:
+            return POSTURAS[candidato]
+        contexto = contexto[match.end():]
+        match = re.search(r"\(([^)]+)\)", contexto)
+    return None
+
+
+def remover_marcacao_postura(texto: str) -> str:
+    """
+    Remove a marcacao de postura do texto, para que nao vaze na UI.
+    Nao toca em referencias biblicas tipo (At 1,11).
+    """
+    return re.sub(
+        r"\s*\((?:De p[ée]|De p[ée]|Sentados?|Ajoelhados?)\)\s*",
+        " ",
+        texto,
+        flags=re.IGNORECASE,
+    ).strip()
+
+
 def extrair_creditos(texto: str) -> dict:
     match = re.search(r"Entrada:\s*(.+?)(?=\n\n|Ritos Iniciais|\Z)", texto, re.DOTALL)
     if not match:
@@ -64,6 +104,7 @@ def estruturar(texto_limpo: str) -> Missa:
             ordem += 1
             refrao = []
             estrofes = []
+            blocos_linhas = [linha]
             i += 1
             while i < len(linhas):
                 prox = linhas[i]
@@ -76,6 +117,7 @@ def estruturar(texto_limpo: str) -> Missa:
                         "cordeiro de deus", "canto de comunhão", "depois da comunhão",
                         "vivência", "bênção final", "bencao final"]):
                     break
+                blocos_linhas.append(prox)
                 if prox.strip() in ("1.", "2.", "3.", "4.", "5."):
                     i += 1
                     continue
@@ -101,7 +143,8 @@ def estruturar(texto_limpo: str) -> Missa:
                     elif refrao:
                         refrao += [v.strip() for v in re.split(r"\s*/\s*", prox) if v.strip()]
                 i += 1
-            blocos.append(Canto(ordem=ordem, titulo="Canto de Entrada", postura="de_pe",
+            postura = extrair_postura(blocos_linhas) or "de_pe"
+            blocos.append(Canto(ordem=ordem, titulo="Canto de Entrada", postura=postura,
                                  refrao=refrao, estrofes=estrofes))
             continue
 
