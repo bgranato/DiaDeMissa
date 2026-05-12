@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Merriweather", ui-serif, Georgia, serif;
+  --color-brand-gold: #B48A00;
+  --color-brand-blue: #0F2A4A;
+  --color-brand-bg: #F8F9FA;
+  --color-brand-white: #FFFFFF;
+  --color-brand-text: #111827;
+  --color-brand-gray: #D1D5DB;
+  --color-brand-gray-dark: #374151;
+  --color-brand-slate: #4B5563;
+}
+
+:root {
+  --font-size-multiplier: 1;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Merriweather:ital,wght@0,400;0,700;0,900;1,400&display=swap');
+
+body {
+  @apply bg-brand-bg text-brand-text font-sans transition-colors duration-300 antialiased;
+}
+
+/* Ensure strong contrast in light mode */
+.light body {
+  @apply bg-[#F8F9FA] text-[#111827];
+}
+
+.dark body {
+  @apply bg-[#0B121E] text-[#F3F4F6];
+}
+
+.high-contrast body {
+  @apply bg-black text-[#FFFF00];
+}
+
+/* Accessibility overrides for better contrast */
+.dark .text-brand-blue {
+  @apply text-brand-gold;
+}
+
+.dark .text-brand-text {
+  @apply text-slate-100;
+}
+
+.dark .bg-brand-white {
+  @apply bg-slate-800;
+}
+
+.high-contrast * {
+  @apply !border-yellow-400;
+}
+
+.high-contrast .bg-brand-white, 
+.high-contrast .bg-brand-bg,
+.high-contrast .bg-white,
+.high-contrast .bg-slate-800 {
+  @apply !bg-black !text-[#FFFF00] !border-2;
+}
+
+.high-contrast button {
+  @apply !bg-[#FFFF00] !text-black !border-none font-black;
+}
+
+.high-contrast .text-brand-gold,
+.high-contrast .text-brand-blue,
+.high-contrast .text-brand-text {
+  @apply !text-[#FFFF00];
+}
+
+.high-contrast svg {
+  @apply !stroke-[#FFFF00];
+}
+
+/* Custom Large Button Styles */
+.nav-active {
+  @apply text-brand-gold;
+}
+
+.high-contrast .nav-active {
+  @apply text-yellow-500 underline;
+}
+
+/* Mobile-first constraints */
+#root {
+  @apply min-h-screen flex flex-col;
+}
+
+/* Fix for large touch targets */
+button, a {
+  @apply active:scale-95 transition-transform;
+}
+
+.touch-target {
+  @apply min-h-[48px] min-w-[48px];
+}
+
