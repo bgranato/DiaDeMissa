@@ -72,6 +72,18 @@ class TestCantoEntrada:
     def test_quantidade_estrofes(self, canto):
         assert len(canto.estrofes) == 4
 
+    def test_segunda_estrofe_exata(self, canto):
+        assert canto.estrofes[1] == [
+            "Entre cantos e hinos triunfais se eleva o Senhor! Aleluia!",
+            "Cante a terra e o mar também: Cristo é vencedor! Aleluia!",
+        ]
+
+    def test_terceira_estrofe_exata(self, canto):
+        assert canto.estrofes[2] == [
+            "Glorioso, à direita do Pai, sentou-se Jesus! Aleluia!",
+            "Que nos foi preparar no céu, reino de eterna luz! Aleluia!",
+        ]
+
     def test_primeira_estrofe_exata(self, canto):
         assert canto.estrofes[0] == [
             "Ó varões galileus, que estais no céu a olhar? Aleluia!",

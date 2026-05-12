@@ -200,6 +200,7 @@ def estruturar(texto_limpo: str) -> Missa:
             refrao = []
             estrofes = []
             blocos_linhas = [linha]
+            ultimo_terminou_barra = False
             i += 1
             while i < len(linhas):
                 prox = linhas[i]
@@ -223,18 +224,21 @@ def estruturar(texto_limpo: str) -> Missa:
                     i += 1
                     continue
                 if re.match(r"^\d+\.\s", prox):
+                    ultimo_terminou_barra = prox.rstrip().endswith("/")
                     sem_num = re.sub(r"^\d+\.\s*", "", prox).strip()
                     if sem_num:
                         estrofes.append(_parse_estrofe(sem_num))
                 else:
                     if estrofes:
                         novos = [v.strip() for v in re.split(r"\s*/\s*", prox) if v.strip()]
-                        # Se a linha anterior era numerada, o primeiro verso continua
-                        if novos and not prox.strip().startswith("/") and len(estrofes[-1]) >= 1:
+                        if novos and ultimo_terminou_barra:
+                            estrofes[-1] += novos
+                        elif novos and not prox.strip().startswith("/") and len(estrofes[-1]) >= 1:
                             estrofes[-1][-1] = estrofes[-1][-1] + " " + novos[0]
                             estrofes[-1] += novos[1:]
                         else:
                             estrofes[-1] += novos
+                        ultimo_terminou_barra = prox.rstrip().endswith("/")
                     elif refrao:
                         refrao += [v.strip() for v in re.split(r"\s*/\s*", prox) if v.strip()]
                 i += 1
@@ -342,5 +346,8 @@ def estruturar(texto_limpo: str) -> Missa:
 def _parse_estrofe(bloco: str) -> list[str]:
     blob = re.sub(r"\s*\n\s*", " ", bloco)
     blob = re.sub(r"\s+", " ", blob).strip()
+    # Remove / do inicio e fim para evitar versos vazios
+    blob = re.sub(r"^\s*/\s*", "", blob)
     blob = re.sub(r"\s*/\s*$", "", blob)
-    return [v.strip() for v in re.split(r"\s+/\s+", blob) if v.strip()]
+    # Separa por / com espacos, preservando versos
+    return [v.strip() for v in re.split(r"\s*/\s*", blob) if v.strip()]
