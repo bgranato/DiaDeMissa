@@ -10,7 +10,6 @@ import { HistoryScreen } from './screens/HistoryScreen'
 import LembretesScreen from './screens/LembretesScreen'
 import { ProfileScreen } from './screens/ProfileScreen'
 import { AuthScreens } from './screens/AuthScreens'
-import CantoView from './components/CantoView'
 import { SplashScreen } from './screens/SplashScreen'
 import { ConclusionScreen } from './screens/ConclusionScreen'
 import { BottomNav } from './components/UI'
@@ -26,7 +25,7 @@ export default function App() {
 
   useEffect(() => {
     if (!estaCarregando) {
-      setScreen('canto')
+      setScreen('home')
       carregarMissa()
     }
   }, [estaCarregando])
@@ -66,7 +65,6 @@ export default function App() {
           )}
           {screen === 'profile' && <ProfileScreen setScreen={navigateTo} usuario={usuario} onLogout={logout} />}
           {screen === 'conclusion' && <ConclusionScreen setScreen={navigateTo} />}
-          {screen === 'canto' && <CantoView />}
         </AnimatePresence>
 
         {!['splash', 'login', 'reading', 'conclusion'].includes(screen) && (

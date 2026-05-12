@@ -1,45 +1,28 @@
-import { PosturaChip } from './Shared'
-
-export default function CantoCard({ bloco }: { bloco: any }) {
-  const temEstruturaNova = Array.isArray(bloco.refrao) || Array.isArray(bloco.estrofes)
-
-  if (!temEstruturaNova) {
-    return (
-      <div className="text-base leading-relaxed">
-        {(bloco.conteudo || '').split('\n\n').map((p: string, i: number) => (
-          <p key={i} className="mb-2">{p}</p>
-        ))}
-      </div>
-    )
-  }
-
+export function CantoCard({ canto }: { canto: any }) {
   return (
-    <div>
-      <div className="flex items-center gap-3 mb-4">
-        <h3 className="font-serif font-black text-2xl text-brand-blue dark:text-brand-white">{bloco.titulo}</h3>
-        <PosturaChip postura={bloco.postura} />
-      </div>
-
-      {(bloco.refrao || []).length > 0 && (
-        <div className="bg-gradient-to-r from-brand-gold/[0.07] to-transparent rounded-2xl p-6 border-l-4 border-brand-gold mb-6">
-          <span className="text-[10px] font-black text-brand-gold uppercase tracking-[0.3em] block mb-3">REFRÃO</span>
-          {(bloco.refrao as string[]).map((v, i) => (
-            <p key={i} className="text-lg font-semibold italic leading-relaxed text-brand-text dark:text-slate-100">{v}</p>
+    <div className="px-4 pb-4">
+      {canto.refrao && canto.refrao.length > 0 && (
+        <div className="bg-amber-50 border-l-4 border-amber-500 rounded-r-lg px-4 py-3 mb-3">
+          <div className="text-[10px] font-bold tracking-widest text-amber-700 mb-1">REFRÃO</div>
+          {canto.refrao.map((verso: string, i: number) => (
+            <p key={i} className="text-[18px] leading-[1.4] font-medium text-slate-800 italic">{verso}</p>
           ))}
         </div>
       )}
-
-      {(bloco.estrofes || []).map((estrofe: string[], ei: number) => (
-        <div key={ei} className="bg-brand-white dark:bg-slate-800 border border-black/5 dark:border-slate-700 rounded-2xl p-5 mb-4 shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="w-8 h-8 rounded-full bg-brand-blue/10 dark:bg-slate-700 flex items-center justify-center text-sm font-black text-brand-blue dark:text-brand-gold">{ei + 1}</span>
-            <span className="text-[10px] font-black text-brand-gray-dark/40 dark:text-brand-white/40 uppercase tracking-[0.3em]">ESTROFE</span>
+      <div className="space-y-2">
+        {(canto.estrofes || []).map((estrofe: string[], idx: number) => (
+          <div key={idx} className="bg-white rounded-lg px-3 py-3 flex gap-3">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold flex items-center justify-center mt-1">
+              {idx + 1}
+            </span>
+            <div className="flex-1 space-y-1">
+              {estrofe.map((verso: string, i: number) => (
+                <p key={i} className="text-[17px] leading-[1.4] text-slate-700">{verso}</p>
+              ))}
+            </div>
           </div>
-          {estrofe.map((verso, vi) => (
-            <p key={vi} className="text-base leading-relaxed font-medium text-brand-text dark:text-slate-200 mb-1 last:mb-0">{verso}</p>
-          ))}
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   )
 }

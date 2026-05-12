@@ -1,35 +1,30 @@
-import { PosturaChip } from './Shared'
+const ESTILO_FALANTE: Record<string, { bg: string; label: string; peso: string }> = {
+  P: { bg: 'bg-blue-100 text-blue-700', label: 'P', peso: 'font-normal' },
+  T: { bg: 'bg-amber-100 text-amber-700', label: 'T', peso: 'font-semibold' },
+  L: { bg: 'bg-slate-100 text-slate-600', label: 'L', peso: 'font-normal' },
+  V: { bg: 'bg-slate-100 text-slate-600', label: 'V', peso: 'font-normal' },
+  R: { bg: 'bg-amber-100 text-amber-700', label: 'R', peso: 'font-semibold' },
+  rubrica: { bg: 'bg-slate-50 text-slate-500', label: '·', peso: 'font-normal italic' },
+}
 
-export default function DialogoCard({ bloco }: { bloco: any }) {
-  const turnos = bloco.turnos || []
-
-  const coresFalante: Record<string, string> = {
-    P: 'text-brand-blue dark:text-brand-gold',
-    T: 'text-brand-gray-dark dark:text-slate-300',
-    L: 'text-brand-gold',
-    V: 'text-brand-blue',
-    R: 'text-brand-gray-dark',
-    rubrica: 'text-brand-slate italic',
-  }
-
+export function DialogoCard({ dialogo }: { dialogo: any }) {
+  const turnos = dialogo.turnos || []
   return (
-    <div>
-      <div className="flex items-center gap-3 mb-4">
-        <h3 className="font-serif font-black text-2xl text-brand-blue dark:text-brand-white">{bloco.titulo}</h3>
-        <PosturaChip postura={bloco.postura} />
-      </div>
-
-      <div className="space-y-3">
-        {turnos.map((t: any, i: number) => (
-          <div key={i} className={`flex gap-4 ${t.falante === 'T' || t.falante === 'R' ? 'ml-8' : ''}`}>
-            <span className={`font-bold text-sm min-w-[24px] uppercase ${coresFalante[t.falante] || 'text-brand-gray-dark'}`}>
-              {t.falante === 'rubrica' ? '' : `${t.falante}.`}
+    <div className="px-4 pb-4 space-y-2">
+      {turnos.map((turno: any, i: number) => {
+        const estilo = ESTILO_FALANTE[turno.falante] || ESTILO_FALANTE.P
+        return (
+          <div key={i} className="flex gap-3 items-start py-1">
+            <span className={`flex-shrink-0 w-7 h-7 rounded-full ${estilo.bg} text-xs font-bold flex items-center justify-center mt-0.5`}>
+              {estilo.label}
             </span>
-            <p className={`text-base leading-relaxed flex-1 ${t.falante === 'rubrica' ? 'italic text-brand-slate' : 'text-brand-text dark:text-slate-200'}`}>
-              {t.texto}
-            </p>
+            <p className={`text-[17px] leading-[1.4] text-slate-800 flex-1 ${estilo.peso}`}>{turno.texto}</p>
           </div>
-        ))}
+        )
+      })}
+      <div className="flex gap-4 pt-3 mt-2 border-t border-slate-100 text-[10px] text-slate-400">
+        <span>P = Padre</span>
+        <span>T = Todos</span>
       </div>
     </div>
   )
