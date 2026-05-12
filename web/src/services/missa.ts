@@ -31,3 +31,8 @@ export async function getBlocosMissaV2(missaId?: number): Promise<BlocoLiturgico
   const res = await api.get<MissaNova>('/api/v2/missas/hoje')
   return res.data.blocos
 }
+
+export async function getMissaAtual(): Promise<{ blocos: any[] }> {
+  const res = await api.get('/missa/atual')
+  return res.data
+}

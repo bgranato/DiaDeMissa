@@ -2,12 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { AppHeader, LargeButton, Card } from '../components/UI'
 import { useAccessibility } from '../hooks/useAccessibility'
-import { getBlocosMissa } from '../services/missa'
-import FormattedContent from '../components/FormattedContent'
+import { getMissaAtual } from '../services/missa'
 import BlocoRenderer from '../components/blocos/BlocoRenderer'
 import { ChevronLeft, ChevronRight, List as ListIcon, X, Check } from 'lucide-react'
-import type { BlocoLiturgico } from '../types/missa'
-import type { BlocoLiturgicoNovo } from '../types/missa.nova'
 
 interface Props {
   onBack: () => void
@@ -16,26 +13,22 @@ interface Props {
 }
 
 export const ReadingScreen = ({ onBack, onFinish, missaId }: Props) => {
-  const [blocos, setBlocos] = useState<BlocoLiturgico[]>([])
+  const [blocos, setBlocos] = useState<any[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showIndex, setShowIndex] = useState(false)
   const [loading, setLoading] = useState(true)
   const contentRef = useRef<HTMLDivElement>(null)
   const { prefs } = useAccessibility()
 
-  const fontSizeClass = 
-    prefs.fontSize === 'small' ? 'text-base' :
-    prefs.fontSize === 'medium' ? 'text-lg' :
-    prefs.fontSize === 'large' ? 'text-xl' :
-    'text-2xl'
-
   useEffect(() => {
-    if (!missaId) return
-    getBlocosMissa(missaId)
-      .then(data => setBlocos(data.filter(b => b.visivel)))
-      .catch(() => setBlocos([]))
+    getMissaAtual()
+      .then(missa => setBlocos(missa.blocos || []))
+      .catch(err => {
+        console.error('Erro ao carregar missa:', err)
+        setBlocos([])
+      })
       .finally(() => setLoading(false))
-  }, [missaId])
+  }, [])
 
   const currentBlock = blocos[currentIndex]
   const isLastBlock = currentIndex === blocos.length - 1
@@ -120,7 +113,7 @@ export const ReadingScreen = ({ onBack, onFinish, missaId }: Props) => {
                 </div>
 
                 <Card className="shadow-sm border-brand-gray dark:border-slate-800">
-                  <BlocoRenderer bloco={currentBlock as unknown as BlocoLiturgicoNovo} />
+                  <BlocoRenderer bloco={currentBlock} />
                 </Card>
               </motion.div>
             </AnimatePresence>
