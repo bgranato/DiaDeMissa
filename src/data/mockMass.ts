@@ -3,67 +3,67 @@ import { Mass, UserReminder, HistoryItem } from '../types/mass';
 export const MOCK_MASS: Mass = {
   id: '2026-05-10-mass',
   data: "2026-05-10",
-  celebracao: "5º Domingo da Páscoa",
+  celebracao: "6º Domingo da Páscoa",
   tempo_liturgico: "Páscoa",
-  resumo: "Jesus apresenta-se como a videira verdadeira e nós somos os ramos. Permanecer nele é essencial para dar frutos.",
+  resumo: "Jesus nos convida a permanecer no seu amor. Amar uns aos outros como Ele nos amou é a alegria plena que o Senhor nos oferece.",
   blocos: [
     {
       ordem: 1,
       tipo: "canto_entrada",
       titulo: "Canto de Entrada",
-      conteudo: "Cristo ressuscitou, Aleluia! Venceu a morte com amor, Aleluia! \n\nO Senhor é nossa luz e nossa salvação. A quem temerei? O Senhor é o protetor de minha vida. De quem terei medo? \n\nQuando os malvados me atacam para me devorar, meus inimigos e adversários é que tropeçam e caem."
+      conteudo: "Cantai ao Senhor um cântico novo, Aleluia! Pois ele fez maravilhas, Aleluia! \n\nAnunciai com brado de alegria, fazei que se ouça, anunciai até os confins da terra: o Senhor libertou o seu povo. Aleluia! \n\nVinde, exultemos de alegria no Senhor, aclamemos o Rock da nossa salvação! Vamos à sua presença com hinos de louvor."
     },
     {
       ordem: 2,
       tipo: "ato_penitencial",
       titulo: "Ato Penitencial",
-      conteudo: "Senhor, que subistes ao céu para nos preparar um lugar, tende piedade de nós. \n\nSenhor, tende piedade de nós. \n\nCristo, que estais à direita do Pai para interceder por nós, tende piedade de nós. \n\nCristo, tende piedade de nós."
+      conteudo: "Senhor, que viestes procurar quem estava perdido, tende piedade de nós. \n\nSenhor, tende piedade de nós. \n\nCristo, que destes a vida para reunir os filhos de Deus dispersos, tende piedade de nós. \n\nCristo, tende piedade de nós. \n\nSenhor, que intercedeis por nós junto do Pai, tende piedade de nós. \n\nSenhor, tende piedade de nós."
     },
     {
       ordem: 3,
       tipo: "oracao_dia",
       titulo: "Oração do Dia",
-      conteudo: "Ó Deus, que pela humilhação do vosso Filho levantastes o mundo decaído, dai aos vossos fiéis uma santa alegria, para que aqueles que libertastes da escravidão do pecado desfrutem da felicidade eterna. Por nosso Senhor Jesus Cristo, vosso Filho, na unidade do Espírito Santo."
+      conteudo: "Deus onipotente, dai-nos celebrar com fervor estes dias de alegria em honra do Senhor ressuscitado, para que a nossa vida manifeste sempre o mistério que celebramos. Por nosso Senhor Jesus Cristo, vosso Filho, na unidade do Espírito Santo."
     },
     {
       ordem: 4,
       tipo: "primeira_leitura",
       titulo: "Primeira Leitura",
-      referencia: "At 13,14.43-52",
-      conteudo: "Naqueles dias, Paulo e Barnabé, partindo de Perge, chegaram a Antioquia da Pisídia. No sábado, entraram na sinagoga e sentaram-se. \n\nMuitos judeus e prosélitos piedosos seguiram Paulo e Barnabé. Estes conversavam com eles, exortando-os a permanecerem fiéis à graça de Deus. No sábado seguinte, quase toda a cidade se reuniu para ouvir a palavra do Senhor."
+      referencia: "At 10, 25-26. 34-35. 44-48",
+      conteudo: "Quando Pedro estava para entrar, Cornélio saiu à sua frente, caiu a seus pés e prostrou-se. Mas Pedro levantou-o, dizendo: 'Levanta-te, eu também sou apenas um homem'. \n\nPedro tomou a palavra e disse: 'De fato, estou compreendendo que Deus não faz distinção entre as pessoas. Pelo contrário, ele aceita quem o teme e pratica a justiça, qualquer que seja a nação a que pertença'. \n\nPedro ainda estava falando, quando o Espírito Santo desceu sobre todos os que ouviam a palavra."
     },
     {
       ordem: 5,
       tipo: "salmo_responsorial",
       titulo: "Salmo Responsorial",
-      referencia: "Sl 99(100)",
-      conteudo: "R. Sabei que o Senhor, só ele, é Deus, nós somos o seu povo e seu rebanho.\n\nAclamai o Senhor, ó terra inteira, servi ao Senhor com alegria, ide a ele com cantos de júbilo.\n\nSabei que o Senhor, só ele, é Deus, ele nos fez e a ele pertencemos, somos o seu povo e ovelhas de seu pasto."
+      referencia: "Sl 97(98)",
+      conteudo: "R. O Senhor fez conhecer a sua salvação e às nações revelou sua justiça.\n\nCantai ao Senhor um cântico novo, porque ele fez prodígios. Sua mão e seu braço santo alcançaram-lhe a vitória.\n\nO Senhor fez conhecer a sua salvação, revelou sua justiça às nações. Recordou-se da sua bondade e fidelidade em favor da casa de Israel."
     },
     {
       ordem: 6,
       tipo: "segunda_leitura",
       titulo: "Segunda Leitura",
-      referencia: "Ap 7,9.14b-17",
-      conteudo: "Eu, João, vi uma multidão imensa, que ninguém podia contar, de todas as nações, tribos, povos e línguas. Estavam de pé diante do trono e diante do Cordeiro, trajados com vestes brancas e com palmas na mão."
+      referencia: "1Jo 4, 7-10",
+      conteudo: "Caríssimos, amemo-nos uns aos outros, porque o amor vem de Deus e todo aquele que ama nasceu de Deus e conhece a Deus. Quem não ama não chegou a conhecer a Deus, pois Deus é amor. \n\nFoi assim que se manifestou o amor de Deus para conosco: Deus enviou o seu Filho único ao mundo, para que por ele tenhamos a vida."
     },
     {
       ordem: 7,
       tipo: "evangelho",
       titulo: "Evangelho",
-      referencia: "Jo 10,27-30",
-      conteudo: "Naquele tempo, disse Jesus: 'As minhas ovelhas escutam a minha voz, eu as conheço e elas me seguem. Eu dou-lhes a vida eterna e elas jamais se perderão. Ninguém as vai arrancar da minha mão. \n\nMeu Pai, que mas deu, é maior do que todos; e ninguém as pode arrancar da mão do meu Pai. Eu e o Pai somos um'."
+      referencia: "Jo 15, 9-17",
+      conteudo: "Naquele tempo, disse Jesus aos seus discípulos: 'Como meu Pai me amou, assim também eu vos amei. Permanecei no meu amor. Se guardardes os meus mandamentos, permanecereis no meu amor, assim como eu guardei os mandamentos de meu Pai e permaneço no seu amor. \n\nEu vos disse isto, para que a minha alegria esteja em vós e a vossa alegria seja plena. Este é o meu mandamento: amai-vos uns aos outros, assim como eu vos amei'."
     },
     {
       ordem: 8,
       tipo: "comunhao",
       titulo: "Comunhão",
-      conteudo: "Eu sou o pão vivo descido do céu; quem comer deste pão viverá eternamente. O pão que eu darei é a minha carne para a vida do mundo. \n\nPermanecei em mim e eu permanecerei em vós, diz o Senhor; quem permanece em mim dá muito fruto."
+      conteudo: "Se vós me amais, guardareis os meus mandamentos, diz o Senhor. E eu rogarei ao Pai e ele vos dará um outro Defensor, para que permaneça sempre convosco. Aleluia! \n\nNinguém tem maior amor do que aquele que dá a vida pelos seus amigos. Vós sois meus amigos, se fizerdes o que eu vos mando."
     },
     {
       ordem: 9,
       tipo: "bencao_final",
       titulo: "Bênção Final",
-      conteudo: "O Senhor esteja convosco. \nEle está no meio de nós. \n\nAbençoe-vos Deus todo-poderoso, Pai e Filho e Espírito Santo. \nAmém. \n\nIde em paz e o Senhor vos acompanhe. \nGraças a Deus."
+      conteudo: "O Senhor esteja convosco. \nEle está no meio de nós. \n\nAbençoe-vos Deus todo-poderoso, Pai e Filho e Espírito Santo. \nAmém. \n\nIde em paz e o Senhor vos acompanhe. Aleluia, Aleluia! \nGraças a Deus. Aleluia, Aleluia!"
     }
   ]
 };
