@@ -302,9 +302,11 @@ def estruturar(texto_limpo: str) -> Missa:
         if "saudação" in linha_lower or "saudacao" in linha_lower:
             ordem += 1
             turnos = []
+            blocos_linhas = [linha]
             i += 1
             while i < len(linhas):
                 prox = linhas[i]
+                blocos_linhas.append(prox)
                 pl = prox.lower()
                 if any(p in pl for p in ["ato penitencial", "antífona da entrada",
                         "hino de louvor", "glória", "coleta", "primeira leitura",
@@ -321,7 +323,8 @@ def estruturar(texto_limpo: str) -> Missa:
                 elif turnos:
                     turnos[-1]["texto"] += " " + prox
                 i += 1
-            blocos.append(Dialogo(ordem=ordem, titulo="Saudação", postura="de_pe",
+            postura_saudacao = extrair_postura(blocos_linhas) or "de_pe"
+            blocos.append(Dialogo(ordem=ordem, titulo="Saudação", postura=postura_saudacao,
                                    turnos=[Turno(**t) for t in turnos]))
             continue
 
