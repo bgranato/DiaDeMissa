@@ -49,6 +49,36 @@ def remover_marcacao_postura(texto: str) -> str:
     ).strip()
 
 
+def _extrair_referencia(texto: str) -> tuple[str, Optional[str]]:
+    m = re.search(r"\(([A-Z][a-záéíóú]+[\s\d,;.-]+)\)", texto)
+    if m:
+        ref = m.group(1).strip()
+        texto = texto.replace(m.group(0), "").strip()
+        return texto, ref
+    return texto, None
+
+
+def _extrair_versiculos(texto: str) -> list:
+    """Extrai versículos numerados do texto (ex: '1No meu primeiro' -> numero=1, texto='No meu primeiro')."""
+    versiculos = []
+    partes = re.split(r"(\d+)", texto)
+    i = 0
+    while i < len(partes):
+        if partes[i].isdigit():
+            num = int(partes[i])
+            i += 1
+            conteudo = ""
+            while i < len(partes) and not partes[i].isdigit():
+                conteudo += partes[i]
+                i += 1
+            conteudo = re.sub(r"^[\.\s]+", "", conteudo).strip()
+            if conteudo:
+                versiculos.append({"numero": num, "texto": conteudo})
+        else:
+            i += 1
+    return versiculos
+
+
 def extrair_creditos(texto: str) -> dict:
     match = re.search(r"Entrada:\s*(.+?)(?=\n\n|Ritos Iniciais|\Z)", texto, re.DOTALL)
     if not match:
@@ -97,6 +127,60 @@ def estruturar(texto_limpo: str) -> Missa:
             continue
         if any(p in linha for p in ["Entrada:", "Ofertas:", "Comunhão:", "Final:", "Neste Domingo"]):
             i += 1
+            continue
+
+        # Primeira Leitura / Segunda Leitura
+        if any(p in linha_lower for p in ["primeira leitura", "segunda leitura"]):
+            ordem += 1
+            titulo = linha
+            _, ref = _extrair_referencia(linha)
+            postura = "sentado"
+            i += 1
+            if i < len(linhas) and re.match(r"^\([A-Z]", linhas[i]):
+                _, ref2 = _extrair_referencia(linhas[i])
+                if ref2: ref = ref2
+                i += 1
+            todas = []
+            while i < len(linhas):
+                pl = linhas[i].lower()
+                if any(p in pl for p in ["salmo responsorial", "aclamação ao evangelho",
+                        "aclamacao ao evangelho", "evangelho", "homilia",
+                        "profissão de fé", "profissao de fe",
+                        "segunda leitura"]):
+                    break
+                todas.append(linhas[i])
+                i += 1
+            introducao = ""
+            resposta = ""
+            conclusao = ""
+            linhas_texto = []
+            for j, l in enumerate(todas):
+                ll = l.strip()
+                if j == 0 and ll and not ll[0].isdigit() and not ll.startswith("("):
+                    introducao = ll
+                elif ll.rstrip(".").lower().endswith("senhor"):
+                    partes_pos = " ".join(todas[j:])
+                    if "graças" in partes_pos.lower():
+                        for x in todas[j:]:
+                            if "graças" in x.lower():
+                                resposta = x
+                                break
+                        conclusao = todas[j]
+                    else:
+                        conclusao = todas[j]
+                    break
+                else:
+                    linhas_texto.append(ll)
+            linhas_texto = [l for l in linhas_texto if l and not l.startswith("(")]
+            texto = re.sub(r"\s+", " ", " ".join(linhas_texto)).strip()
+            versiculos = _extrair_versiculos(texto)
+            if not versiculos:
+                versiculos = []
+            cat = "primeira_leitura" if "primeira" in linha_lower else "segunda_leitura"
+            blocos.append(Leitura(ordem=ordem, categoria=cat, titulo=re.sub(r"^\d+\.\s*", "", titulo).strip(),
+                                   referencia=ref or "", postura=postura, introducao=introducao,
+                                   versiculos=versiculos,
+                                   conclusao=conclusao or None, resposta=resposta or None))
             continue
 
         # Canto de Entrada
@@ -173,6 +257,30 @@ def estruturar(texto_limpo: str) -> Missa:
             texto_ant = re.sub(r"^\s*\([^)]+\)\s*", "", texto_ant)
             blocos.append(Antifona(ordem=ordem, titulo="Antífona da Entrada",
                                     referencia=referencia, texto=texto_ant))
+            continue
+
+        # Ato Penitencial
+        if "ato penitencial" in linha_lower:
+            ordem += 1
+            turnos = []
+            i += 1
+            while i < len(linhas):
+                prox = linhas[i]
+                pl = prox.lower()
+                if any(p in pl for p in ["hino de louvor", "glória", "coleta", "primeira leitura"]):
+                    break
+                if prox.startswith("(") and prox.endswith(")"):
+                    turnos.append({"falante": "rubrica", "texto": prox.strip("()")})
+                    i += 1
+                    continue
+                falante = re.match(r"^([PTLVR])\.\s*(.*)", prox)
+                if falante:
+                    turnos.append({"falante": falante.group(1), "texto": falante.group(2).strip()})
+                elif turnos:
+                    turnos[-1]["texto"] += " " + prox
+                i += 1
+            blocos.append(Dialogo(ordem=ordem, titulo="Ato Penitencial", postura=None,
+                                   turnos=[Turno(**t) for t in turnos]))
             continue
 
         # Saudação

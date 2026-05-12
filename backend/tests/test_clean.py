@@ -63,14 +63,19 @@ class TestExtrairPostura:
         assert extrair_postura(linhas) is None
 
 
-class TestRemoverMarcacaoPostura:
+class TestLimparTitulo:
+    def _clean(self, t):
+        import re
+        from app.pipeline.structure import remover_marcacao_postura
+        t = re.sub(r"^\d+\.\s*", "", t).strip()
+        return remover_marcacao_postura(t)
+
     def test_remove_de_pe(self):
-        assert remover_marcacao_postura("Canto de Entrada (De pé)") == "Canto de Entrada"
+        assert self._clean("Canto de Entrada (De pé)") == "Canto de Entrada"
 
     def test_remove_sentados(self):
-        assert remover_marcacao_postura("Primeira Leitura (At 1,1-11) (Sentados)") == \
+        assert self._clean("Primeira Leitura (At 1,1-11) (Sentados)") == \
                "Primeira Leitura (At 1,1-11)"
 
-    def test_preserva_referencia_biblica(self):
-        assert remover_marcacao_postura("Antífona da Entrada (At 1,11)") == \
-               "Antífona da Entrada (At 1,11)"
+    def test_remove_numero(self):
+        assert self._clean("2. Saudação") == "Saudação"

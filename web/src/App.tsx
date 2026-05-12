@@ -26,7 +26,7 @@ export default function App() {
 
   useEffect(() => {
     if (!estaCarregando) {
-      setScreen('home')
+      setScreen('canto')
       carregarMissa()
     }
   }, [estaCarregando])

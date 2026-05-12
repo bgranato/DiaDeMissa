@@ -16,6 +16,7 @@
 | 2026-05-12 17:30 | 06 | Fase A | ✅ | [gate-06-fase-a](2026-05-12_17h30_gate-06-fase-a.md) |
 | 2026-05-12 20:30 | Mini-7 | único | ✅ | [mini-gate-7-canto](2026-05-12_20h30_mini-gate-7-canto-renderizado.md) |
 | 2026-05-12 21:30 | Debug | postura | 🔍 | [debug-postura](2026-05-12_21h30_debug-postura.md) |
+| 2026-05-12 22:00 | Postura | conserto | ✅ | [postura-consertada](2026-05-12_22h00_postura-consertada.md) |
 
 ## Bloqueios ativos
 
