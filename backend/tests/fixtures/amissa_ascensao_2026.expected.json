@@ -1,0 +1,86 @@
+{
+  "data": "2026-05-17",
+  "ano_liturgico": "A",
+  "titulo_celebracao": "Ascensão do Senhor",
+  "categoria": "Solenidade",
+  "observacoes": "60º Dia Mundial das Comunicações Sociais. Ano Jubilar Arquidiocesano.",
+  "creditos_cantos": {
+    "entrada": "José Alves",
+    "ofertas": "D.R.",
+    "comunhao": "Pe. José Weber",
+    "final": "Antífona Mariana / Liturgia das Horas"
+  },
+  "palavra_do_dia": {
+    "texto": "Eis que estou convosco todos os dias, até o fim do mundo.",
+    "referencia": "Mt 28,20"
+  },
+  "blocos": [
+    {
+      "tipo": "canto",
+      "ordem": 1,
+      "titulo": "Canto de Entrada",
+      "postura": "de_pe",
+      "refrao": [
+        "O Senhor foi preparar",
+        "um lugar para nós no céu."
+      ],
+      "estrofes": [
+        ["Ó varões galileus, que estais no céu a olhar? Aleluia!", "O Jesus que subiu ao céu deve, depois voltar! Aleluia!"],
+        ["Entre cantos e hinos triunfais se eleva o Senhor! Aleluia!", "Cante a terra e o mar também: Cristo é vencedor! Aleluia!"],
+        ["Glorioso, à direita do Pai, sentou-se Jesus! Aleluia!", "Que nos foi preparar no céu, reino de eterna luz! Aleluia!"],
+        ["Ó Jesus, nosso Rei e Senhor, que subis para o céu! Aleluia!", "Não deixeis os cristãos a sós: dai-nos o dom de Deus! Aleluia!"]
+      ]
+    },
+    {
+      "tipo": "dialogo",
+      "ordem": 2,
+      "titulo": "Saudação",
+      "postura": "de_pe",
+      "turnos": [
+        {"falante": "P", "texto": "Em nome do Pai e do Filho e do Espírito Santo."},
+        {"falante": "T", "texto": "Amém."},
+        {"falante": "P", "texto": "A graça e a paz daquele que é, que era e que vem, estejam convosco."},
+        {"falante": "T", "texto": "Bendito seja Deus, que nos reuniu no amor de Cristo."}
+      ]
+    },
+    {
+      "tipo": "antifona",
+      "ordem": 3,
+      "titulo": "Antífona da Entrada",
+      "referencia": "At 1,11",
+      "texto": "Homens da Galileia, por que ficais aqui, parados, olhando para o céu? Esse Jesus virá do mesmo modo como o vistes partir para o céu, aleluia."
+    },
+    {
+      "tipo": "dialogo",
+      "ordem": 4,
+      "titulo": "Ato Penitencial",
+      "turnos": [
+        {"falante": "P", "texto": "Irmãos e irmãs, reconheçamos os nossos pecados, para celebrarmos dignamente os santos mistérios."},
+        {"falante": "rubrica", "texto": "Momento de silêncio."},
+        {"falante": "P", "texto": "Senhor, que subindo ao céu vos tornastes Rei do universo e Senhor dos séculos, tende piedade de nós."},
+        {"falante": "T", "texto": "Senhor, tende piedade de nós."},
+        {"falante": "P", "texto": "Cristo, que na vossa ascensão levastes cativo o cativeiro, tende piedade de nós."},
+        {"falante": "T", "texto": "Cristo, tende piedade de nós."},
+        {"falante": "P", "texto": "Senhor, que voltando à casa do Pai abristes o céu para nós, tende piedade de nós."},
+        {"falante": "T", "texto": "Senhor, tende piedade de nós."},
+        {"falante": "P", "texto": "Deus todo-poderoso tenha compaixão de nós, perdoe os nossos pecados e nos conduza à vida eterna."},
+        {"falante": "T", "texto": "Amém."}
+      ]
+    },
+    {
+      "tipo": "leitura",
+      "ordem": 7,
+      "categoria": "primeira_leitura",
+      "titulo": "Primeira Leitura",
+      "referencia": "At 1,1-11",
+      "postura": "sentado",
+      "introducao": "Leitura dos Atos dos Apóstolos.",
+      "versiculos": [
+        {"numero": 1, "texto": "No meu primeiro livro, ó Teófilo, já tratei de tudo o que Jesus fez e ensinou, desde o começo,"},
+        {"numero": 2, "texto": "até ao dia em que foi levado para o céu, depois de ter dado instruções pelo Espírito Santo, aos apóstolos que tinha escolhido."}
+      ],
+      "conclusao": "Palavra do Senhor.",
+      "resposta": "Graças a Deus."
+    }
+  ]
+}

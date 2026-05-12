@@ -1,0 +1,63 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Merriweather:ital,wght@0,400;0,700;0,900;1,400&display=swap');
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Merriweather", ui-serif, Georgia, serif;
+  --color-brand-gold: #B48A00;
+  --color-brand-blue: #0F2A4A;
+  --color-brand-bg: #F8F9FA;
+  --color-brand-white: #FFFFFF;
+  --color-brand-text: #111827;
+  --color-brand-gray: #D1D5DB;
+  --color-brand-gray-dark: #374151;
+  --color-brand-slate: #4B5563;
+  --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-strong: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+body {
+  background-color: var(--color-brand-bg);
+  color: var(--color-brand-text);
+  font-family: var(--font-sans);
+  transition: background-color 0.3s, color 0.3s;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.dark body {
+  background-color: #0B121E;
+  color: #F3F4F6;
+}
+
+.dark .text-brand-blue { color: var(--color-brand-gold); }
+.dark .bg-brand-white { background-color: #1e293b; }
+
+.high-contrast body {
+  background-color: #000000;
+  color: #FFFF00;
+}
+
+.high-contrast .bg-brand-white,
+.high-contrast .bg-brand-bg,
+.high-contrast .bg-white {
+  background-color: #000000 !important;
+  color: #FFFF00 !important;
+  border: 2px solid #FFFF00 !important;
+}
+
+.high-contrast button:not(.btn-no-hc) {
+  background-color: #FFFF00 !important;
+  color: #000000 !important;
+  font-weight: 900;
+}
+
+.high-contrast .text-brand-gold,
+.high-contrast .text-brand-blue,
+.high-contrast .text-brand-text {
+  color: #FFFF00 !important;
+}
+
+#root { min-height: 100vh; display: flex; flex-direction: column; }
+
+button, a { -webkit-tap-highlight-color: transparent; }
