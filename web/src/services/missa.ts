@@ -3,8 +3,18 @@ import type { Missa, BlocoLiturgico, MissaCompleta } from '../types/missa'
 import type { MissaNova, BlocoLiturgicoNovo } from '../types/missa.nova'
 
 export async function getMissaHoje(): Promise<Missa> {
-  const res = await api.get<Missa>('/missas/hoje')
-  return res.data
+  const res = await api.get('/missa/atual')
+  const m = res.data
+  return {
+    id: 1,
+    data: m.data || '',
+    celebracao: m.titulo_celebracao || '',
+    subtitulo: m.categoria ? `${m.categoria}${m.observacoes ? ' | ' + m.observacoes : ''}` : m.observacoes || null,
+    descricao: null,
+    tempo_liturgico: null,
+    status_processamento: 'concluido',
+    total_blocos: (m.blocos || []).length,
+  } as Missa
 }
 
 export async function getMissaHojeV2(): Promise<MissaNova> {
