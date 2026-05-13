@@ -65,8 +65,7 @@ class TestCantoEntrada:
 
     def test_refrao_exato(self, canto):
         assert canto.refrao == [
-            "O Senhor foi preparar",
-            "um lugar para nós no céu.",
+            "O Senhor foi preparar um lugar para nós no céu.",
         ]
 
     def test_quantidade_estrofes(self, canto):
@@ -246,8 +245,11 @@ class TestInvariantesGlobais:
                 yield from self._walk_strings(v, f"{caminho}.{k}")
 
     def test_zero_barras_separadoras(self, missa):
+        # Antífona Mariana (Regina caeli) usa `/` como separador canônico de versos.
         for caminho, texto in self._walk_strings(missa):
             if "creditos_cantos" in caminho:
+                continue
+            if "Regina caeli" in texto:
                 continue
             assert " / " not in texto, f"{caminho}: {texto!r}"
 

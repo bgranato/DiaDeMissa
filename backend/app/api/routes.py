@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -13,6 +13,7 @@ from app.core.security import (
     criar_access_token,
     gerar_hash_senha,
     obter_usuario_atual,
+    obter_usuario_admin,
     verificar_senha,
 )
 from app.models.usuario import Usuario, PreferenciaUsuario, HistoricoUsuario, Lembrete
@@ -20,6 +21,7 @@ from app.models.missa import Missa, BlocoLiturgico
 from app.schemas.usuario import (
     UsuarioCreate, UsuarioResponse, UsuarioUpdate,
     LoginRequest, LoginGoogleRequest, LoginResponse,
+    RecuperarSenhaRequest, RedefinirSenhaRequest, AlterarSenhaRequest,
     PreferenciasResponse, PreferenciasUpdate,
     HistoricoResponse, HistoricoCreate,
     LembreteCreate, LembreteResponse, LembreteUpdate, LembreteBroadcast,
@@ -28,11 +30,9 @@ from app.schemas.missa import (
     BlocoResponse, MissaResponse, MissaCompletaResponse,
 )
 from app.services.mass_processor import processar_missa
-from pathlib import Path
 from app.pipeline import processar_pdf
 
 router = APIRouter()
-PDF_PADRAO = Path(__file__).resolve().parent.parent.parent / "tests" / "fixtures" / "amissa_ascensao_2026.pdf"
 
 
 @router.get("/health")
@@ -40,15 +40,34 @@ def health_check():
     return {"status": "ok", "version": settings.APP_VERSION, "app": settings.APP_NAME}
 
 
-@router.get("/missa/atual")
-def missa_atual():
+from pathlib import Path
+from app.services.persist_missa import reconstruir_missa
+PDF_FIXTURE = Path(__file__).resolve().parent.parent.parent / "tests" / "fixtures" / "amissa_ascensao_2026.pdf"
+
+_fixture_cache = None
+
+def _carregar_fixture():
+    global _fixture_cache
     try:
-        from app.pipeline import processar_pdf as pp
-        missa = pp(PDF_PADRAO)
-        return missa.model_dump()
+        _fixture_cache = processar_pdf(PDF_FIXTURE).model_dump()
     except Exception as e:
-        import traceback
-        raise HTTPException(status_code=500, detail=f"ERRO: {type(e).__name__}: {e}\n{traceback.format_exc()}")
+        print(f"Erro ao carregar fixture: {e}")
+
+# Fallback fixture para quando o BD ainda não tem a missa do dia
+_carregar_fixture()
+
+
+@router.get("/missa/atual")
+def missa_atual(db: Session = Depends(get_db)):
+    hoje = date.today()
+    missa_db = db.query(Missa).filter(Missa.data == hoje).first()
+    if missa_db and missa_db.status_processamento == "concluido" and missa_db.blocos:
+        return reconstruir_missa(missa_db)
+    # Fallback: enquanto o pipeline diário não tiver populado a missa do dia,
+    # devolve a fixture (Ascensão 2026) para o frontend não quebrar
+    if _fixture_cache is None:
+        raise HTTPException(status_code=503, detail="Missa do dia indisponível")
+    return _fixture_cache
 
 
 @router.get("/missas/hoje", response_model=MissaResponse)
@@ -117,6 +136,32 @@ def processar_pdf(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Erro no processamento: {str(e)}")
 
 
+@router.post("/admin/pipeline/executar")
+def executar_pipeline_manual(
+    forcar: bool = False,
+    admin: Usuario = Depends(obter_usuario_admin),
+):
+    """Dispara manualmente o pipeline diário (download + parse + persist).
+
+    Use `?forcar=true` para reprocessar mesmo que o hash do PDF não tenha mudado.
+    Esse endpoint existe pra desenvolvimento e operações; o cron de 5h da manhã
+    chama a mesma função automaticamente.
+    """
+    from app.services.daily_pipeline import executar_pipeline_diario
+    return executar_pipeline_diario(forcar=forcar)
+
+
+@router.post("/admin/lembretes/disparar-nao-acompanhada")
+def disparar_notif_nao_acompanhada(admin: Usuario = Depends(obter_usuario_admin)):
+    """Dispara manualmente a geração de lembretes 'você não acompanhou a missa de ontem'.
+
+    O cron noturno (22h America/Sao_Paulo) chama isso automaticamente. Este endpoint
+    é pra desenvolvimento e operações.
+    """
+    from app.services.notif_nao_acompanhou import gerar_notificacoes_nao_acompanhada
+    return gerar_notificacoes_nao_acompanhada()
+
+
 @router.post("/usuarios", response_model=UsuarioResponse, status_code=201)
 def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db)):
     existente = db.query(Usuario).filter(Usuario.email == dados.email).first()
@@ -125,6 +170,8 @@ def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db)):
     usuario = Usuario(
         nome=dados.nome,
         email=dados.email,
+        celular=dados.celular,
+        igreja=dados.igreja,
         senha_hash=gerar_hash_senha(dados.senha),
         provider="email",
     )
@@ -141,11 +188,53 @@ def login(dados: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Email ou senha inválidos")
     if not verificar_senha(dados.senha, usuario.senha_hash):
         raise HTTPException(status_code=401, detail="Email ou senha inválidos")
-    token = criar_access_token({"sub": usuario.id})
+    token = criar_access_token({"sub": str(usuario.id)})
     return LoginResponse(
         access_token=token,
         usuario=UsuarioResponse.model_validate(usuario),
     )
+
+
+@router.post("/auth/recuperar-senha", status_code=200)
+def recuperar_senha(dados: RecuperarSenhaRequest, db: Session = Depends(get_db)):
+    """Gera um token de recuperação e envia link por e-mail.
+
+    Sempre retorna sucesso (mesmo quando o email não existe) pra não vazar
+    informação sobre quais e-mails estão cadastrados.
+    """
+    import secrets
+    from app.services.email_sender import enviar_email_recuperacao
+
+    usuario = db.query(Usuario).filter(Usuario.email == dados.email).first()
+    if usuario:
+        token = secrets.token_urlsafe(32)
+        usuario.reset_token = token
+        usuario.reset_token_expira = datetime.now(timezone.utc) + timedelta(hours=1)
+        db.commit()
+        link = f"{settings.APP_BASE_URL}/redefinir-senha?token={token}"
+        enviar_email_recuperacao(usuario.email, usuario.nome, link)
+    return {"message": "Se o e-mail estiver cadastrado, enviaremos as instruções"}
+
+
+@router.post("/auth/redefinir-senha", status_code=200)
+def redefinir_senha(dados: RedefinirSenhaRequest, db: Session = Depends(get_db)):
+    usuario = db.query(Usuario).filter(Usuario.reset_token == dados.token).first()
+    if not usuario:
+        raise HTTPException(status_code=400, detail="Token inválido")
+    if not usuario.reset_token_expira:
+        raise HTTPException(status_code=400, detail="Token inválido")
+    expira = usuario.reset_token_expira
+    if expira.tzinfo is None:
+        expira = expira.replace(tzinfo=timezone.utc)
+    if expira < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Token expirado")
+    if len(dados.nova_senha) < 4:
+        raise HTTPException(status_code=400, detail="Senha muito curta")
+    usuario.senha_hash = gerar_hash_senha(dados.nova_senha)
+    usuario.reset_token = None
+    usuario.reset_token_expira = None
+    db.commit()
+    return {"message": "Senha redefinida com sucesso"}
 
 
 @router.post("/auth/google", response_model=LoginResponse)
@@ -189,25 +278,62 @@ def atualizar_usuario(dados: UsuarioUpdate, usuario: Usuario = Depends(obter_usu
         if existente:
             raise HTTPException(status_code=409, detail="Email já cadastrado")
         usuario.email = dados.email
+    if dados.celular is not None:
+        usuario.celular = dados.celular
+    if dados.igreja is not None:
+        usuario.igreja = dados.igreja
     db.commit()
     db.refresh(usuario)
     return usuario
 
 
+@router.post("/usuarios/me/alterar-senha", status_code=200)
+def alterar_senha(
+    dados: AlterarSenhaRequest,
+    usuario: Usuario = Depends(obter_usuario_atual),
+    db: Session = Depends(get_db),
+):
+    if not usuario.senha_hash:
+        raise HTTPException(status_code=400, detail="Conta sem senha local (login via Google)")
+    if not verificar_senha(dados.senha_atual, usuario.senha_hash):
+        raise HTTPException(status_code=400, detail="Senha atual incorreta")
+    if len(dados.nova_senha) < 4:
+        raise HTTPException(status_code=400, detail="Nova senha muito curta")
+    usuario.senha_hash = gerar_hash_senha(dados.nova_senha)
+    db.commit()
+    return {"message": "Senha alterada com sucesso"}
+
+
 @router.get("/usuarios/me/historico", response_model=list[HistoricoResponse])
 def get_historico(usuario: Usuario = Depends(obter_usuario_atual), db: Session = Depends(get_db)):
     registros = (
-        db.query(HistoricoUsuario, Missa)
-        .join(Missa, HistoricoUsuario.missa_id == Missa.id)
-        .filter(HistoricoUsuario.usuario_id == usuario.id)
-        .order_by(desc(HistoricoUsuario.data_ultimo_acesso))
+        db.query(Missa, HistoricoUsuario)
+        .outerjoin(
+            HistoricoUsuario,
+            (HistoricoUsuario.missa_id == Missa.id) & (HistoricoUsuario.usuario_id == usuario.id),
+        )
+        .order_by(desc(Missa.data))
         .all()
     )
+
+    def _status(h: Optional[HistoricoUsuario]) -> str:
+        if h is None:
+            return "nao_acompanhada"
+        if (h.percentual_lido or 0) >= 100:
+            return "concluida"
+        return "em_progresso"
+
     return [
         HistoricoResponse(
-            missa_id=h.missa_id, data=m.data.isoformat(), celebracao=m.celebracao,
-            ultimo_bloco_id=h.ultimo_bloco_id, percentual_lido=h.percentual_lido, data_ultimo_acesso=h.data_ultimo_acesso,
-        ) for h, m in registros
+            missa_id=m.id,
+            data=m.data.isoformat(),
+            celebracao=m.celebracao,
+            ultimo_bloco_id=h.ultimo_bloco_id if h else None,
+            percentual_lido=h.percentual_lido if h else 0.0,
+            data_ultimo_acesso=h.data_ultimo_acesso if h else None,
+            status=_status(h),
+        )
+        for m, h in registros
     ]
 
 
@@ -225,6 +351,24 @@ def salvar_progresso(dados: HistoricoCreate, usuario: Usuario = Depends(obter_us
         db.add(registro)
     db.commit()
     return {"message": "Progresso salvo"}
+
+
+@router.post("/usuarios/me/historico/{missa_id}/concluir", status_code=200)
+def concluir_missa(missa_id: int, usuario: Usuario = Depends(obter_usuario_atual), db: Session = Depends(get_db)):
+    missa = db.query(Missa).filter(Missa.id == missa_id).first()
+    if not missa:
+        raise HTTPException(status_code=404, detail="Missa não encontrada")
+    registro = db.query(HistoricoUsuario).filter(
+        HistoricoUsuario.usuario_id == usuario.id, HistoricoUsuario.missa_id == missa_id,
+    ).first()
+    if registro:
+        registro.percentual_lido = 100.0
+        registro.data_ultimo_acesso = datetime.now(timezone.utc)
+    else:
+        registro = HistoricoUsuario(usuario_id=usuario.id, missa_id=missa_id, percentual_lido=100.0)
+        db.add(registro)
+    db.commit()
+    return {"message": "Missa marcada como concluída", "status": "concluida"}
 
 
 @router.get("/usuarios/me/preferencias", response_model=PreferenciasResponse)
@@ -310,11 +454,25 @@ def deletar_lembrete(id: int, usuario: Usuario = Depends(obter_usuario_atual), d
 # ===== LEMBRETES MASTER/BROADCAST =====
 
 @router.post("/admin/lembretes/broadcast", status_code=201)
-def broadcast_lembrete(dados: LembreteBroadcast, db: Session = Depends(get_db)):
+def broadcast_lembrete(
+    dados: LembreteBroadcast,
+    admin: Usuario = Depends(obter_usuario_admin),
+    db: Session = Depends(get_db),
+):
+    """Envia um lembrete em massa para usuários segmentados.
+
+    Filtros (combinam com AND):
+    - `usuario_id`: envia só para esse usuário
+    - `igreja`: envia só para usuários daquela igreja
+    Sem filtros → envia pra todos.
+    """
+    query = db.query(Usuario)
     if dados.usuario_id:
-        usuarios = db.query(Usuario).filter(Usuario.id == dados.usuario_id).all()
-    else:
-        usuarios = db.query(Usuario).all()
+        query = query.filter(Usuario.id == dados.usuario_id)
+    if dados.igreja:
+        query = query.filter(Usuario.igreja == dados.igreja)
+    usuarios = query.all()
+    remetente = dados.remetente or "Missa do Dia"
     for u in usuarios:
         lembrete = Lembrete(
             usuario_id=u.id,
@@ -323,11 +481,37 @@ def broadcast_lembrete(dados: LembreteBroadcast, db: Session = Depends(get_db)):
             data_hora_alerta=dados.data_hora_alerta,
             minutos_antecedencia=dados.minutos_antecedencia,
             tipo="master",
-            remetente="Missa do Dia",
+            remetente=remetente,
         )
         db.add(lembrete)
     db.commit()
-    return {"message": f"Lembrete enviado para {len(usuarios)} usuário(s)"}
+    return {
+        "message": f"Lembrete enviado para {len(usuarios)} usuário(s)",
+        "destinatarios": len(usuarios),
+    }
+
+
+@router.get("/admin/igrejas", response_model=list[str])
+def listar_igrejas(
+    admin: Usuario = Depends(obter_usuario_admin),
+    db: Session = Depends(get_db),
+):
+    """Lista as igrejas distintas registradas (para segmentação no painel admin)."""
+    rows = db.query(Usuario.igreja).filter(Usuario.igreja.isnot(None)).distinct().all()
+    return sorted([r[0] for r in rows if r[0]])
+
+
+@router.get("/admin/usuarios/contagem")
+def contar_usuarios_admin(
+    igreja: Optional[str] = None,
+    admin: Usuario = Depends(obter_usuario_admin),
+    db: Session = Depends(get_db),
+):
+    """Retorna a contagem de usuários por filtro — útil pra prever o alcance de um broadcast."""
+    query = db.query(Usuario)
+    if igreja:
+        query = query.filter(Usuario.igreja == igreja)
+    return {"total": query.count(), "igreja": igreja}
 
 
 # ===== LEMBRETES PRÉ-DEFINIDOS (APP) =====

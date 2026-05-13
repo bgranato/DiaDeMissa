@@ -19,6 +19,14 @@ class Settings(BaseSettings):
     PDF_DOWNLOAD_TIMEOUT: int = 30
     PDF_CACHE_DIR: str = "data/pdfs"
 
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_FROM: Optional[str] = None
+
+    APP_BASE_URL: str = "http://localhost:3000"
+
     CORS_ORIGINS: list[str] = ["*"]
 
     class Config:

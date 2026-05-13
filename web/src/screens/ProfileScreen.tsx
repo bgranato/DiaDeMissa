@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
-import { AppHeader, LargeButton, Card } from '../components/UI'
-import { User, Bell, Palette, LogOut, Info, Monitor } from 'lucide-react'
+import { AppHeader, Card } from '../components/UI'
+import { User, Bell, LogOut, KeyRound } from 'lucide-react'
 import type { Usuario } from '../types/usuario'
 
 interface Props {
@@ -26,14 +26,19 @@ export const ProfileScreen = ({ setScreen, usuario, onLogout }: Props) => {
         </Card>
 
         <div className="flex flex-col gap-3 mt-4">
+          <button onClick={() => setScreen('meus-dados')} className="flex items-center gap-4 bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-soft border border-black/5 active:scale-[0.98] transition-transform">
+            <User size={24} className="text-brand-blue" />
+            <span className="font-bold flex-1 text-left">Meus dados</span>
+            <span className="text-brand-gray-dark/40">→</span>
+          </button>
+          <button onClick={() => setScreen('alterar-senha')} className="flex items-center gap-4 bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-soft border border-black/5 active:scale-[0.98] transition-transform">
+            <KeyRound size={24} className="text-brand-gold" />
+            <span className="font-bold flex-1 text-left">Alterar senha</span>
+            <span className="text-brand-gray-dark/40">→</span>
+          </button>
           <button onClick={() => setScreen('reminders')} className="flex items-center gap-4 bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-soft border border-black/5 active:scale-[0.98] transition-transform">
             <Bell size={24} className="text-brand-gold" />
             <span className="font-bold flex-1 text-left">Lembretes</span>
-            <span className="text-brand-gray-dark/40">→</span>
-          </button>
-          <button onClick={() => setScreen('design-system')} className="flex items-center gap-4 bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-soft border border-black/5 active:scale-[0.98] transition-transform">
-            <Palette size={24} className="text-brand-blue" />
-            <span className="font-bold flex-1 text-left">Design System</span>
             <span className="text-brand-gray-dark/40">→</span>
           </button>
 

@@ -7,6 +7,8 @@ from pydantic import BaseModel, EmailStr
 class UsuarioCreate(BaseModel):
     nome: str
     email: EmailStr
+    celular: Optional[str] = None
+    igreja: Optional[str] = None
     senha: str
 
 
@@ -14,6 +16,9 @@ class UsuarioResponse(BaseModel):
     id: int
     nome: str
     email: str
+    celular: Optional[str] = None
+    igreja: Optional[str] = None
+    is_admin: bool = False
     provider: str
     data_criacao: datetime
 
@@ -24,6 +29,8 @@ class UsuarioResponse(BaseModel):
 class UsuarioUpdate(BaseModel):
     nome: Optional[str] = None
     email: Optional[EmailStr] = None
+    celular: Optional[str] = None
+    igreja: Optional[str] = None
 
 
 class LoginRequest(BaseModel):
@@ -39,6 +46,20 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     usuario: UsuarioResponse
+
+
+class RecuperarSenhaRequest(BaseModel):
+    email: EmailStr
+
+
+class RedefinirSenhaRequest(BaseModel):
+    token: str
+    nova_senha: str
+
+
+class AlterarSenhaRequest(BaseModel):
+    senha_atual: str
+    nova_senha: str
 
 
 class PreferenciasResponse(BaseModel):
@@ -64,9 +85,10 @@ class HistoricoResponse(BaseModel):
     missa_id: int
     data: str
     celebracao: Optional[str]
-    ultimo_bloco_id: Optional[int]
-    percentual_lido: float
-    data_ultimo_acesso: datetime
+    ultimo_bloco_id: Optional[int] = None
+    percentual_lido: float = 0.0
+    data_ultimo_acesso: Optional[datetime] = None
+    status: str  # "concluida" | "em_progresso" | "nao_acompanhada"
 
     class Config:
         from_attributes = True
@@ -115,4 +137,6 @@ class LembreteBroadcast(BaseModel):
     nota: Optional[str] = None
     data_hora_alerta: datetime
     minutos_antecedencia: int = 30
-    usuario_id: Optional[int] = None  # None = todos
+    usuario_id: Optional[int] = None  # None = todos os usuários do segmento
+    igreja: Optional[str] = None  # filtra por igreja; None = qualquer
+    remetente: Optional[str] = None  # override do remetente exibido (default "Missa do Dia")

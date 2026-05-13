@@ -7,9 +7,27 @@ export async function login(email: string, senha: string): Promise<LoginResponse
   return res.data
 }
 
-export async function cadastrar(nome: string, email: string, senha: string): Promise<Usuario> {
-  const res = await api.post<Usuario>('/usuarios', { nome, email, senha })
+export async function cadastrar(
+  nome: string,
+  email: string,
+  senha: string,
+  celular?: string,
+  igreja?: string,
+): Promise<Usuario> {
+  const res = await api.post<Usuario>('/usuarios', { nome, email, senha, celular, igreja })
   return res.data
+}
+
+export async function recuperarSenha(email: string): Promise<void> {
+  await api.post('/auth/recuperar-senha', { email })
+}
+
+export async function redefinirSenha(token: string, nova_senha: string): Promise<void> {
+  await api.post('/auth/redefinir-senha', { token, nova_senha })
+}
+
+export async function alterarSenha(senha_atual: string, nova_senha: string): Promise<void> {
+  await api.post('/usuarios/me/alterar-senha', { senha_atual, nova_senha })
 }
 
 export async function loginGoogle(token: string): Promise<LoginResponse> {

@@ -12,6 +12,9 @@ import { ProfileScreen } from './screens/ProfileScreen'
 import { AuthScreens } from './screens/AuthScreens'
 import { SplashScreen } from './screens/SplashScreen'
 import { ConclusionScreen } from './screens/ConclusionScreen'
+import { DesignSystemScreen } from './screens/DesignSystemScreen'
+import { MeusDadosScreen } from './screens/MeusDadosScreen'
+import { AlterarSenhaScreen } from './screens/AlterarSenhaScreen'
 import { BottomNav } from './components/UI'
 import type { Missa } from './types/missa'
 
@@ -24,11 +27,14 @@ export default function App() {
   const usuarioNome = usuario?.nome || 'Fiel'
 
   useEffect(() => {
-    if (!estaCarregando) {
-      setScreen('home')
-      carregarMissa()
+    if (estaCarregando) return
+    if (!estaAutenticado) {
+      setScreen('login')
+      return
     }
-  }, [estaCarregando])
+    setScreen('home')
+    carregarMissa()
+  }, [estaCarregando, estaAutenticado])
 
   async function carregarMissa() {
     try {
@@ -65,9 +71,12 @@ export default function App() {
           )}
           {screen === 'profile' && <ProfileScreen setScreen={navigateTo} usuario={usuario} onLogout={logout} />}
           {screen === 'conclusion' && <ConclusionScreen setScreen={navigateTo} />}
+          {screen === 'design-system' && <DesignSystemScreen onBack={() => navigateTo('profile')} />}
+          {screen === 'meus-dados' && <MeusDadosScreen onBack={() => navigateTo('profile')} />}
+          {screen === 'alterar-senha' && <AlterarSenhaScreen onBack={() => navigateTo('profile')} />}
         </AnimatePresence>
 
-        {!['splash', 'login', 'reading', 'conclusion'].includes(screen) && (
+        {!['splash', 'login', 'reading', 'conclusion', 'design-system', 'meus-dados', 'alterar-senha'].includes(screen) && (
           <BottomNav currentScreen={screen} setScreen={navigateTo} />
         )}
       </div>

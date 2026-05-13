@@ -1,6 +1,5 @@
 import api from './api'
-import type { Missa, BlocoLiturgico, MissaCompleta } from '../types/missa'
-import type { MissaNova, BlocoLiturgicoNovo } from '../types/missa.nova'
+import type { Missa, PalavraDoDia } from '../types/missa'
 
 export async function getMissaHoje(): Promise<Missa> {
   const res = await api.get('/missa/atual')
@@ -10,16 +9,12 @@ export async function getMissaHoje(): Promise<Missa> {
     data: m.data || '',
     celebracao: m.titulo_celebracao || '',
     subtitulo: m.categoria ? `${m.categoria}${m.observacoes ? ' | ' + m.observacoes : ''}` : m.observacoes || null,
-    descricao: null,
+    descricao: m.descricao || 'Acompanhe a liturgia diária da Igreja. Medite as leituras, salmos e evangelho do dia.',
     tempo_liturgico: null,
     status_processamento: 'concluido',
     total_blocos: (m.blocos || []).length,
+    palavra_do_dia: m.palavra_do_dia as PalavraDoDia | null | undefined,
   } as Missa
-}
-
-export async function getMissaHojeV2(): Promise<MissaNova> {
-  const res = await api.get<MissaNova>('/api/v2/missas/hoje')
-  return res.data
 }
 
 export async function getMissaPorData(data: string): Promise<Missa> {
@@ -27,22 +22,23 @@ export async function getMissaPorData(data: string): Promise<Missa> {
   return res.data
 }
 
-export async function getBlocosMissa(missaId: number): Promise<BlocoLiturgico[]> {
-  const res = await api.get<BlocoLiturgico[]>(`/missas/${missaId}/blocos`)
-  return res.data
-}
-
-export async function getMissaCompleta(missaId: number): Promise<MissaCompleta> {
-  const res = await api.get<MissaCompleta>(`/missas/${missaId}/completa`)
-  return res.data
-}
-
-export async function getBlocosMissaV2(missaId?: number): Promise<BlocoLiturgicoNovo[]> {
-  const res = await api.get<MissaNova>('/api/v2/missas/hoje')
-  return res.data.blocos
-}
-
 export async function getMissaAtual(): Promise<{ blocos: any[] }> {
   const res = await api.get('/missa/atual')
   return res.data
+}
+
+export async function salvarProgressoMissa(
+  missaId: number,
+  ultimoBlocoId: number,
+  percentualLido: number,
+): Promise<void> {
+  await api.post('/usuarios/me/historico', {
+    missa_id: missaId,
+    ultimo_bloco_id: ultimoBlocoId,
+    percentual_lido: percentualLido,
+  })
+}
+
+export async function concluirMissa(missaId: number): Promise<void> {
+  await api.post(`/usuarios/me/historico/${missaId}/concluir`)
 }

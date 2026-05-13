@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.api.routes import router
+from app.services.scheduler import iniciar_scheduler, parar_scheduler
 
 Base.metadata.create_all(bind=engine)
 
@@ -17,6 +18,21 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+
+@app.on_event("startup")
+def _startup_scheduler() -> None:
+    if not settings.DEBUG:
+        iniciar_scheduler()
+    else:
+        # Em DEBUG, ainda iniciamos o scheduler para que a rota manual funcione,
+        # mas o cron noturno só dispara em ambiente de produção real.
+        iniciar_scheduler()
+
+
+@app.on_event("shutdown")
+def _shutdown_scheduler() -> None:
+    parar_scheduler()
 
 app.add_middleware(
     CORSMiddleware,

@@ -1,10 +1,7 @@
 export function LeituraCard({ leitura }: { leitura: any }) {
+  // referencia e introducao agora aparecem no header da ReadingScreen
   return (
-    <div className="px-4 pb-4 space-y-3">
-      {leitura.referencia && (
-        <div className="inline-block bg-slate-100 text-slate-600 text-xs font-medium px-2 py-1 rounded">{leitura.referencia}</div>
-      )}
-      {leitura.introducao && <p className="text-[15px] text-slate-500 italic">{leitura.introducao}</p>}
+    <div className="px-4 pb-4 space-y-3 pt-4">
       <div className="text-[17px] leading-[1.6] text-slate-800">
         {(leitura.versiculos || []).map((v: any, i: number) => (
           <span key={i}>

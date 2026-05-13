@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import { AppHeader, Card, LargeButton } from '../components/UI'
-import { Bell, Plus, X, Church, CalendarClock } from 'lucide-react'
+import { Plus, X, Church, CalendarClock, Megaphone } from 'lucide-react'
 import api from '../services/api'
+import { useAuth } from '../contexts/AuthContext'
 
 interface Lembrete {
   id: number
@@ -20,6 +21,8 @@ interface Props {
 }
 
 export default function LembretesScreen({ onBack }: Props) {
+  const { usuario } = useAuth()
+  const isAdmin = !!usuario?.is_admin
   const [lembretes, setLembretes] = useState<Lembrete[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -29,7 +32,53 @@ export default function LembretesScreen({ onBack }: Props) {
   const [hora, setHora] = useState('')
   const [minutos, setMinutos] = useState(30)
 
+  // Estado admin broadcast
+  const [showAdmin, setShowAdmin] = useState(false)
+  const [bcTitulo, setBcTitulo] = useState('')
+  const [bcNota, setBcNota] = useState('')
+  const [bcData, setBcData] = useState('')
+  const [bcHora, setBcHora] = useState('')
+  const [bcIgreja, setBcIgreja] = useState('')
+  const [igrejasDisponiveis, setIgrejasDisponiveis] = useState<string[]>([])
+  const [alcance, setAlcance] = useState<number | null>(null)
+  const [bcLoading, setBcLoading] = useState(false)
+  const [bcInfo, setBcInfo] = useState('')
+
   useEffect(() => { carregar() }, [])
+
+  useEffect(() => {
+    if (!isAdmin) return
+    api.get<string[]>('/admin/igrejas').then(r => setIgrejasDisponiveis(r.data)).catch(() => {})
+  }, [isAdmin])
+
+  useEffect(() => {
+    if (!isAdmin) return
+    const params = bcIgreja ? `?igreja=${encodeURIComponent(bcIgreja)}` : ''
+    api.get<{ total: number }>(`/admin/usuarios/contagem${params}`)
+      .then(r => setAlcance(r.data.total))
+      .catch(() => setAlcance(null))
+  }, [isAdmin, bcIgreja])
+
+  async function enviarBroadcast() {
+    setBcInfo('')
+    if (!bcTitulo || !bcData || !bcHora) { alert('Preencha título, data e hora'); return }
+    setBcLoading(true)
+    try {
+      const r = await api.post<{ destinatarios: number }>('/admin/lembretes/broadcast', {
+        titulo: bcTitulo,
+        nota: bcNota || null,
+        data_hora_alerta: `${bcData}T${bcHora}:00`,
+        minutos_antecedencia: 30,
+        igreja: bcIgreja || null,
+        remetente: 'Dia de Missa',
+      })
+      setBcInfo(`Enviado para ${r.data.destinatarios} usuário(s).`)
+      setBcTitulo(''); setBcNota(''); setBcData(''); setBcHora('')
+    } catch (e: any) {
+      const detail = e?.response?.data?.detail
+      alert(detail || 'Erro ao enviar broadcast')
+    } finally { setBcLoading(false) }
+  }
 
   async function carregar() {
     try {
@@ -71,6 +120,58 @@ export default function LembretesScreen({ onBack }: Props) {
       <AppHeader title="Lembretes" showAccessibility={false} onBack={onBack} />
 
       <div className="max-w-lg mx-auto px-5 mt-6 flex flex-col gap-4">
+        {/* Painel admin: broadcast com segmentação */}
+        {isAdmin && (
+          <Card className="p-6 border-2 border-red-500/20 bg-red-50/40 dark:bg-red-900/10">
+            <button onClick={() => setShowAdmin(!showAdmin)} className="w-full flex items-center justify-between">
+              <span className="flex items-center gap-2 font-bold text-red-600 dark:text-red-400">
+                <Megaphone size={20} />
+                Painel do administrador
+              </span>
+              <span className="text-xs uppercase tracking-wider text-red-600/60">
+                {showAdmin ? 'Fechar' : 'Abrir'}
+              </span>
+            </button>
+
+            {showAdmin && (
+              <div className="mt-4 flex flex-col gap-3">
+                <p className="text-xs text-red-700/70 dark:text-red-300/70">
+                  Envie um lembrete em massa. Sem filtro: vai pra todos os usuários.
+                </p>
+
+                <input placeholder="Título do lembrete" value={bcTitulo} onChange={e => setBcTitulo(e.target.value)} className="w-full p-3 border border-red-200 dark:border-red-900/40 rounded-xl bg-white dark:bg-slate-900" />
+                <textarea placeholder="Mensagem (opcional)" value={bcNota} onChange={e => setBcNota(e.target.value)} className="w-full p-3 border border-red-200 dark:border-red-900/40 rounded-xl bg-white dark:bg-slate-900 min-h-[80px]" />
+
+                <div className="grid grid-cols-2 gap-3">
+                  <input type="date" value={bcData} onChange={e => setBcData(e.target.value)} className="p-3 border border-red-200 dark:border-red-900/40 rounded-xl bg-white dark:bg-slate-900" />
+                  <input type="time" value={bcHora} onChange={e => setBcHora(e.target.value)} className="p-3 border border-red-200 dark:border-red-900/40 rounded-xl bg-white dark:bg-slate-900" />
+                </div>
+
+                <div>
+                  <label className="text-xs uppercase tracking-wider font-bold text-red-700/80 dark:text-red-300/80">Segmentar por igreja</label>
+                  <select value={bcIgreja} onChange={e => setBcIgreja(e.target.value)} className="w-full p-3 border border-red-200 dark:border-red-900/40 rounded-xl bg-white dark:bg-slate-900 mt-1">
+                    <option value="">Todas as igrejas</option>
+                    {igrejasDisponiveis.map(ig => (
+                      <option key={ig} value={ig}>{ig}</option>
+                    ))}
+                  </select>
+                  {alcance !== null && (
+                    <p className="text-xs text-red-700/60 dark:text-red-300/60 mt-1">
+                      Alcance estimado: <strong>{alcance}</strong> usuário(s)
+                    </p>
+                  )}
+                </div>
+
+                {bcInfo && <p className="text-sm font-medium text-green-700 dark:text-green-400">{bcInfo}</p>}
+
+                <LargeButton variant="primary" onClick={enviarBroadcast} disabled={bcLoading} icon={Megaphone} className="w-full">
+                  {bcLoading ? 'Enviando...' : 'Enviar broadcast'}
+                </LargeButton>
+              </div>
+            )}
+          </Card>
+        )}
+
         {/* Lembretes pré-definidos */}
         <Card className="p-6">
           <h3 className="font-bold text-lg mb-4 flex items-center gap-2">

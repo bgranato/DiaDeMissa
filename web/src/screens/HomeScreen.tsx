@@ -1,17 +1,28 @@
 import { useState } from 'react'
 import { motion } from 'motion/react'
 import { Card, LargeButton } from '../components/UI'
-import { Play, Calendar, Bookmark, Bell, ArrowRight } from 'lucide-react'
+import { Play, Bell, ArrowRight, CheckCircle2, Calendar, Bookmark } from 'lucide-react'
 import type { Missa } from '../types/missa'
 
 interface Props {
   setScreen: (s: string) => void
   missa: Missa | null
   nome: string
+  onLogout?: () => void | Promise<void>
+}
+
+type StatusMissa = 'nao_iniciada' | 'em_progresso' | 'concluida'
+
+function statusDaMissa(data: string | undefined | null): StatusMissa {
+  if (!data) return 'nao_iniciada'
+  if (localStorage.getItem(`@missa_concluida_${data}`) === 'true') return 'concluida'
+  if (localStorage.getItem(`@missa_iniciada_${data}`) === 'true') return 'em_progresso'
+  return 'nao_iniciada'
 }
 
 export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
   const [descricaoExpandida, setDescricaoExpandida] = useState(false)
+  const status = statusDaMissa(missa?.data)
   const dataFormatada = missa?.data
     ? new Date(missa.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()
     : ''
@@ -75,13 +86,22 @@ export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
             )}
 
             <div className="flex flex-col gap-4">
-              <LargeButton variant="primary" onClick={() => setScreen('reading')} icon={Play} className="w-full h-[72px] text-xl">
-                Acompanhar Missa
-              </LargeButton>
-              <button onClick={() => setScreen('reading')}
-                className="flex items-center justify-center gap-2 py-2 text-sm font-bold text-brand-blue/70 dark:text-brand-white/70 hover:opacity-100 transition-opacity">
-                Continuar de onde parei <ArrowRight size={18} />
-              </button>
+              {status === 'concluida' ? (
+                <div className="w-full h-[72px] flex items-center justify-center gap-3 rounded-[24px] bg-green-500/10 border-2 border-green-500/40 text-green-700 dark:text-green-400 font-black text-lg">
+                  <CheckCircle2 size={28} />
+                  Missa concluída
+                </div>
+              ) : (
+                <LargeButton variant="primary" onClick={() => setScreen('reading')} icon={Play} className="w-full h-[72px] text-xl">
+                  Acompanhar Missa
+                </LargeButton>
+              )}
+              {status === 'em_progresso' && (
+                <button onClick={() => setScreen('reading')}
+                  className="flex items-center justify-center gap-2 py-2 text-sm font-bold text-brand-blue/70 dark:text-brand-white/70 hover:opacity-100 transition-opacity">
+                  Continuar de onde parei <ArrowRight size={18} />
+                </button>
+              )}
             </div>
           </div>
           <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-brand-blue opacity-5 rounded-full blur-3xl" />
@@ -92,14 +112,16 @@ export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
         </Card>
       )}
 
-      <div className="bg-brand-white dark:bg-slate-800 p-10 rounded-[40px] shadow-soft border border-black/[0.03] dark:border-slate-700 relative text-center">
-        <span className="text-[10px] font-black text-brand-gold uppercase tracking-[0.3em] mb-6 block">Evangelho do Dia</span>
-        <p className="text-2xl font-serif italic font-bold text-brand-blue dark:text-brand-white leading-relaxed">
-          "Ide pelo mundo inteiro e anunciai o Evangelho a toda criatura!"
-        </p>
-        <div className="w-16 h-1.5 bg-brand-gold/20 mx-auto mt-8 rounded-full" />
-        <p className="text-sm text-brand-slate mt-4 italic">Mt 28,16-20</p>
-      </div>
+      {missa?.palavra_do_dia && (
+        <div className="bg-brand-white dark:bg-slate-800 p-10 rounded-[40px] shadow-soft border border-black/[0.03] dark:border-slate-700 relative text-center">
+          <span className="text-[10px] font-black text-brand-gold uppercase tracking-[0.3em] mb-6 block">Evangelho do Dia</span>
+          <p className="text-2xl font-serif italic font-bold text-brand-blue dark:text-brand-white leading-relaxed">
+            "{missa.palavra_do_dia.texto}"
+          </p>
+          <div className="w-16 h-1.5 bg-brand-gold/20 mx-auto mt-8 rounded-full" />
+          <p className="text-sm text-brand-slate mt-4 italic">{missa.palavra_do_dia.referencia}</p>
+        </div>
+      )}
 
       <div className="flex flex-col gap-4">
         <h4 className="font-bold text-brand-gray-dark/40 dark:text-brand-white/40 uppercase text-[10px] tracking-[0.3em] ml-2">Explorar</h4>

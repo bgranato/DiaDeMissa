@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { motion } from 'motion/react';
-import { ChevronLeft, ChevronRight, House, Calendar, Bookmark, User, Settings2, ZoomIn, ZoomOut, Contrast, Moon, Sun, List } from 'lucide-react';
+import { ChevronLeft, ChevronRight, House, Calendar, Bookmark, User, Settings2, ZoomIn, ZoomOut, Contrast, Moon, Sun, List, Church, ScrollText, RotateCcw } from 'lucide-react';
 import { useAccessibility } from '../hooks/useAccessibility';
 
 // Button Component
@@ -59,53 +59,118 @@ export const Card = ({ children, className = '', onClick, ...props }: CardProps)
 );
 
 // Accessibility Controls Component
-export const AccessibilityControls = ({ 
-  onClose 
-}: { 
-  onClose?: () => void 
+const FONT_LEVELS: Record<string, { idx: number; label: string }> = {
+  'small': { idx: 0, label: 'Pequeno' },
+  'medium': { idx: 1, label: 'Padrão' },
+  'large': { idx: 2, label: 'Grande' },
+  'extra-large': { idx: 3, label: 'Muito grande' },
+};
+
+export const AccessibilityControls = ({
+  onClose,
+}: {
+  onClose?: () => void
 }) => {
-  const { 
-    prefs, 
-    increaseFontSize, 
-    decreaseFontSize, 
-    toggleDarkMode, 
-    toggleHighContrast 
+  const {
+    prefs,
+    increaseFontSize,
+    decreaseFontSize,
+    resetFontSize,
+    toggleDarkMode,
+    toggleHighContrast,
   } = useAccessibility();
 
+  const nivel = FONT_LEVELS[prefs.fontSize] || FONT_LEVELS.medium;
+  const isPadrao = prefs.fontSize === 'medium';
+
   return (
-    <div className="flex flex-wrap gap-3 p-5 bg-brand-white/80 backdrop-blur-xl rounded-[24px] border border-black/5 shadow-strong">
-      <button 
-        onClick={decreaseFontSize}
-        className="flex-1 flex flex-col items-center gap-2 p-4 bg-brand-gray-dark/5 rounded-2xl text-brand-gray-dark active:scale-95 transition-all"
-        title="Diminuir fonte"
-      >
-        <ZoomOut size={24} />
-        <span className="text-[10px] font-black uppercase tracking-widest">A-</span>
-      </button>
-      <button 
-        onClick={increaseFontSize}
-        className="flex-1 flex flex-col items-center gap-2 p-4 bg-brand-blue text-brand-white rounded-2xl active:scale-95 transition-all"
-        title="Aumentar fonte"
-      >
-        <ZoomIn size={24} />
-        <span className="text-[10px] font-black uppercase tracking-widest">A+</span>
-      </button>
-      <button 
-        onClick={toggleDarkMode}
-        className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-2xl active:scale-95 transition-all ${prefs.darkMode ? 'bg-brand-gray-dark text-brand-white' : 'bg-brand-gray-dark/5 text-brand-gray-dark'}`}
-        title="Modo Escuro"
-      >
-        {prefs.darkMode ? <Sun size={24} /> : <Moon size={24} />}
-        <span className="text-[10px] font-black uppercase tracking-widest">Escuro</span>
-      </button>
-      <button 
-        onClick={toggleHighContrast}
-        className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-2xl active:scale-95 transition-all ${prefs.highContrast ? 'bg-brand-gold text-brand-white' : 'bg-brand-gray-dark/5 text-brand-gray-dark'}`}
-        title="Alto Contraste"
-      >
-        <Contrast size={24} />
-        <span className="text-[10px] font-black uppercase tracking-widest">Brilho</span>
-      </button>
+    <div className="flex flex-col gap-4 p-5 bg-brand-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-[24px] border border-black/5 dark:border-white/10 shadow-strong btn-no-hc">
+      {/* Fonte */}
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-gray-dark/60 dark:text-brand-white/60 mb-2">
+          Tamanho do texto · {nivel.label}
+        </p>
+        <div className="flex gap-2 items-stretch">
+          <button
+            onClick={decreaseFontSize}
+            disabled={nivel.idx === 0}
+            className="flex-1 flex items-center justify-center gap-1 p-3 bg-brand-gray-dark/5 dark:bg-slate-700 rounded-2xl text-brand-gray-dark dark:text-brand-white active:scale-95 transition-all disabled:opacity-30"
+            title="Diminuir fonte"
+          >
+            <ZoomOut size={20} />
+            <span className="text-xs font-black">A-</span>
+          </button>
+          {/* Indicador visual dos 4 níveis */}
+          <div className="flex items-center gap-1 px-3">
+            {[0, 1, 2, 3].map(i => (
+              <span
+                key={i}
+                className={`h-2 rounded-full transition-all ${
+                  i === nivel.idx
+                    ? 'w-6 bg-brand-gold'
+                    : 'w-2 bg-brand-gray-dark/15 dark:bg-white/15'
+                }`}
+              />
+            ))}
+          </div>
+          <button
+            onClick={increaseFontSize}
+            disabled={nivel.idx === 3}
+            className="flex-1 flex items-center justify-center gap-1 p-3 bg-brand-gray-dark/5 dark:bg-slate-700 rounded-2xl text-brand-gray-dark dark:text-brand-white active:scale-95 transition-all disabled:opacity-30"
+            title="Aumentar fonte"
+          >
+            <ZoomIn size={20} />
+            <span className="text-xs font-black">A+</span>
+          </button>
+          <button
+            onClick={resetFontSize}
+            disabled={isPadrao}
+            className="flex items-center justify-center gap-1 px-3 py-3 bg-brand-gray-dark/5 dark:bg-slate-700 rounded-2xl text-brand-gray-dark dark:text-brand-white active:scale-95 transition-all disabled:opacity-30"
+            title="Voltar ao tamanho padrão"
+          >
+            <RotateCcw size={18} />
+          </button>
+        </div>
+      </div>
+
+      {/* Modos visuais */}
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-gray-dark/60 dark:text-brand-white/60 mb-2">
+          Modo visual
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={toggleDarkMode}
+            aria-pressed={prefs.darkMode}
+            className={`flex-1 flex flex-col items-center gap-1.5 p-3 rounded-2xl active:scale-95 transition-all border-2 ${
+              prefs.darkMode
+                ? 'bg-brand-blue text-white border-brand-gold ring-2 ring-brand-gold/40'
+                : 'bg-brand-gray-dark/5 dark:bg-slate-700 text-brand-gray-dark dark:text-brand-white border-transparent'
+            }`}
+            title="Modo Escuro"
+          >
+            {prefs.darkMode ? <Sun size={22} /> : <Moon size={22} />}
+            <span className="text-[10px] font-black uppercase tracking-widest">
+              Escuro {prefs.darkMode && '·on'}
+            </span>
+          </button>
+          <button
+            onClick={toggleHighContrast}
+            aria-pressed={prefs.highContrast}
+            className={`flex-1 flex flex-col items-center gap-1.5 p-3 rounded-2xl active:scale-95 transition-all border-2 ${
+              prefs.highContrast
+                ? 'bg-yellow-300 text-black border-black ring-2 ring-yellow-500/60'
+                : 'bg-brand-gray-dark/5 dark:bg-slate-700 text-brand-gray-dark dark:text-brand-white border-transparent'
+            }`}
+            title="Alto Contraste"
+          >
+            <Contrast size={22} />
+            <span className="text-[10px] font-black uppercase tracking-widest">
+              Brilho {prefs.highContrast && '·on'}
+            </span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
@@ -125,8 +190,8 @@ export const AppHeader = ({
   const [showControls, setShowControls] = useState(false);
   
   return (
-    <header className="sticky top-0 z-30 w-full bg-brand-bg/90 dark:bg-slate-900/90 backdrop-blur-md px-6 py-4 border-b border-black/5">
-      <div className="flex items-center justify-between gap-4 max-w-lg mx-auto">
+    <header className="sticky top-0 z-30 w-full bg-brand-bg/90 dark:bg-slate-900/90 backdrop-blur-md px-5 py-4 border-b border-black/5">
+      <div className="flex items-center justify-between gap-4 max-w-xl mx-auto">
         <div className="flex items-center gap-4">
           {onBack && (
             <button onClick={onBack} className="p-2 -ml-2 text-brand-gray-dark dark:text-brand-white active:scale-90 transition-transform">
@@ -182,9 +247,9 @@ export const BottomNav = ({
   setScreen: (s: string) => void 
 }) => {
   const navItems = [
-    { id: 'home', label: 'Missa', icon: House },
+    { id: 'home', label: 'Missa', icon: Church },
     { id: 'calendar', label: 'Agenda', icon: Calendar },
-    { id: 'history', label: 'Histórico', icon: Bookmark },
+    { id: 'history', label: 'Histórico', icon: ScrollText },
     { id: 'profile', label: 'Perfil', icon: User },
   ];
 

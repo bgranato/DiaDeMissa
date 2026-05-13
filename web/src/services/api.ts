@@ -20,9 +20,14 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    // Só limpa o token se for um 401 NO endpoint exato que valida a sessão.
+    // /usuarios/me/historico e /usuarios/me/preferencias são outros endpoints
+    // — um 401 deles NÃO significa que o token está inválido (pode ser regra
+    // de negócio ou rate limit), então não derrubamos a sessão.
+    const url = err.config?.url || ''
+    const isSessionCheck = url.endsWith('/usuarios/me') || url === '/usuarios/me'
+    if (err.response?.status === 401 && isSessionCheck) {
       localStorage.removeItem(TOKEN_KEY)
-      window.location.href = '/login'
     }
     return Promise.reject(err)
   },

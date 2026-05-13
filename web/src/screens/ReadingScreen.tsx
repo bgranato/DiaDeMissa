@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { AppHeader, LargeButton, Card } from '../components/UI'
 import { useAccessibility } from '../hooks/useAccessibility'
-import { getMissaAtual } from '../services/missa'
+import { getMissaAtual, salvarProgressoMissa, concluirMissa } from '../services/missa'
+import { logError } from '../services/logger'
 import BlocoRenderer from '../components/blocos/BlocoRenderer'
 import { ChevronLeft, ChevronRight, List as ListIcon, X, Check } from 'lucide-react'
 
@@ -12,8 +13,15 @@ interface Props {
   missaId?: number
 }
 
+interface SectionInfo {
+  titulo: string
+  descricao?: string | null
+  primeiraOcorrencia: boolean
+}
+
 export const ReadingScreen = ({ onBack, onFinish, missaId }: Props) => {
-  const [blocos, setBlocos] = useState<any[]>([])
+  const [todosBlocos, setTodosBlocos] = useState<any[]>([])
+  const [missaData, setMissaData] = useState<string | null>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showIndex, setShowIndex] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -22,15 +30,55 @@ export const ReadingScreen = ({ onBack, onFinish, missaId }: Props) => {
 
   useEffect(() => {
     getMissaAtual()
-      .then(missa => setBlocos(missa.blocos || []))
+      .then((missa: any) => {
+        setTodosBlocos(missa.blocos || [])
+        setMissaData(missa.data || null)
+      })
       .catch(err => {
         console.error('Erro ao carregar missa:', err)
-        setBlocos([])
+        setTodosBlocos([])
       })
       .finally(() => setLoading(false))
   }, [])
 
+  // Marca a missa como "iniciada" só na primeira vez que o usuário avança
+  // (currentIndex sai de 0). Apenas abrir a tela não conta como iniciar.
+  const marcarIniciada = () => {
+    if (missaData && localStorage.getItem(`@missa_concluida_${missaData}`) !== 'true') {
+      localStorage.setItem(`@missa_iniciada_${missaData}`, 'true')
+    }
+  }
+
+  // Separa seções (categorias master) dos blocos navegáveis.
+  // Cada bloco navegável carrega referência à seção a que pertence; a primeira
+  // ocorrência de cada seção mostra também a descrição (texto "L." introdutório).
+  const { blocos, secaoPorIndice } = (() => {
+    const list: any[] = []
+    const sec: Record<number, SectionInfo> = {}
+    let secaoAtual: { titulo: string; descricao?: string | null } | null = null
+    let secaoJaUsada = new Set<string>()
+    for (const b of todosBlocos) {
+      if (b.tipo === 'secao') {
+        secaoAtual = { titulo: b.titulo, descricao: b.descricao }
+        continue
+      }
+      const idxNovo = list.length
+      list.push(b)
+      if (secaoAtual) {
+        const primeira = !secaoJaUsada.has(secaoAtual.titulo)
+        sec[idxNovo] = {
+          titulo: secaoAtual.titulo,
+          descricao: primeira ? secaoAtual.descricao : null,
+          primeiraOcorrencia: primeira,
+        }
+        secaoJaUsada.add(secaoAtual.titulo)
+      }
+    }
+    return { blocos: list, secaoPorIndice: sec }
+  })()
+
   const currentBlock = blocos[currentIndex]
+  const secaoAtual = secaoPorIndice[currentIndex]
   const isLastBlock = currentIndex === blocos.length - 1
   const progress = blocos.length > 0 ? Math.round(((currentIndex + 1) / blocos.length) * 100) : 0
 
@@ -38,12 +86,47 @@ export const ReadingScreen = ({ onBack, onFinish, missaId }: Props) => {
     if (contentRef.current) contentRef.current.scrollTo(0, 0)
   }
 
-  const nextBlock = () => {
-    if (!isLastBlock) { setCurrentIndex(currentIndex + 1); scrollToTop() }
-    else onFinish()
+  const persistirProgresso = (index: number) => {
+    if (!missaId || blocos.length === 0) return
+    const bloco = blocos[index]
+    const pct = Math.round(((index + 1) / blocos.length) * 100)
+    salvarProgressoMissa(missaId, bloco?.id ?? bloco?.ordem ?? index, pct).catch(err =>
+      logError('salvarProgressoMissa', err),
+    )
   }
-  const prevBlock = () => { if (currentIndex > 0) { setCurrentIndex(currentIndex - 1); scrollToTop() } }
-  const jumpTo = (index: number) => { setCurrentIndex(index); setShowIndex(false); scrollToTop() }
+
+  const nextBlock = () => {
+    if (!isLastBlock) {
+      const next = currentIndex + 1
+      setCurrentIndex(next)
+      scrollToTop()
+      persistirProgresso(next)
+      marcarIniciada()
+    } else {
+      if (missaId) {
+        concluirMissa(missaId).catch(err => logError('concluirMissa', err))
+      }
+      if (missaData) {
+        localStorage.setItem(`@missa_concluida_${missaData}`, 'true')
+        localStorage.removeItem(`@missa_iniciada_${missaData}`)
+      }
+      onFinish()
+    }
+  }
+  const prevBlock = () => {
+    if (currentIndex > 0) {
+      const prev = currentIndex - 1
+      setCurrentIndex(prev)
+      scrollToTop()
+      persistirProgresso(prev)
+    }
+  }
+  const jumpTo = (index: number) => {
+    setCurrentIndex(index)
+    setShowIndex(false)
+    scrollToTop()
+    persistirProgresso(index)
+  }
 
   if (loading) return (
     <div className="min-h-screen bg-brand-bg dark:bg-slate-900 flex items-center justify-center">
@@ -60,7 +143,7 @@ export const ReadingScreen = ({ onBack, onFinish, missaId }: Props) => {
   return (
     <div className="min-h-screen bg-brand-bg dark:bg-slate-900 flex flex-col">
       <AppHeader 
-        title={currentBlock.titulo || 'Missa'} 
+        title="" 
         onBack={onBack}
         rightElement={
           <button onClick={() => setShowIndex(true)} className="p-2 text-brand-text dark:text-slate-100">
@@ -88,7 +171,7 @@ export const ReadingScreen = ({ onBack, onFinish, missaId }: Props) => {
 
       {/* Content area with fade at bottom */}
       <div className="flex-1 relative overflow-hidden">
-        <div ref={contentRef} className="absolute inset-0 overflow-y-auto px-5 pb-40" id="reading-content">
+        <div ref={contentRef} className="absolute inset-0 overflow-y-auto px-5 pt-5 pb-40" id="reading-content">
           <div className="max-w-xl mx-auto">
             <AnimatePresence mode="wait">
               <motion.div
@@ -98,19 +181,49 @@ export const ReadingScreen = ({ onBack, onFinish, missaId }: Props) => {
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <div className="flex flex-col gap-2 border-l-4 border-brand-gold pl-4 py-1 mb-6">
-                  <span className="text-xs font-bold uppercase tracking-widest text-brand-gold">
-                    {currentBlock.tipo.replace(/_/g, ' ')}
-                  </span>
-                  <h2 className="font-serif font-black leading-tight text-3xl text-brand-text dark:text-slate-100">
-                    {currentBlock.titulo}
-                  </h2>
-                  {currentBlock.referencia && (
-                    <span className="text-sm italic font-serif text-brand-slate dark:text-gray-400">
-                      {currentBlock.referencia}
+                {/* Label master da seção, acima do título */}
+                {secaoAtual && (
+                  <p className="text-[10px] uppercase tracking-[0.4em] text-brand-gold font-black mb-2">
+                    {secaoAtual.titulo}
+                  </p>
+                )}
+
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div className="border-l-4 border-brand-gold pl-4 py-1 flex-1 min-w-0">
+                    <h2 className="font-serif font-black leading-tight text-3xl text-brand-text dark:text-slate-100">
+                      {currentIndex + 1}. {currentBlock.titulo}
+                    </h2>
+                    {currentBlock.introducao && (
+                      <p className="text-base font-serif italic text-brand-slate dark:text-gray-300 mt-1">
+                        {currentBlock.introducao}
+                      </p>
+                    )}
+                    {currentBlock.subtitulo && (
+                      <p className="text-base font-serif italic text-brand-slate dark:text-gray-300 mt-1">
+                        {currentBlock.subtitulo}
+                      </p>
+                    )}
+                    {currentBlock.referencia && (
+                      <span className="text-sm italic font-serif text-brand-slate dark:text-gray-400 block mt-0.5">
+                        {currentBlock.referencia}
+                      </span>
+                    )}
+                  </div>
+                  {currentBlock.postura && (
+                    <span className="flex-shrink-0 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold uppercase tracking-wider mt-2">
+                      {currentBlock.postura === 'de_pe' ? 'De pé' : currentBlock.postura === 'sentado' ? 'Sentado' : currentBlock.postura === 'ajoelhado' ? 'Ajoelhado' : currentBlock.postura}
                     </span>
                   )}
                 </div>
+
+                {/* Descrição introdutória da seção (L.) — só na primeira ocorrência */}
+                {secaoAtual?.primeiraOcorrencia && secaoAtual.descricao && (
+                  <div className="bg-brand-gold/5 border-l-4 border-brand-gold/40 rounded-r-lg px-4 py-3 mb-4">
+                    <p className="text-sm font-serif italic text-brand-slate dark:text-gray-300 leading-relaxed">
+                      {secaoAtual.descricao}
+                    </p>
+                  </div>
+                )}
 
                 <Card className="shadow-sm border-brand-gray dark:border-slate-800">
                   <BlocoRenderer bloco={currentBlock} />
@@ -168,25 +281,41 @@ export const ReadingScreen = ({ onBack, onFinish, missaId }: Props) => {
                 </button>
               </div>
               <div className="overflow-y-auto p-4 flex flex-col gap-2 pb-10">
-                {blocos.map((block, idx) => (
-                  <button key={block.id} onClick={() => jumpTo(idx)}
-                    className={`flex items-center gap-4 p-4 rounded-2xl text-left transition-colors ${
-                      currentIndex === idx 
-                      ? 'bg-brand-blue text-white shadow-md' 
-                      : 'bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 dark:hover:bg-slate-700'
-                    }`}
-                  >
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
-                      currentIndex === idx ? 'bg-white text-brand-blue' : 'bg-gray-200 dark:bg-slate-600 text-gray-500'
-                    }`}>
-                      {block.ordem}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-bold leading-tight">{block.titulo}</p>
-                      <p className="text-xs uppercase tracking-wider opacity-70">{block.tipo.replace(/_/g, ' ')}</p>
-                    </div>
-                  </button>
-                ))}
+                {(() => {
+                  const elementos: any[] = []
+                  let ultimaSecao: string | null = null
+                  blocos.forEach((block, idx) => {
+                    const secao = secaoPorIndice[idx]
+                    if (secao && secao.titulo !== ultimaSecao) {
+                      ultimaSecao = secao.titulo
+                      elementos.push(
+                        <div key={`secao-${idx}`} className="pt-3 pb-1 px-2 text-[11px] uppercase tracking-[0.3em] text-brand-gold font-black border-b border-brand-gold/20">
+                          {secao.titulo}
+                        </div>,
+                      )
+                    }
+                    elementos.push(
+                      <button key={`bloco-${block.ordem ?? idx}`} onClick={() => jumpTo(idx)}
+                        className={`flex items-center gap-4 p-4 rounded-2xl text-left transition-colors ${
+                          currentIndex === idx
+                            ? 'bg-brand-blue text-white shadow-md'
+                            : 'bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
+                          currentIndex === idx ? 'bg-white text-brand-blue' : 'bg-gray-200 dark:bg-slate-600 text-gray-500'
+                        }`}>
+                          {idx + 1}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-bold leading-tight">{block.titulo}</p>
+                          <p className="text-xs uppercase tracking-wider opacity-70">{block.tipo.replace(/_/g, ' ')}</p>
+                        </div>
+                      </button>,
+                    )
+                  })
+                  return elementos
+                })()}
               </div>
             </motion.div>
           </>

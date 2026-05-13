@@ -25,6 +25,7 @@ class BlocoBase(BaseModel):
     ordem: int
     titulo: str
     postura: Postura = None
+    subtitulo: Optional[str] = None
 
     @field_validator("titulo", mode="after")
     @classmethod
@@ -32,10 +33,20 @@ class BlocoBase(BaseModel):
         return validar_texto_limpo(v)
 
 
+class Secao(BaseModel):
+    """Divisor litúrgico (Ritos Iniciais, Liturgia da Palavra etc.)."""
+    tipo: Literal["secao"] = "secao"
+    ordem: int
+    titulo: str
+    descricao: Optional[str] = None
+    postura: Postura = None
+
+
 class Canto(BlocoBase):
     tipo: Literal["canto"] = "canto"
     refrao: list[str] = Field(default_factory=list)
     estrofes: list[list[str]] = Field(default_factory=list)
+    referencia: Optional[str] = None
 
     @field_validator("refrao", "estrofes", mode="after")
     @classmethod
@@ -94,6 +105,7 @@ class Oracao(BlocoBase):
     tipo: Literal["oracao"] = "oracao"
     texto: str
     resposta: Optional[str] = None
+    referencia: Optional[str] = None
 
 
 class Turno(BaseModel):
@@ -109,9 +121,10 @@ class Turno(BaseModel):
 class Dialogo(BlocoBase):
     tipo: Literal["dialogo"] = "dialogo"
     turnos: list[Turno]
+    referencia: Optional[str] = None
 
 
-Bloco = Union[Canto, Leitura, Salmo, Aclamacao, Antifona, Oracao, Dialogo]
+Bloco = Union[Canto, Leitura, Salmo, Aclamacao, Antifona, Oracao, Dialogo, Secao]
 
 
 class Missa(BaseModel):
@@ -119,7 +132,8 @@ class Missa(BaseModel):
     ano_liturgico: Literal["A", "B", "C"]
     titulo_celebracao: str
     categoria: str
+    descricao: Optional[str] = None
     observacoes: Optional[str] = None
     creditos_cantos: Creditos
-    palavra_do_dia: PalavraDoDia
+    palavra_do_dia: Optional[PalavraDoDia] = None
     blocos: list[Bloco]

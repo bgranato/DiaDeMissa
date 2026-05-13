@@ -2,6 +2,9 @@ export interface Usuario {
   id: number
   nome: string
   email: string
+  celular?: string | null
+  igreja?: string | null
+  is_admin?: boolean
   provider: string
   data_criacao: string
 }
@@ -20,13 +23,16 @@ export interface Preferencias {
   notificacoes_ativas: boolean
 }
 
+export type HistoricoStatus = 'concluida' | 'em_progresso' | 'nao_acompanhada'
+
 export interface HistoricoEntry {
   missa_id: number
   data: string
   celebracao: string | null
   ultimo_bloco_id: number | null
   percentual_lido: number
-  data_ultimo_acesso: string
+  data_ultimo_acesso: string | null
+  status: HistoricoStatus
 }
 
 export interface Lembrete {
@@ -35,4 +41,10 @@ export interface Lembrete {
   titulo: string
   data_hora_alerta: string
   ativo: boolean
+}
+
+export interface UserPreferences {
+  fontSize: 'small' | 'medium' | 'large' | 'extra-large'
+  highContrast: boolean
+  darkMode: boolean
 }

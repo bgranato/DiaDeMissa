@@ -1,3 +1,8 @@
+export interface PalavraDoDia {
+  texto: string
+  referencia: string
+}
+
 export interface Missa {
   id: number
   data: string
@@ -7,6 +12,7 @@ export interface Missa {
   tempo_liturgico: string | null
   status_processamento: string
   total_blocos: number
+  palavra_do_dia?: PalavraDoDia | null
 }
 
 export interface BlocoLiturgico {

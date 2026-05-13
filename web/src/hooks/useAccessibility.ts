@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { UserPreferences } from '../types/mass';
+import { UserPreferences } from '../types/usuario';
 
 export function useAccessibility() {
   const [prefs, setPrefs] = useState<UserPreferences>(() => {
@@ -43,7 +43,7 @@ export function useAccessibility() {
 
   const toggleDarkMode = () => setPrefs(prev => ({ ...prev, darkMode: !prev.darkMode, highContrast: false }));
   const toggleHighContrast = () => setPrefs(prev => ({ ...prev, highContrast: !prev.highContrast, darkMode: false }));
-  
+
   const increaseFontSize = () => {
     const sizes: UserPreferences['fontSize'][] = ['small', 'medium', 'large', 'extra-large'];
     const currentIndex = sizes.indexOf(prefs.fontSize);
@@ -60,12 +60,15 @@ export function useAccessibility() {
     }
   };
 
+  const resetFontSize = () => setPrefs(prev => ({ ...prev, fontSize: 'medium' }));
+
   return {
     prefs,
     setPrefs,
     toggleDarkMode,
     toggleHighContrast,
     increaseFontSize,
-    decreaseFontSize
+    decreaseFontSize,
+    resetFontSize,
   };
 }
