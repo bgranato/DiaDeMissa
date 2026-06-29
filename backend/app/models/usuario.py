@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Float, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Float, ForeignKey, Text, Index, text
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -58,6 +58,19 @@ class HistoricoUsuario(Base):
 class Lembrete(Base):
     __tablename__ = "lembretes"
 
+    # Impede duplicar a notificação automática "não acompanhou" do mesmo usuário
+    # para a mesma missa. Índice PARCIAL: só vale para tipo='nao_acompanhada',
+    # então lembretes do usuário e broadcasts (master) podem repetir normalmente.
+    __table_args__ = (
+        Index(
+            "uq_lembrete_nao_acompanhada",
+            "usuario_id", "missa_id",
+            unique=True,
+            postgresql_where=text("tipo = 'nao_acompanhada'"),
+            sqlite_where=text("tipo = 'nao_acompanhada'"),
+        ),
+    )
+
     id = Column(Integer, primary_key=True, index=True)
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
     missa_id = Column(Integer, ForeignKey("missas.id"), nullable=True)
@@ -68,5 +81,6 @@ class Lembrete(Base):
     tipo = Column(String(50), default="usuario")
     remetente = Column(String(255), default="Missa do Dia")
     ativo = Column(Boolean, default=True)
+    lido = Column(Boolean, default=False, nullable=False)
 
     usuario = relationship("Usuario", back_populates="lembretes")
