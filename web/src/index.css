@@ -18,6 +18,222 @@
   --shadow-strong: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
+/* ================================================================
+   DESIGN SYSTEM — Tokens semânticos (use estes em todas as telas)
+   ================================================================
+   Tipografia (mobile-first; escala em up):
+     ds-display   → titulo de tela (32px / 28px mobile)
+     ds-headline  → header de seção / card title (24px / 20px mobile)
+     ds-title     → bloco/item title (20px / 18px mobile)
+     ds-body      → corpo de texto (16px / 15px mobile)
+     ds-body-sm   → corpo secundário (14px)
+     ds-caption   → metadados, labels (12px)
+     ds-overline  → labels uppercase com tracking (10px)
+
+   Spacing (em rem; baseado em 4px):
+     ds-stack-xs  = 0.25rem (4px)
+     ds-stack-sm  = 0.5rem  (8px)
+     ds-stack-md  = 1rem    (16px) — gap padrão entre cards
+     ds-stack-lg  = 1.5rem  (24px) — separação entre seções
+     ds-stack-xl  = 2rem    (32px)
+
+   Radius:
+     ds-radius-sm = 0.75rem (12px) — chips/badges
+     ds-radius-md = 1rem    (16px) — botões compactos
+     ds-radius-lg = 1.5rem  (24px) — botões grandes
+     ds-radius-xl = 2rem    (32px) — cards principais
+*/
+
+/* === Tipografia === */
+.ds-display    { font-family: var(--font-serif); font-size: 1.75rem; font-weight: 900; line-height: 1.15; letter-spacing: -0.01em; }
+.ds-headline   { font-family: var(--font-serif); font-size: 1.25rem; font-weight: 900; line-height: 1.2; }
+.ds-title      { font-size: 1.0625rem;  font-weight: 800; line-height: 1.3; }
+.ds-body       { font-size: 0.9375rem;  font-weight: 400; line-height: 1.55; }
+.ds-body-strong{ font-size: 0.9375rem;  font-weight: 700; line-height: 1.5; }
+.ds-body-sm    { font-size: 0.8125rem;  font-weight: 400; line-height: 1.5; }
+.ds-caption    { font-size: 0.75rem;    font-weight: 600; line-height: 1.4; }
+.ds-overline   { font-size: 0.75rem;    font-weight: 900; line-height: 1.2; letter-spacing: 0.16em; text-transform: uppercase; }
+
+@media (min-width: 640px) {
+  .ds-display  { font-size: 2rem; }
+  .ds-headline { font-size: 1.5rem; }
+  .ds-title    { font-size: 1.125rem; }
+  .ds-body     { font-size: 1rem; }
+  .ds-body-sm  { font-size: 0.875rem; }
+}
+
+/* === Spacing utilitários (entre filhos verticais) === */
+.ds-stack-xs > * + * { margin-top: 0.25rem; }
+.ds-stack-sm > * + * { margin-top: 0.5rem; }
+.ds-stack-md > * + * { margin-top: 1rem; }
+.ds-stack-lg > * + * { margin-top: 1.5rem; }
+.ds-stack-xl > * + * { margin-top: 2rem; }
+
+/* === Cards padrão (use ao invés de re-criar visual) === */
+.ds-card {
+  background-color: var(--color-brand-white);
+  border-radius: 1.5rem;
+  padding: 1rem;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+@media (min-width: 640px) {
+  .ds-card { padding: 1.5rem; border-radius: 2rem; }
+}
+.dark .ds-card {
+  background-color: #1e293b;
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Card destaque (usado pra Missa do Dia) — borda dourada */
+.ds-card-feature {
+  border: 2px solid var(--color-brand-gold);
+  box-shadow: var(--shadow-strong);
+}
+
+/* Card de seção (acessórios secundários, mais discreto) */
+.ds-card-subtle {
+  background-color: rgba(197, 160, 89, 0.06);
+  border: 1px solid rgba(197, 160, 89, 0.2);
+  border-radius: 1rem;
+  padding: 0.875rem;
+}
+
+/* === Section header (label dourado uppercase) === */
+.ds-section-label {
+  font-size: 0.8125rem;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-brand-gold);
+}
+
+/* === Pills / chips de metadado === */
+.ds-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.ds-pill-gold  { background-color: var(--color-brand-gold); color: white; }
+.ds-pill-ghost { background-color: rgba(197, 160, 89, 0.12); color: var(--color-brand-gold); }
+.ds-pill-success { background-color: rgba(34, 197, 94, 0.12); color: #15803D; }
+
+/* === Botões === */
+.ds-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  transition: transform 0.1s, opacity 0.2s;
+  box-shadow: var(--shadow-soft);
+  min-height: 44px; /* WCAG touch target */
+}
+.ds-btn:active:not(:disabled) { transform: scale(0.97); }
+.ds-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.ds-btn-primary {
+  background-color: var(--color-brand-blue);
+  color: white;
+}
+.ds-btn-secondary {
+  background-color: var(--color-brand-gold);
+  color: white;
+  box-shadow: var(--shadow-strong);
+}
+.ds-btn-outline {
+  background-color: var(--color-brand-white);
+  color: var(--color-brand-blue);
+  border: 2px solid color-mix(in srgb, var(--color-brand-blue) 30%, transparent);
+}
+.ds-btn-ghost {
+  background-color: transparent;
+  color: var(--color-brand-gray-dark);
+  box-shadow: none;
+}
+
+.ds-btn-lg {
+  padding: 1.125rem 1.5rem;
+  font-size: 1rem;
+  border-radius: 1.5rem;
+  min-height: 64px;
+}
+
+/* === Container principal das telas (largura consistente) === */
+.ds-container {
+  width: 100%;
+  max-width: 32rem;       /* ~512px (max-w-lg/xl mistura) */
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+}
+
+/* === Leitura (Acompanhar Missa): o texto da liturgia ocupa mais largura.
+   Só afeta containers DENTRO da tela marcada com .reading-wide. === */
+
+/* Celular: reduz o respiro lateral do container pra o texto ficar um pouco
+   mais largo. Vale só na leitura e só em telas pequenas. */
+@media (max-width: 639px) {
+  .reading-wide .ds-container { padding-inline: 0.875rem; }
+}
+
+/* Texto da liturgia SEM caixa: zera o recuo horizontal interno dos blocos
+   (cards usam px-4) pra o texto encostar na margem, alinhado à linha dourada
+   do título. A margem lateral única vem do .ds-container (simétrica). */
+#reading-content .px-4 { padding-left: 0; padding-right: 0; }
+
+/* Setinha de voltar: o glifo do ChevronLeft tem ~9px de respiro interno antes
+   da ponta dentro do seu box de 26px. O botão (p-2 -ml-2) já encosta o BOX na
+   margem; aqui puxamos mais ~9px à esquerda pra a PONTA tocar a margem/linha
+   dourada. Só na leitura — não afeta o header das outras telas. */
+.reading-wide header button[aria-label="Voltar"] { margin-left: -1.125rem; }
+
+/* Telas grandes: largura máxima cresce em degraus. */
+@media (min-width: 768px) {
+  .reading-wide .ds-container { max-width: 44rem; }   /* ~704px */
+}
+@media (min-width: 1024px) {
+  .reading-wide .ds-container { max-width: 54rem; }   /* ~864px */
+}
+@media (min-width: 1440px) {
+  .reading-wide .ds-container { max-width: 64rem; }   /* ~1024px */
+}
+
+/* === Bloco de divisor sutil === */
+.ds-divider {
+  height: 1px;
+  background-color: rgba(0, 0, 0, 0.06);
+  margin-block: 1rem;
+}
+.dark .ds-divider { background-color: rgba(255, 255, 255, 0.08); }
+
+/* === Padding-bottom pra telas com BottomNav fixa ===
+   BottomNav tem h-20 (80px) + pb-safe (env(safe-area-inset-bottom), ~34px no iPhone notched).
+   Adicionamos 2rem extra pra absorver a barra inferior do Safari iOS quando ela aparece
+   (não conta no safe-area, mas sobrepõe elementos fixos).
+*/
+.ds-bottom-nav-padding {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom) + 2rem);
+}
+
+html, body {
+  /* Previne overflow horizontal em qualquer cenário (blur balls, conteúdo longo, etc.) */
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 body {
   background-color: var(--color-brand-bg);
   color: var(--color-brand-text);
@@ -25,6 +241,17 @@ body {
   transition: background-color 0.3s, color 0.3s;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Defensivo: imagens, vídeos e iframes nunca devem extrapolar */
+img, video, iframe {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Quebra de palavras longas (URLs, tokens, etc.) — evita conteúdo empurrar layout */
+p, h1, h2, h3, h4, span {
+  overflow-wrap: anywhere;
 }
 
 /* === Dark mode ===
@@ -79,6 +306,24 @@ body {
   border: 2px solid #FFFF00 !important;
 }
 
+/* Badges coloridos (P/T do diálogo, bolinha do sininho, etc.) — preto sólido com
+   texto/borda amarelo para destacar em alto contraste */
+.high-contrast [class*="bg-blue-"],
+.high-contrast [class*="bg-amber-"],
+.high-contrast [class*="bg-red-"],
+.high-contrast [class*="bg-green-"] {
+  background-color: #000000 !important;
+  color: #FFFF00 !important;
+  border: 2px solid #FFFF00 !important;
+}
+
+.high-contrast [class*="text-blue-"],
+.high-contrast [class*="text-amber-"],
+.high-contrast [class*="text-red-"],
+.high-contrast [class*="text-green-"] {
+  color: #FFFF00 !important;
+}
+
 .high-contrast p,
 .high-contrast span,
 .high-contrast h1,
@@ -89,11 +334,23 @@ body {
   color: #FFFF00 !important;
 }
 
-.high-contrast button:not(.btn-no-hc) {
+.high-contrast button:not(.btn-no-hc),
+.high-contrast button:not(.btn-no-hc) * {
   background-color: #FFFF00 !important;
   color: #000000 !important;
   font-weight: 900;
+  border-color: #000000 !important;
+}
+
+.high-contrast button:not(.btn-no-hc) {
   border: 2px solid #000000 !important;
+}
+
+/* Garante que ícones dentro de botões fiquem visíveis em preto */
+.high-contrast button:not(.btn-no-hc) svg {
+  stroke: #000000 !important;
+  color: #000000 !important;
+  fill: transparent !important;
 }
 
 .high-contrast .text-brand-gold,
@@ -104,6 +361,18 @@ body {
 .high-contrast [class*="text-slate-"],
 .high-contrast [class*="text-gray-"] {
   color: #FFFF00 !important;
+}
+
+/* Reaplica preto em descendentes dentro de botões — sobrescreve a regra de texto acima */
+.high-contrast button:not(.btn-no-hc) [class*="text-slate-"],
+.high-contrast button:not(.btn-no-hc) [class*="text-gray-"],
+.high-contrast button:not(.btn-no-hc) .text-brand-gold,
+.high-contrast button:not(.btn-no-hc) .text-brand-blue,
+.high-contrast button:not(.btn-no-hc) .text-brand-text,
+.high-contrast button:not(.btn-no-hc) .text-brand-gray-dark,
+.high-contrast button:not(.btn-no-hc) .text-brand-white,
+.high-contrast button:not(.btn-no-hc) .text-brand-slate {
+  color: #000000 !important;
 }
 
 #root { min-height: 100vh; display: flex; flex-direction: column; }
