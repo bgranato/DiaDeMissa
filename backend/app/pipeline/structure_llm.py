@@ -77,17 +77,28 @@ def _corrigir_posicao_refrao(missa: Missa, texto_limpo: str) -> None:
         idx_ref = texto_n.find(ref_key)
         if idx_ref < 0:
             continue
+        # Conta estrofes ANTES do refrão usando, para CADA estrofe, a ocorrência
+        # MAIS PRÓXIMA do refrão (a que pertence a este canto). Evita falso positivo
+        # quando o texto da estrofe se repete em outro ponto do folheto — ex.: Canto
+        # de Comunhão que reusa os versos do Salmo Responsorial, impressos antes.
         antes = 0
         for est in estrofes:
             if not est:
                 continue
             est_key = _norm_busca(est[0])[:30]
-            if not est_key:
+            if len(est_key) < 6:
                 continue
-            idx_est = texto_n.find(est_key)
-            if 0 <= idx_est < idx_ref:
+            ocorr = []
+            i = texto_n.find(est_key)
+            while i >= 0:
+                ocorr.append(i)
+                i = texto_n.find(est_key, i + 1)
+            if not ocorr:
+                continue
+            mais_perto = min(ocorr, key=lambda p: abs(p - idx_ref))
+            if mais_perto < idx_ref:
                 antes += 1
-        b.posicao_refrao_apos = antes if antes > 0 else 0
+        b.posicao_refrao_apos = antes
 
 
 def _coagir_nulos(b: dict) -> dict:
