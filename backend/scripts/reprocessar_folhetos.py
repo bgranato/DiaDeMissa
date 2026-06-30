@@ -106,17 +106,18 @@ def modo_so_refrao(pdfs, dry_run: bool) -> int:
             a = stub.posicao_refrao_apos
             marca = "→ ALTERA" if b != a else "  ok"
             print(f"    {(r['titulo'] or '')[:28]:<28} p{b} → p{a}   {marca}")
-            if (not dry_run) and b != a:
-                ce["posicao_refrao_apos"] = a
-                con.execute(
-                    "UPDATE blocos_liturgicos SET conteudo_estruturado=? WHERE id=?",
-                    (json.dumps(ce, ensure_ascii=False), r["id"]),
-                )
+            if b != a:
                 total_alt += 1
+                if not dry_run:
+                    ce["posicao_refrao_apos"] = a
+                    con.execute(
+                        "UPDATE blocos_liturgicos SET conteudo_estruturado=? WHERE id=?",
+                        (json.dumps(ce, ensure_ascii=False), r["id"]),
+                    )
     if not dry_run:
         con.commit()
     con.close()
-    pref = "[dry-run] " if dry_run else ""
+    pref = "[dry-run] (nada gravado) " if dry_run else ""
     print(f"\n{pref}Cantos com posição alterada: {total_alt}. Custo: US$ 0,00 (sem LLM).")
     return 0
 
