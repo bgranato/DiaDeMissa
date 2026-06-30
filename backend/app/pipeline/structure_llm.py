@@ -50,6 +50,30 @@ def _limpar_cercas(texto: str) -> str:
     return t
 
 
+def _coagir_nulos(b: dict) -> dict:
+    """Normaliza nulos que o LLM às vezes emite em campos obrigatórios.
+
+    O modelo ocasionalmente manda `null` onde o schema exige lista ou string
+    (ex.: Canto.refrao=None, Aclamacao.referencia=None) — o que reprovava o bloco
+    e derrubava tudo no fallback regex. Aqui convertemos None → vazio do tipo certo,
+    de forma defensiva, sem depender do LLM acertar.
+    """
+    for k in ("refrao", "estrofes", "versiculos", "turnos"):
+        if k in b and b[k] is None:
+            b[k] = []
+    req_str_por_tipo = {
+        "salmo": ("referencia",),
+        "aclamacao": ("referencia", "versiculo"),
+        "leitura": ("referencia",),
+        "antifona": ("texto",),
+        "oracao": ("texto",),
+    }
+    for k in req_str_por_tipo.get(b.get("tipo"), ()):
+        if b.get(k) is None:
+            b[k] = ""
+    return b
+
+
 def _montar_missa(dados: dict) -> Missa:
     """Constrói o objeto Missa validado a partir do dict do LLM.
 
@@ -64,7 +88,7 @@ def _montar_missa(dados: dict) -> Missa:
         classe = _TIPO_PARA_CLASSE.get(tipo)
         if classe is None:
             raise ValueError(f"Bloco com tipo desconhecido: {tipo!r}")
-        blocos.append(classe(**b))
+        blocos.append(classe(**_coagir_nulos(b)))
 
     payload = dict(dados)
     payload["blocos"] = blocos
