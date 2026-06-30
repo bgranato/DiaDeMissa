@@ -32,7 +32,23 @@ function renderConteudo(bloco: any, tipo: string) {
     case 'canto_de_comunhão':
     case 'gloria':
     case 'hino_de_louvor':
+    case 'salmo':
+    case 'salmo_responsorial':
+      // Salmo tem o mesmo formato do canto (refrão + estrofes).
       return <CantoCard canto={bloco} />
+    case 'aclamacao':
+    case 'aclamação_evangelho':
+    case 'aclamacao_evangelho':
+      // Aclamação: refrão + um versículo. Adapta o versículo como estrofe única
+      // para reaproveitar o CantoCard.
+      return (
+        <CantoCard
+          canto={{
+            ...bloco,
+            estrofes: bloco.versiculo ? [[bloco.versiculo]] : (bloco.estrofes || []),
+          }}
+        />
+      )
     case 'dialogo':
     case 'saudacao_inicial':
     case 'ato_penitencial':
@@ -48,22 +64,28 @@ function renderConteudo(bloco: any, tipo: string) {
     case 'evangelho':
       return <LeituraCard leitura={bloco} />
     case 'oracao':
+    case 'recitacao':
+      // Texto recitado contínuo (Credo, Pai-Nosso, Oração Eucarística).
       return (
-        <div className="px-4 pb-4">
-          <p className="text-[18px] leading-[1.8] text-slate-700 whitespace-pre-wrap">{bloco.texto || bloco.conteudo || ''}</p>
+        <div className="px-4 pb-4 pt-4">
+          <p className="ds-body text-slate-800 dark:text-slate-200 whitespace-pre-line">
+            {bloco.texto || bloco.conteudo || ''}
+          </p>
         </div>
       )
     default:
       const textoFallback = bloco.conteudo || bloco.texto || ''
       if (textoFallback) {
         return (
-          <div className="px-4 pb-4">
-            <p className="text-[17px] leading-[1.6] text-slate-700 whitespace-pre-wrap">{textoFallback}</p>
+          <div className="px-4 pb-4 pt-4">
+            <p className="font-serif text-[18px] leading-[1.7] text-slate-800 dark:text-slate-200 whitespace-pre-wrap">
+              {textoFallback}
+            </p>
           </div>
         )
       }
       return (
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4 pt-4">
           <p className="text-sm text-slate-500 italic">Bloco "{tipo}" em desenvolvimento.</p>
         </div>
       )
