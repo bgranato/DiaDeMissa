@@ -43,6 +43,28 @@ Retorne APENAS JSON válido, sem markdown, sem ```json, sem texto explicativo.
 # ---------------------------------------------------------------------------
 REGRAS_FOLHETO = """REGRAS ESPECÍFICAS DO FOLHETO DA ARQUIDIOCESE DO RIO (críticas):
 
+0. ESQUELETO E ORDENAÇÃO (hierarquia da montagem) — LEIA PRIMEIRO.
+   O folheto dominical da Arqrio tem uma espinha dorsal ESTÁVEL: blocos NUMERADOS
+   pelo próprio folheto (1, 2, 3...) agrupados sob 4 SEÇÕES nesta ordem fixa:
+     (I) Ritos Iniciais  (II) Liturgia da Palavra
+     (III) Liturgia Eucarística  (IV) Ritos Finais
+   A ordem e a hierarquia da montagem vêm SEMPRE da NUMERAÇÃO IMPRESSA e dessas
+   seções — NUNCA do seu conhecimento litúrgico. Regras:
+   - `ordem`: siga a sequência em que os blocos aparecem no texto, de cima para baixo.
+   - `numero_folheto`: o número impresso do bloco (1..N). Itens SEM número (Antífonas,
+     "Momento de silêncio", Antífona Mariana, Leituras da Semana, apêndices) ficam com
+     numero_folheto null, posicionados EXATAMENTE onde aparecem entre os numerados.
+   - `secao`: cada bloco herda a seção (divisor) que o precede no texto.
+   - Espinha típica (use como referência, mas obedeça ao texto real): 1 Canto de
+     Entrada · 2 Saudação · Antífona da Entrada · 3 Ato Penitencial · 4 Hino de Louvor ·
+     5 Coleta · [Liturgia da Palavra] · 6 Primeira Leitura · 7 Salmo Responsorial ·
+     8 Segunda Leitura · 9 Aclamação · 10 Evangelho · 11 Homilia · 12 Profissão de Fé ·
+     13 Oração dos Fiéis · [Liturgia Eucarística] · 14 Canto das Ofertas · 15 Convite ·
+     16 Sobre as Oferendas · 17 Oração Eucarística · 18 Rito da Comunhão · 19 Canto de
+     Comunhão · Antífona da Comunhão · 20 Depois da Comunhão · [Ritos Finais] ·
+     21 Vivência · 22 Bênção Final · apêndices. NÃO force esse gabarito: se o folheto
+     pular, renumerar ou acrescentar blocos, SIGA O TEXTO REAL (números e ordem dele).
+
 A. CABEÇALHO REPETIDO (masthead): o folheto reimprime a tarja
    "Ano X – no Y – DIA de MÊS de ANO / TÍTULO / Solenidade – ... / Dia do Papa"
    no MEIO da página (layout em 2 colunas). Essas linhas NÃO são conteúdo de
@@ -53,6 +75,10 @@ A. CABEÇALHO REPETIDO (masthead): o folheto reimprime a tarja
 B. CATEGORIA: a linha de categoria litúrgica ("Solenidade", "Festa", "Memória",
    "Domingo ...", às vezes "Solenidade – Dia do Papa") vai no campo `categoria`.
    NÃO é observação nem subtítulo de canto.
+   Use a versão MAIS COMPLETA que aparecer (geralmente no cabeçalho interno, logo
+   abaixo do título da celebração). Ex.: prefira "Solenidade – 13º Domingo do Tempo
+   Comum – Dia do Papa" em vez de só "Solenidade – Dia do Papa". Junte as partes
+   ("Solenidade", "13º Domingo do Tempo Comum", "Dia do Papa") com " – ".
 
 C. DESCRIÇÃO: o parágrafo de abertura entre o cabeçalho e "Ritos Iniciais"
    (ex.: "Hoje celebramos a solenidade...") é a `descricao` da missa.
@@ -86,9 +112,15 @@ J. APÊNDICES (Oração pelas Vocações Sacerdotais, Óbolo de São Pedro, Leit
    Semana, Antífona Mariana) são BLOCOS tipo "oracao" com `secao: "apendice"` e o
    conteúdo no campo `texto` — NUNCA divisores de seção.
 
-K. REFRÃO: se no folheto o refrão aparece DEPOIS da estrofe N, defina
-   `posicao_refrao_apos: N`. Use 0/null só quando o refrão vem antes de todas as
-   estrofes (padrão do Salmo Responsorial).
+K. REFRÃO E ESTROFES — TRANSCREVA NA ORDEM EXATA EM QUE APARECEM no texto.
+   NÃO presuma a posição do refrão: ela VARIA de folheto para folheto e de canto
+   para canto. Em alguns o "REFRÃO:" vem antes da estrofe 1; em outros vem depois
+   da 1ª estrofe; em outros o canto não tem refrão (só estrofes). Seu trabalho é
+   apenas: (a) extrair o refrão em `refrao`, (b) as estrofes em `estrofes` na ordem
+   numerada 1,2,3..., e (c) preencher `posicao_refrao_apos` = número de estrofes que
+   aparecem ANTES do "REFRÃO:" no texto (0 se o refrão vem primeiro). NÃO invente um
+   valor "padrão" — leia do texto. (A posição é ainda reconferida por código a partir
+   do texto-fonte, então o que importa é manter a ordem real e o refrão correto.)
 
 L. ASPAS: PRESERVE as aspas (" " ' ') do texto original nas falas e leituras.
    Não as remova. Rubricas curtas no fim de um canto ("Momento de silêncio para

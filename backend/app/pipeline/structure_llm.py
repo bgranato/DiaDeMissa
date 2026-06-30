@@ -50,6 +50,46 @@ def _limpar_cercas(texto: str) -> str:
     return t
 
 
+def _norm_busca(s: str) -> str:
+    """Normaliza para casamento robusto: minúsculas, só letras/números/espaço."""
+    s = re.sub(r"[^0-9a-zà-úãõâêôçáéíóú ]", "", (s or "").lower())
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _corrigir_posicao_refrao(missa: Missa, texto_limpo: str) -> None:
+    """Calcula `posicao_refrao_apos` dos cantos de forma DETERMINÍSTICA, pelo texto.
+
+    Não depende do LLM acertar: olha, no texto-fonte do folheto, quantas estrofes
+    aparecem ANTES do refrão e usa essa contagem. Vale para TODOS os folhetos.
+    (O Salmo Responsorial não usa este campo — refrão sempre no topo.)
+    """
+    texto_n = _norm_busca(texto_limpo)
+    for b in missa.blocos:
+        if getattr(b, "tipo", None) != "canto":
+            continue
+        refrao = getattr(b, "refrao", None) or []
+        estrofes = getattr(b, "estrofes", None) or []
+        if not refrao or not estrofes:
+            continue
+        ref_key = _norm_busca(refrao[0])[:30]
+        if not ref_key:
+            continue
+        idx_ref = texto_n.find(ref_key)
+        if idx_ref < 0:
+            continue
+        antes = 0
+        for est in estrofes:
+            if not est:
+                continue
+            est_key = _norm_busca(est[0])[:30]
+            if not est_key:
+                continue
+            idx_est = texto_n.find(est_key)
+            if 0 <= idx_est < idx_ref:
+                antes += 1
+        b.posicao_refrao_apos = antes if antes > 0 else 0
+
+
 def _coagir_nulos(b: dict) -> dict:
     """Normaliza nulos que o LLM às vezes emite em campos obrigatórios.
 
@@ -127,7 +167,10 @@ def estruturar_via_llm(
         client = get_llm_client()
 
     try:
-        return asyncio.run(_chamar_llm(client, texto_limpo, data_hint))
+        missa = asyncio.run(_chamar_llm(client, texto_limpo, data_hint))
+        # Correção determinística (não depende do LLM): posição do refrão pelo texto.
+        _corrigir_posicao_refrao(missa, texto_limpo)
+        return missa
     except Exception as e:
         logger.exception("LLM indisponível/falhou — fallback para regex (%s)", str(e)[:200])
         from app.pipeline.structure import estruturar
