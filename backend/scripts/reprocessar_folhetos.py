@@ -42,13 +42,83 @@ def _carregar_env() -> None:
 
 _carregar_env()
 
+import json  # noqa: E402
+import sqlite3  # noqa: E402
+import types  # noqa: E402
+
 from app.pipeline import processar_pdf  # noqa: E402
 from app.pipeline.download import hash_pdf, CACHE_DIR  # noqa: E402
+from app.pipeline.extract import extrair_texto_estruturado  # noqa: E402
+from app.pipeline.clean import limpar  # noqa: E402
+from app.pipeline.structure_llm import _corrigir_posicao_refrao  # noqa: E402
 from app.services.persist_missa import persistir_missa  # noqa: E402
 from app.core.database import SessionLocal  # noqa: E402
 from app.core.config import settings  # noqa: E402
 
 CUSTO_POR_FOLHETO = 0.07  # estimativa Haiku (~US$); só para o aviso do dry-run
+
+
+def _db_path() -> str:
+    """Caminho do arquivo SQLite a partir do DATABASE_URL (sqlite:///...)."""
+    url = settings.DATABASE_URL
+    return url[len("sqlite:///"):] if url.startswith("sqlite:///") else url
+
+
+def modo_so_refrao(pdfs, dry_run: bool) -> int:
+    """Recalcula posicao_refrao_apos dos cantos SEM LLM (custo US$ 0,00).
+
+    Para cada PDF: re-extrai/limpa o texto, carrega os cantos JÁ SALVOS no banco,
+    roda _corrigir_posicao_refrao (determinístico) e persiste APENAS o campo
+    posicao_refrao_apos (dentro de conteudo_estruturado) dos cantos que mudaram.
+    """
+    con = sqlite3.connect(_db_path())
+    con.row_factory = sqlite3.Row
+    total_alt = 0
+    for i, p in enumerate(pdfs, 1):
+        data = p.stem  # nome do arquivo = AAAA-MM-DD
+        try:
+            texto_limpo = limpar(extrair_texto_estruturado(p))
+        except Exception as e:  # noqa: BLE001
+            print(f"[{i}/{len(pdfs)}] {p.name} · ERRO extração: {str(e)[:120]}")
+            continue
+        row_m = con.execute("SELECT id FROM missas WHERE data=?", (data,)).fetchone()
+        if not row_m:
+            print(f"[{i}/{len(pdfs)}] {data} · (não está no banco — pulando)")
+            continue
+        cantos = []
+        for r in con.execute(
+            "SELECT id, ordem, titulo, conteudo_estruturado FROM blocos_liturgicos "
+            "WHERE missa_id=? AND tipo='canto' ORDER BY ordem", (row_m["id"],)
+        ):
+            ce = json.loads(r["conteudo_estruturado"] or "{}")
+            stub = types.SimpleNamespace(
+                tipo="canto",
+                refrao=ce.get("refrao") or [],
+                estrofes=ce.get("estrofes") or [],
+                posicao_refrao_apos=ce.get("posicao_refrao_apos"),
+            )
+            cantos.append((r, ce, stub))
+        antes = {id(s): s.posicao_refrao_apos for _, _, s in cantos}
+        _corrigir_posicao_refrao(types.SimpleNamespace(blocos=[s for _, _, s in cantos]), texto_limpo)
+        print(f"[{i}/{len(pdfs)}] {data} ({len(cantos)} cantos):")
+        for r, ce, stub in cantos:
+            b = antes[id(stub)]
+            a = stub.posicao_refrao_apos
+            marca = "→ ALTERA" if b != a else "  ok"
+            print(f"    {(r['titulo'] or '')[:28]:<28} p{b} → p{a}   {marca}")
+            if (not dry_run) and b != a:
+                ce["posicao_refrao_apos"] = a
+                con.execute(
+                    "UPDATE blocos_liturgicos SET conteudo_estruturado=? WHERE id=?",
+                    (json.dumps(ce, ensure_ascii=False), r["id"]),
+                )
+                total_alt += 1
+    if not dry_run:
+        con.commit()
+    con.close()
+    pref = "[dry-run] " if dry_run else ""
+    print(f"\n{pref}Cantos com posição alterada: {total_alt}. Custo: US$ 0,00 (sem LLM).")
+    return 0
 
 
 def main() -> int:
@@ -57,6 +127,8 @@ def main() -> int:
     ap.add_argument("--limit", type=int, default=0, help="processa só os N primeiros (0=todos)")
     ap.add_argument("--dir", default=None, help="pasta dos PDFs (default: CACHE_DIR/archive)")
     ap.add_argument("--data", default=None, help="processa só o folheto dessa data (ex.: 2026-05-24)")
+    ap.add_argument("--so-refrao", action="store_true",
+                    help="SEM LLM (custo US$0): só recalcula posicao_refrao_apos dos cantos no banco")
     args = ap.parse_args()
 
     base = Path(args.dir) if args.dir else (CACHE_DIR / "archive")
@@ -68,6 +140,11 @@ def main() -> int:
         pdfs = [p for p in pdfs if args.data in p.name]
     if args.limit:
         pdfs = pdfs[:args.limit]
+
+    if args.so_refrao:
+        print(f"Pasta: {base}")
+        print(f"PDFs: {len(pdfs)} · modo=SÓ REFRÃO (sem LLM){' · DRY-RUN' if args.dry_run else ''}")
+        return modo_so_refrao(pdfs, args.dry_run)
 
     usar_llm = os.getenv("USAR_LLM", "0").lower() in ("1", "true", "yes", "on")
     print(f"Pasta: {base}")
