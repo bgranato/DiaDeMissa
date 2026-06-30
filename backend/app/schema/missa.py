@@ -23,6 +23,15 @@ class PalavraDoDia(BaseModel):
 
 class BlocoBase(BaseModel):
     ordem: int
+    # Número original do folheto (1., 2., 6., 7.…). Independente de `ordem`, que
+    # é a posição na lista achatada. Permite ao frontend exibir a numeração fiel
+    # ao folheto, mesmo quando reordena/filtra a lista. None pra blocos sem número
+    # explícito no PDF (seções, antífonas anexadas, apêndices).
+    numero_folheto: Optional[int] = None
+    # Qual seção o bloco pertence (Ritos Iniciais, Liturgia da Palavra, Eucarística,
+    # Ritos Finais ou "apendice"). Salvar explicitamente preserva a hierarquia mesmo
+    # quando o frontend trabalha com lista flat.
+    secao: Optional[str] = None
     titulo: str
     postura: Postura = None
     subtitulo: Optional[str] = None
@@ -42,11 +51,28 @@ class Secao(BaseModel):
     postura: Postura = None
 
 
+class AntifonaAnexada(BaseModel):
+    """Antífona da Entrada/Comunhão anexada ao Canto correspondente.
+
+    No folheto, é texto secundário lido com o canto — não é bloco navegável
+    próprio. Mantemos como atributo do Canto pra preservar a hierarquia.
+    """
+    titulo: str
+    texto: str
+    referencia: Optional[str] = None
+
+
 class Canto(BlocoBase):
     tipo: Literal["canto"] = "canto"
     refrao: list[str] = Field(default_factory=list)
     estrofes: list[list[str]] = Field(default_factory=list)
     referencia: Optional[str] = None
+    antifona_anexada: Optional[AntifonaAnexada] = None
+    # Posição do refrão na ordem do folheto:
+    #   None ou 0 = refrão antes da estrofe 1 (default — Salmo Responsorial)
+    #   N (1..K) = refrão depois da estrofe N e antes da estrofe N+1
+    #              Ex: Canto das Ofertas tem estrofe 1 → REFRÃO → estrofe 2 → posicao=1
+    posicao_refrao_apos: Optional[int] = None
 
     @field_validator("refrao", "estrofes", mode="after")
     @classmethod
@@ -75,7 +101,9 @@ class Leitura(BlocoBase):
     tipo: Literal["leitura"] = "leitura"
     categoria: Literal["primeira_leitura", "segunda_leitura", "evangelho"]
     referencia: str
-    introducao: str
+    # Opcional: o Evangelho nem sempre tem uma linha de "introdução" (ex.: "Leitura
+    # dos Atos..."), então não forçamos — evita um reprocessamento desnecessário.
+    introducao: Optional[str] = None
     versiculos: list[Versiculo] = Field(default_factory=list)
     conclusao: Optional[str] = None
     resposta: Optional[str] = None
