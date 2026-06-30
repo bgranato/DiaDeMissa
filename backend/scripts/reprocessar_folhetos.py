@@ -56,6 +56,7 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true", help="só conta e estima custo")
     ap.add_argument("--limit", type=int, default=0, help="processa só os N primeiros (0=todos)")
     ap.add_argument("--dir", default=None, help="pasta dos PDFs (default: CACHE_DIR/archive)")
+    ap.add_argument("--data", default=None, help="processa só o folheto dessa data (ex.: 2026-05-24)")
     args = ap.parse_args()
 
     base = Path(args.dir) if args.dir else (CACHE_DIR / "archive")
@@ -63,6 +64,8 @@ def main() -> int:
         print(f"Pasta não encontrada: {base}")
         return 1
     pdfs = sorted(base.glob("*.pdf"))
+    if args.data:
+        pdfs = [p for p in pdfs if args.data in p.name]
     if args.limit:
         pdfs = pdfs[:args.limit]
 

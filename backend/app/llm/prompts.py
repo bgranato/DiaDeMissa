@@ -93,6 +93,22 @@ K. REFRÃO: se no folheto o refrão aparece DEPOIS da estrofe N, defina
 L. ASPAS: PRESERVE as aspas (" " ' ') do texto original nas falas e leituras.
    Não as remova. Rubricas curtas no fim de um canto ("Momento de silêncio para
    oração pessoal") ficam como rubrica/anexo do bloco, não viram seção nova.
+
+M. DESCRIÇÃO vs OBSERVAÇÕES (não confunda):
+   - O parágrafo de reflexão de abertura (ex.: "Hoje celebramos...", "Reunidos em
+     oração com Maria...", "Neste Domingo...") vai SEMPRE em `descricao`.
+   - `observacoes` é só para uma nota curta extra (ex.: "Dia do Papa") ou null.
+     NUNCA coloque o parágrafo de abertura em `observacoes`.
+
+N. MASTHEAD a DESCARTAR (não vai para descricao nem observacoes): "Ano Jubilar
+   Arquidiocesano", "Ano Jubilar", "A Comunicação Social", "Comunicação Social",
+   "Versão Celular" e linhas de cabeçalho repetido.
+
+O. CATEGORIA das solenidades: Pentecostes, Santíssima Trindade, Corpus Christi
+   (Santíssimo Corpo e Sangue de Cristo), Ascensão, São Pedro e São Paulo,
+   Sagrado Coração, Imaculada, Assunção, Cristo Rei, etc. são "Solenidade".
+   NUNCA use "Missa" como categoria; se não houver rótulo explícito, deduza pelo
+   título da celebração (Domingo comum → "Domingo"; festa → "Festa").
 """
 
 # Catálogo de tipos de bloco que o JSON pode conter (espelha app/schema/missa.py).
