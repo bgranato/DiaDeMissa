@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        # Ignora env vars não declaradas aqui (ex.: USAR_LLM, ANTHROPIC_API_KEY,
+        # ANTHROPIC_MODEL — lidas direto via os.getenv no pipeline LLM). Sem isso,
+        # o default extra='forbid' derruba o app ao ver chaves novas no .env.
+        extra = "ignore"
 
 
 settings = Settings()
