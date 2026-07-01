@@ -21,6 +21,7 @@ class UsuarioResponse(BaseModel):
     is_admin: bool = False
     provider: str
     data_criacao: datetime
+    meta_missas_mensal: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -31,6 +32,12 @@ class UsuarioUpdate(BaseModel):
     email: Optional[EmailStr] = None
     celular: Optional[str] = None
     igreja: Optional[str] = None
+
+
+class AdminUsuarioUpdate(BaseModel):
+    """Alterações que um admin pode fazer num usuário pelo painel master."""
+    is_admin: Optional[bool] = None
+    status: Optional[str] = None  # "ativo" | "bloqueado" | "cancelado"
 
 
 class LoginRequest(BaseModel):
@@ -89,6 +96,8 @@ class HistoricoResponse(BaseModel):
     percentual_lido: float = 0.0
     data_ultimo_acesso: Optional[datetime] = None
     status: str  # "concluida" | "em_progresso" | "nao_acompanhada"
+    igreja_id: Optional[int] = None
+    igreja_nome: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -98,6 +107,7 @@ class HistoricoCreate(BaseModel):
     missa_id: int
     ultimo_bloco_id: int
     percentual_lido: float
+    igreja_id: Optional[int] = None
 
 
 class LembreteCreate(BaseModel):
@@ -119,6 +129,7 @@ class LembreteResponse(BaseModel):
     tipo: str = "usuario"
     remetente: str = "Missa do Dia"
     ativo: bool
+    lido: bool = False
 
     class Config:
         from_attributes = True
@@ -130,6 +141,10 @@ class LembreteUpdate(BaseModel):
     data_hora_alerta: Optional[datetime] = None
     minutos_antecedencia: Optional[int] = None
     ativo: Optional[bool] = None
+
+
+class MetaMensalUpdate(BaseModel):
+    meta_missas_mensal: Optional[int] = None  # None = remover meta
 
 
 class LembreteBroadcast(BaseModel):

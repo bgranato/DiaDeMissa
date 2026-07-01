@@ -14,12 +14,18 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
 
+def _truncar_senha(senha: str) -> bytes:
+    """bcrypt aceita no máximo 72 BYTES (não chars). Acentos/emoji em UTF-8 ocupam 2+ bytes.
+    Trunca defensivamente pra não estourar o limite e quebrar login."""
+    return senha.encode("utf-8")[:72]
+
+
 def verificar_senha(senha: str, hash: str) -> bool:
-    return pwd_context.verify(senha, hash)
+    return pwd_context.verify(_truncar_senha(senha), hash)
 
 
 def gerar_hash_senha(senha: str) -> str:
-    return pwd_context.hash(senha)
+    return pwd_context.hash(_truncar_senha(senha))
 
 
 def criar_access_token(data: dict) -> str:
@@ -46,6 +52,9 @@ def obter_usuario_atual(
     usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
     if usuario is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado")
+    # Bloqueio/cancelamento pelo painel admin derruba o acesso (mesmo com token válido).
+    if getattr(usuario, "status", "ativo") in ("bloqueado", "cancelado"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cadastro bloqueado ou cancelado")
     return usuario
 
 

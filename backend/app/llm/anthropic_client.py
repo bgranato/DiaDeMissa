@@ -57,6 +57,12 @@ class AnthropicClient(LLMClient):
                 # Haiku 4.5: $1/1M entrada, $5/1M saída (ajuste se trocar de modelo).
                 custo = ent / 1e6 * 1.0 + sai / 1e6 * 5.0
                 print(f"[LLM] {self.model} · entrada={ent} tok · saída={sai} tok · ~US$ {custo:.4f}")
+                # Persiste o custo para o painel admin (best-effort, não bloqueia).
+                try:
+                    from app.services.custo_llm_service import registrar_custo_llm
+                    registrar_custo_llm(self.model, ent, sai, custo)
+                except Exception:
+                    pass
             # content é uma lista de blocos; juntamos o texto.
             partes = [b.get("text", "") for b in data.get("content", []) if b.get("type") == "text"]
             return "".join(partes).strip()

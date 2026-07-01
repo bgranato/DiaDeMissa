@@ -18,8 +18,13 @@ class Usuario(Base):
     provider_id = Column(String(255), nullable=True)
     igreja = Column(String(200), nullable=True, index=True)
     is_admin = Column(Boolean, default=False, nullable=False)
+    # Estado do cadastro para o painel admin: "ativo" | "bloqueado" | "cancelado".
+    status = Column(String(20), default="ativo", nullable=False)
     reset_token = Column(String(255), nullable=True, index=True)
     reset_token_expira = Column(DateTime(timezone=True), nullable=True)
+    # Meta de missas por mês (Jornada). Null = sem meta — sistema ainda contabiliza
+    # frequência contra "dias com missa" e "domingos+solenidades recomendado".
+    meta_missas_mensal = Column(Integer, nullable=True)
     data_criacao = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     data_atualizacao = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -48,6 +53,7 @@ class HistoricoUsuario(Base):
     id = Column(Integer, primary_key=True, index=True)
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
     missa_id = Column(Integer, ForeignKey("missas.id"), nullable=False)
+    igreja_id = Column(Integer, ForeignKey("igrejas.id"), nullable=True)  # onde a pessoa assistiu
     ultimo_bloco_id = Column(Integer, nullable=True)
     percentual_lido = Column(Float, default=0.0)
     data_ultimo_acesso = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
