@@ -119,15 +119,18 @@ def _checar_preces_nao_separadas(b: BlocoLiturgico, achados: list[Achado]) -> No
                 "preces_amassadas_em_um_turno",
                 f"Turno #{i+1} tem múltiplas preces numeradas amassadas: {texto[:120]!r}",
             ))
-    # Verifica se há ao menos uma alternância L/T
+    # A Oração dos Fiéis é válida com um LÍDER (L ou P) enunciando as intenções e
+    # o povo (T) respondendo. O folheto da Arqrio usa P + intenções numeradas + T
+    # (sem "L") — padrão legítimo, não deve gerar achado. Só sinaliza se faltar
+    # líder OU resposta do povo.
     falantes = [t.get("falante", "") for t in turnos]
-    tem_L = "L" in falantes
-    tem_T = "T" in falantes
-    if not (tem_L and tem_T) and len(turnos) >= 4:
+    tem_lider = ("L" in falantes) or ("P" in falantes)
+    tem_resposta = "T" in falantes
+    if not (tem_lider and tem_resposta) and len(turnos) >= 4:
         achados.append(Achado(
             SEV_ALTA, b.ordem, b.titulo or "", b.tipo,
-            "preces_sem_alternancia",
-            f"Oração dos Fiéis sem alternância L/T (falantes: {set(falantes)})",
+            "preces_sem_resposta",
+            f"Oração dos Fiéis sem líder+resposta do povo (falantes: {set(falantes)})",
         ))
 
 
