@@ -144,8 +144,11 @@ def _obter_calendario_mes(ano: int, mes: int) -> dict[int, str]:
         return {}
 
     # Extrai links do calendário: <a href="...liturgia/SLUG/?sDia=DD&sMes=MM&sAno=YYYY">
+    # A Canção Nova serve os '&' HTML-escapados como '&amp;' — a regex tolera os dois
+    # (senão o calendário não casa e TODA a ingestão diária trava).
     padrao = re.compile(
-        rf'<a\s+href="(https://liturgia\.cancaonova\.com/pb/liturgia/[^"]+/)\?sDia=(\d+)&sMes={mes:02d}&sAno={ano}"',
+        rf'<a\s+href="(https://liturgia\.cancaonova\.com/pb/liturgia/[^"]+/)'
+        rf'\?sDia=(\d+)&(?:amp;)?sMes={mes:02d}&(?:amp;)?sAno={ano}"',
         re.IGNORECASE,
     )
     cal: dict[int, str] = {}
