@@ -218,12 +218,12 @@
    .reading-wide, porém mais contido para formulários e listas. A BottomNav NÃO é
    atingida (ela fica fora desse container). */
 @media (min-width: 768px) {
-  .ds-bottom-nav-padding .max-w-lg { max-width: 42rem; }   /* ~672px */
-  .ds-bottom-nav-padding.ds-container { max-width: 42rem; }
+  .ds-bottom-nav-padding .max-w-lg { max-width: 42rem !important; }   /* ~672px */
+  .ds-bottom-nav-padding.ds-container { max-width: 42rem !important; }
 }
 @media (min-width: 1280px) {
-  .ds-bottom-nav-padding .max-w-lg { max-width: 48rem; }   /* ~768px */
-  .ds-bottom-nav-padding.ds-container { max-width: 48rem; }
+  .ds-bottom-nav-padding .max-w-lg { max-width: 48rem !important; }   /* ~768px */
+  .ds-bottom-nav-padding.ds-container { max-width: 48rem !important; }
 }
 
 /* === Bloco de divisor sutil === */
