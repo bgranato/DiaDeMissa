@@ -211,6 +211,21 @@
   .reading-wide .ds-container { max-width: 64rem; }   /* ~1024px */
 }
 
+/* === Respiro consistente em TODAS as telas de conteúdo ===
+   Em telas grandes o conteúdo deixava de aproveitar a largura (texto "espremido"
+   no centro em ~512px). Aqui o container interno das telas (que têm
+   .ds-bottom-nav-padding na raiz) cresce em degraus — mesmo espírito do
+   .reading-wide, porém mais contido para formulários e listas. A BottomNav NÃO é
+   atingida (ela fica fora desse container). */
+@media (min-width: 768px) {
+  .ds-bottom-nav-padding .max-w-lg { max-width: 42rem; }   /* ~672px */
+  .ds-bottom-nav-padding.ds-container { max-width: 42rem; }
+}
+@media (min-width: 1280px) {
+  .ds-bottom-nav-padding .max-w-lg { max-width: 48rem; }   /* ~768px */
+  .ds-bottom-nav-padding.ds-container { max-width: 48rem; }
+}
+
 /* === Bloco de divisor sutil === */
 .ds-divider {
   height: 1px;
