@@ -6,7 +6,7 @@ import { logNav, logError } from './services/logger'
 import { HomeScreen } from './screens/HomeScreen'
 import { ReadingScreen } from './screens/ReadingScreen'
 import { CalendarScreen } from './screens/CalendarScreen'
-import { HistoryScreen } from './screens/HistoryScreen'
+import { JornadaScreen } from './screens/JornadaScreen'
 import LembretesScreen from './screens/LembretesScreen'
 import { ProfileScreen } from './screens/ProfileScreen'
 import { AuthScreens } from './screens/AuthScreens'
@@ -15,7 +15,10 @@ import { ConclusionScreen } from './screens/ConclusionScreen'
 import { DesignSystemScreen } from './screens/DesignSystemScreen'
 import { MeusDadosScreen } from './screens/MeusDadosScreen'
 import { AlterarSenhaScreen } from './screens/AlterarSenhaScreen'
+import { IgrejasScreen } from './screens/IgrejasScreen'
+import { OracoesScreen } from './screens/OracoesScreen'
 import { BottomNav } from './components/UI'
+import { registrarNavegador } from './services/navigation'
 import type { Missa } from './types/missa'
 
 export default function App() {
@@ -36,6 +39,13 @@ export default function App() {
     carregarMissa()
   }, [estaCarregando, estaAutenticado])
 
+  // Toda troca de tela começa pelo topo (não herda scroll da tela anterior).
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+  }, [screen])
+
   async function carregarMissa() {
     try {
       setMissa(await getMissaHoje())
@@ -51,11 +61,14 @@ export default function App() {
     setScreen(s)
   }, [screen])
 
+  // Registra a navegação globalmente (usado pela sineta de notificações no AppHeader).
+  useEffect(() => { registrarNavegador(navigateTo) }, [navigateTo])
+
   return (
     <div className="flex flex-col min-h-screen bg-brand-bg dark:bg-slate-900 overflow-x-hidden relative">
-      <div className="fixed inset-0 opacity-10 pointer-events-none z-0">
-        <div className="absolute top-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full bg-brand-gold blur-3xl" />
-        <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-brand-blue blur-3xl" />
+      <div className="fixed inset-0 opacity-10 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute top-[-10%] left-[-5%] w-[60vw] max-w-[400px] aspect-square rounded-full bg-brand-gold blur-3xl" />
+        <div className="absolute bottom-[-10%] right-[-5%] w-[70vw] max-w-[500px] aspect-square rounded-full bg-brand-blue blur-3xl" />
       </div>
 
       <div className="relative z-10 flex flex-col min-h-screen">
@@ -64,13 +77,15 @@ export default function App() {
           {screen === 'login' && <AuthScreens setScreen={navigateTo} />}
           {screen === 'home' && <HomeScreen setScreen={navigateTo} missa={missa} nome={usuarioNome} onLogout={logout} />}
           {screen === 'reading' && <ReadingScreen onBack={() => navigateTo('home')} onFinish={() => navigateTo('conclusion')} missaId={missa?.id} />}
+          {screen === 'igrejas' && <IgrejasScreen setScreen={navigateTo} />}
+          {screen === 'oracoes' && <OracoesScreen setScreen={navigateTo} />}
           {screen === 'calendar' && <CalendarScreen setScreen={navigateTo} />}
-          {screen === 'history' && <HistoryScreen setScreen={navigateTo} />}
+          {screen === 'history' && <JornadaScreen setScreen={navigateTo} />}
           {screen === 'reminders' && (
             <LembretesScreen onBack={() => navigateTo(lastScreen)} />
           )}
           {screen === 'profile' && <ProfileScreen setScreen={navigateTo} usuario={usuario} onLogout={logout} />}
-          {screen === 'conclusion' && <ConclusionScreen setScreen={navigateTo} />}
+          {screen === 'conclusion' && <ConclusionScreen setScreen={navigateTo} missaId={missa?.id} missaData={missa?.data} />}
           {screen === 'design-system' && <DesignSystemScreen onBack={() => navigateTo('profile')} />}
           {screen === 'meus-dados' && <MeusDadosScreen onBack={() => navigateTo('profile')} />}
           {screen === 'alterar-senha' && <AlterarSenhaScreen onBack={() => navigateTo('profile')} />}

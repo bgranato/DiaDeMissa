@@ -228,6 +228,7 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
       <AppHeader
         title=""
         onBack={onBack}
+        showNotifications={false}
         rightElement={
           <div className="flex items-center gap-1">
             <button

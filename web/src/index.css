@@ -219,11 +219,13 @@
    atingida (ela fica fora desse container). */
 @media (min-width: 768px) {
   .ds-bottom-nav-padding .max-w-lg { max-width: 42rem !important; }   /* ~672px */
-  .ds-bottom-nav-padding.ds-container { max-width: 42rem !important; }
+  .ds-bottom-nav-padding.ds-container,
+  .ds-bottom-nav-padding .ds-container { max-width: 42rem !important; }  /* inclui o header (AppHeader) */
 }
 @media (min-width: 1280px) {
   .ds-bottom-nav-padding .max-w-lg { max-width: 48rem !important; }   /* ~768px */
-  .ds-bottom-nav-padding.ds-container { max-width: 48rem !important; }
+  .ds-bottom-nav-padding.ds-container,
+  .ds-bottom-nav-padding .ds-container { max-width: 48rem !important; }  /* header alinhado ao conteúdo */
 }
 
 /* === Bloco de divisor sutil === */
