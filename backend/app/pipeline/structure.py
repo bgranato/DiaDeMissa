@@ -1081,8 +1081,6 @@ def _parse_estrofe(bloco: str) -> list[str]:
 # Pós-processamento de blocos
 # ============================================================================
 
-_REFRAO_PRECES_DEFAULT = "Senhor, escutai a nossa prece."
-
 
 def _eh_oracao_dos_fieis(bloco) -> bool:
     """Detecta o bloco de Oração Universal / dos Fiéis / Preces."""
@@ -1095,13 +1093,51 @@ def _eh_oracao_dos_fieis(bloco) -> bool:
     )
 
 
+def _detectar_refrao_preces(turnos) -> str | None:
+    """Descobre o REFRÃO real da Oração dos Fiéis a partir do PRÓPRIO folheto.
+
+    Nunca inventa: retorna None se não encontrar. O chamador, nesse caso, NÃO
+    injeta o refrão genérico do Missal — precedência é folheto > fallback, e
+    falha explícita é melhor que texto padrão por cima do folheto.
+    """
+    from collections import Counter
+
+    _IGNORAR = {"amém.", "amem.", "amém", "amem"}
+
+    # Caso 1: refrão já isolado — turnos T curtos e repetidos (ex.: folheto já
+    # separado prece a prece).
+    curtos = [
+        (t.texto or "").strip()
+        for t in turnos
+        if t.falante == "T"
+        and (t.texto or "").strip()
+        and (t.texto or "").strip().lower() not in _IGNORAR
+        and len((t.texto or "").strip()) <= 140
+    ]
+    if curtos:
+        return Counter(curtos).most_common(1)[0][0]
+
+    # Caso 2: preces agrupadas num T longo → o refrão é o texto ANTES da 1ª
+    # numeração ("refrão 1. ... 2. ...").
+    for t in turnos:
+        if t.falante == "T" and t.texto:
+            partes = re.split(r"(?=\s\d+\.\s)", t.texto.strip())
+            if len(partes) > 1:
+                cabeca = partes[0].strip()
+                if cabeca and cabeca.lower() not in _IGNORAR and len(cabeca) <= 140:
+                    return cabeca
+
+    return None
+
+
 def _separar_preces_numeradas(blocos: list) -> list:
     """Pós-processa blocos de Oração dos Fiéis pra separar preces numeradas
     ("1. ... 2. ... 3.") em turnos L (Leitor) seguidos de T (refrão).
 
     O folheto da Arquidiocese frequentemente agrupa várias preces dentro do
-    mesmo turno T (depois do refrão "Senhor, escutai..."). Esta função
-    reverte isso pra apresentação correta no app.
+    mesmo turno T (depois do refrão PRÓPRIO do dia). Esta função reverte isso
+    pra apresentação correta no app, repetindo o refrão REAL do folheto (nunca
+    o genérico do Missal) após cada prece.
 
     Idempotente: já-separado não muda.
     """
@@ -1115,6 +1151,9 @@ def _separar_preces_numeradas(blocos: list) -> list:
         if not turnos_orig:
             novos_blocos.append(bloco)
             continue
+
+        # Refrão REAL do folheto (nunca o genérico). Se None, não injeta nada.
+        refrao_real = _detectar_refrao_preces(turnos_orig)
 
         novos_turnos: list[Turno] = []
 
@@ -1147,16 +1186,13 @@ def _separar_preces_numeradas(blocos: list) -> list:
                 p_sem_num = re.sub(r"^\s*\d+\.\s*", "", p).strip()
                 if not p_sem_num:
                     continue
-                refrao_inline = _REFRAO_PRECES_DEFAULT.lower() in p_sem_num.lower()
                 novos_turnos.append(Turno(falante="L", texto=p_sem_num))
-                if not refrao_inline:
-                    # Evita duplicar T se o último já é T com refrão
-                    ja_tem_refrao = (
-                        novos_turnos and novos_turnos[-1].falante == "T"
-                        and _REFRAO_PRECES_DEFAULT.lower() in (novos_turnos[-1].texto or "").lower()
-                    )
-                    if not ja_tem_refrao:
-                        novos_turnos.append(Turno(falante="T", texto=_REFRAO_PRECES_DEFAULT))
+                # Injeta o refrão REAL do folheto após cada prece.
+                # PRECEDÊNCIA folheto > fallback: se não detectamos refrão no
+                # folheto, NÃO inventa o genérico — deixa sem (falha explícita).
+                # (duplicatas consecutivas são limpas logo abaixo)
+                if refrao_real and refrao_real.lower() not in p_sem_num.lower():
+                    novos_turnos.append(Turno(falante="T", texto=refrao_real))
 
         # Limpa duplicação de refrão consecutivo no início (pode acontecer se T do PDF já tinha)
         turnos_limpos: list[Turno] = []
