@@ -252,8 +252,7 @@ export const AppHeader = ({
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0 -mr-1">
           {rightElement}
-          {/* Sineta de notificações — global, aparece em todas as telas (exceto onde desativada). */}
-          {showNotifications && <NotificationBell />}
+          {/* Mesma ordem da Home: acessibilidade (engrenagem) à esquerda, sineta à direita. */}
           {showAccessibility && (
             <button
               onClick={() => setShowControls(!showControls)}
@@ -263,6 +262,8 @@ export const AppHeader = ({
               <Settings2 size={20} />
             </button>
           )}
+          {/* Sineta de notificações — global, aparece em todas as telas (exceto onde desativada). */}
+          {showNotifications && <NotificationBell />}
         </div>
       </div>
       
