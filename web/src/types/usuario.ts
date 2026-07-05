@@ -21,6 +21,7 @@ export interface Preferencias {
   alto_contraste: boolean
   leitura_simplificada: boolean
   notificacoes_ativas: boolean
+  alerta_missa_email: boolean
 }
 
 export type HistoricoStatus = 'concluida' | 'em_progresso' | 'nao_acompanhada'
@@ -33,6 +34,8 @@ export interface HistoricoEntry {
   percentual_lido: number
   data_ultimo_acesso: string | null
   status: HistoricoStatus
+  igreja_id: number | null
+  igreja_nome: string | null
 }
 
 export interface Lembrete {
@@ -44,7 +47,7 @@ export interface Lembrete {
 }
 
 export interface UserPreferences {
-  fontSize: 'small' | 'medium' | 'large' | 'extra-large'
+  fontSize: 'small' | 'medium' | 'large' | 'extra-large' | 'huge'
   highContrast: boolean
   darkMode: boolean
 }

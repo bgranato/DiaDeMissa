@@ -1,7 +1,9 @@
+import { useState, useEffect } from 'react'
 import { motion } from 'motion/react'
 import { AppHeader, Card } from '../components/UI'
-import { User, Bell, LogOut, KeyRound } from 'lucide-react'
+import { User, Bell, LogOut, KeyRound, Mail } from 'lucide-react'
 import type { Usuario } from '../types/usuario'
+import { getPreferencias, atualizarPreferencias } from '../services/preferencias'
 
 interface Props {
   setScreen: (s: string) => void
@@ -10,9 +12,28 @@ interface Props {
 }
 
 export const ProfileScreen = ({ setScreen, usuario, onLogout }: Props) => {
+  const [alertaEmail, setAlertaEmail] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    getPreferencias()
+      .then(p => setAlertaEmail(p.alerta_missa_email))
+      .catch(() => setAlertaEmail(true))
+  }, [])
+
+  async function toggleAlertaEmail() {
+    if (alertaEmail === null) return
+    const novo = !alertaEmail
+    setAlertaEmail(novo) // otimista
+    try {
+      await atualizarPreferencias({ alerta_missa_email: novo })
+    } catch {
+      setAlertaEmail(!novo) // reverte em erro
+    }
+  }
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-brand-bg dark:bg-slate-900 pb-32">
-      <AppHeader title="Perfil" showAccessibility={false} />
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-brand-bg dark:bg-slate-900 ds-bottom-nav-padding">
+      <AppHeader title="Perfil" onBack={() => setScreen('home')} />
 
       <div className="max-w-lg mx-auto px-5 mt-6 flex flex-col gap-4">
         <Card className="flex items-center gap-6 p-6">
@@ -41,6 +62,26 @@ export const ProfileScreen = ({ setScreen, usuario, onLogout }: Props) => {
             <span className="font-bold flex-1 text-left">Lembretes</span>
             <span className="text-brand-gray-dark/40">→</span>
           </button>
+
+          {/* Alerta por e-mail quando a missa entra no sistema (ligado por padrão) */}
+          <div className="flex items-center gap-4 bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-soft border border-black/5">
+            <Mail size={24} className="text-brand-blue" />
+            <div className="flex-1 text-left min-w-0">
+              <span className="font-bold block">Avisar por e-mail</span>
+              <span className="text-xs text-brand-gray-dark/60">Quando a missa do dia entra no sistema</span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={!!alertaEmail}
+              aria-label="Avisar por e-mail quando a missa entra no sistema"
+              onClick={toggleAlertaEmail}
+              disabled={alertaEmail === null}
+              className={`relative w-12 h-7 rounded-full transition-colors flex-shrink-0 disabled:opacity-40 ${alertaEmail ? 'bg-brand-gold' : 'bg-gray-300 dark:bg-slate-600'}`}
+            >
+              <span className={`absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition-transform ${alertaEmail ? 'translate-x-5' : ''}`} />
+            </button>
+          </div>
 
           <hr className="my-2 border-gray-200 dark:border-slate-700" />
 

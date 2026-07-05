@@ -73,3 +73,28 @@ def enviar_email_recuperacao(destinatario: str, nome: str, link: str) -> bool:
     </div>
     """
     return enviar_email(destinatario, assunto, html, texto)
+
+
+def enviar_email_missa_disponivel(destinatario: str, nome: str, data_str: str, celebracao: str) -> bool:
+    """Avisa que a missa do dia já está disponível no app."""
+    assunto = f"A missa de {data_str} já está disponível - Dia de Missa"
+    app_url = getattr(settings, "APP_URL", None) or "https://diademissa.com.br"
+    texto = (
+        f"Olá, {nome}.\n\n"
+        f"A missa de {data_str} — {celebracao} — já está disponível no Dia de Missa.\n"
+        f"Acesse para acompanhar: {app_url}\n\n"
+        f"Se não quiser mais receber estes avisos, é só desativar em Perfil › Notificações."
+    )
+    html = f"""
+    <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: auto; padding: 24px;">
+      <h2 style="color: #1A2B4C;">Olá, {nome}</h2>
+      <p>A missa de <strong>{data_str}</strong> — {celebracao} — já está disponível no <strong>Dia de Missa</strong>.</p>
+      <p style="text-align: center; margin: 32px 0;">
+        <a href="{app_url}" style="background: #1A2B4C; color: #F9F9F9; padding: 12px 24px; text-decoration: none; border-radius: 12px; font-weight: bold;">
+          Acompanhar a missa
+        </a>
+      </p>
+      <p style="color: #888; font-size: 12px;">Se não quiser mais receber estes avisos, desative em Perfil › Notificações.</p>
+    </div>
+    """
+    return enviar_email(destinatario, assunto, html, texto)

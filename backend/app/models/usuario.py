@@ -43,6 +43,9 @@ class PreferenciaUsuario(Base):
     alto_contraste = Column(Boolean, default=False)
     leitura_simplificada = Column(Boolean, default=False)
     notificacoes_ativas = Column(Boolean, default=True)
+    # Alerta por e-mail quando uma nova missa (folheto) entra no sistema.
+    # Opt-OUT: ligado por padrão; o usuário desativa no Perfil se quiser.
+    alerta_missa_email = Column(Boolean, default=True, nullable=False)
 
     usuario = relationship("Usuario", back_populates="preferencias")
 

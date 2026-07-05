@@ -76,13 +76,80 @@ def persistir_missa(
 
     db.commit()
     db.refresh(missa)
+
+    # Compare-and-commit: auditoria síncrona pós-persistência.
+    # Critérios CRÍTICOS marcam pendente_revisao (escondem do app até revisão).
+    try:
+        import logging
+        from app.services.auditor_missa import auditar_missa
+        rel = auditar_missa(missa)
+        if rel.tem_critica:
+            missa.status_processamento = "pendente_revisao"
+            db.add(missa)
+            db.commit()
+            db.refresh(missa)
+            logging.getLogger(__name__).warning(
+                "Missa %s (PDF) marcada pendente_revisao — %d crítico(s)",
+                missa.data,
+                sum(1 for a in rel.achados if a.severidade == "CRÍTICA"),
+            )
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception(
+            "Falha ao auditar missa %s (não bloqueante)", missa.data
+        )
+
+    # Alerta por e-mail "missa disponível" — 1x por missa, só se publicada (concluido).
+    try:
+        if missa.status_processamento == "concluido":
+            from app.services.notif_missa_disponivel import notificar_missa_disponivel
+            notificar_missa_disponivel(db, missa)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception(
+            "Falha ao notificar 'missa disponível' %s (não bloqueante)", missa.data
+        )
+
     return missa
 
 
 def reconstruir_missa(missa_db: MissaModel) -> dict:
-    """Reconstrói o dict que o frontend espera (formato Pydantic Missa) a partir do BD."""
-    blocos = [b.conteudo_estruturado for b in missa_db.blocos if b.conteudo_estruturado]
+    """Reconstrói o dict que o frontend espera (formato Pydantic Missa) a partir do BD.
+
+    Suporta duas origens de bloco:
+    1. Blocos do pipeline antigo (PDF Arquidiocese) → têm `conteudo_estruturado` preenchido.
+    2. Blocos da liturgia diária CNBB/Canção Nova → têm só `conteudo` (texto).
+       Reconstrói o dict no formato esperado pelo BlocoRenderer.
+    """
+    # Mapeia tipos novos da Canção Nova pra tipos que o BlocoRenderer conhece
+    TIPO_MAP = {
+        "leitura_1": "primeira_leitura",
+        "leitura_2": "segunda_leitura",
+        "salmo": "leitura",  # LeituraCard renderiza igual
+        "aclamacao": "leitura",
+        "evangelho": "evangelho",
+    }
+
+    blocos: list[dict] = []
+    for b in missa_db.blocos:
+        if b.conteudo_estruturado:
+            # Formato antigo (Arquidiocese)
+            blocos.append(b.conteudo_estruturado)
+        elif b.conteudo:
+            # Formato novo (liturgia diária — só texto)
+            tipo_renderizavel = TIPO_MAP.get(b.tipo, b.tipo)
+            blocos.append({
+                "ordem": b.ordem,
+                "tipo": tipo_renderizavel,
+                "tipo_original": b.tipo,
+                "titulo": b.titulo,
+                "referencia": b.referencia,
+                "conteudo": b.conteudo,
+                "texto": b.conteudo,
+            })
+
     return {
+        "id": missa_db.id,
         "data": missa_db.data.isoformat() if missa_db.data else None,
         "ano_liturgico": missa_db.ano_liturgico,
         "titulo_celebracao": missa_db.celebracao,

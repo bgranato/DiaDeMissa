@@ -865,7 +865,7 @@ def atualizar_preferencias(dados: PreferenciasUpdate, usuario: Usuario = Depends
     if not pref:
         pref = PreferenciaUsuario(usuario_id=usuario.id)
         db.add(pref)
-    for attr in ["tamanho_fonte", "modo_escuro", "alto_contraste", "leitura_simplificada", "notificacoes_ativas"]:
+    for attr in ["tamanho_fonte", "modo_escuro", "alto_contraste", "leitura_simplificada", "notificacoes_ativas", "alerta_missa_email"]:
         val = getattr(dados, attr, None)
         if val is not None:
             setattr(pref, attr, val)

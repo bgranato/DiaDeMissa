@@ -79,6 +79,7 @@ class PreferenciasResponse(BaseModel):
     alto_contraste: bool = False
     leitura_simplificada: bool = False
     notificacoes_ativas: bool = True
+    alerta_missa_email: bool = True
 
     class Config:
         from_attributes = True
@@ -90,6 +91,7 @@ class PreferenciasUpdate(BaseModel):
     alto_contraste: Optional[bool] = None
     leitura_simplificada: Optional[bool] = None
     notificacoes_ativas: Optional[bool] = None
+    alerta_missa_email: Optional[bool] = None
 
 
 class HistoricoResponse(BaseModel):

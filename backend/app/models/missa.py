@@ -23,6 +23,8 @@ class Missa(Base):
     fonte_pdf_url = Column(String(500), nullable=False)
     pdf_hash = Column(String(64), nullable=True)
     status_processamento = Column(String(50), default="pendente")
+    # Controle do alerta por e-mail "missa disponível": garante envio 1x por missa.
+    alerta_email_enviado = Column(Boolean, default=False, nullable=False)
     data_criacao = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     blocos = relationship("BlocoLiturgico", back_populates="missa", order_by="BlocoLiturgico.ordem")
