@@ -258,9 +258,9 @@ export const AppHeader = ({
             <button
               onClick={() => setShowControls(!showControls)}
               title={showControls ? 'Fechar acessibilidade' : 'Acessibilidade'}
-              className={`p-3 rounded-2xl transition-all shadow-soft ${showControls ? 'bg-brand-gold text-white scale-110' : 'bg-brand-white text-brand-gray-dark'}`}
+              className={`p-2.5 rounded-2xl shadow-soft border border-black/5 dark:border-white/5 active:scale-95 transition-all ${showControls ? 'bg-brand-gold text-white' : 'bg-brand-white dark:bg-slate-800 text-brand-blue dark:text-brand-gold'}`}
             >
-              <Settings2 size={24} />
+              <Settings2 size={20} />
             </button>
           )}
         </div>
