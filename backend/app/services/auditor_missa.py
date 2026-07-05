@@ -136,6 +136,11 @@ def _checar_preces_nao_separadas(b: BlocoLiturgico, achados: list[Achado]) -> No
 
 def _checar_artefatos_texto(b: BlocoLiturgico, achados: list[Achado]) -> None:
     """Procura artefatos clássicos vazando em qualquer campo de texto."""
+    tipo = (b.tipo or "").lower()
+    # 'recitacao' = texto recitado CONTÍNUO (Pai-Nosso, Oração Eucarística no template
+    # da liturgia diária). As siglas P./T. fazem parte do texto por design — não são
+    # sigla vazando de um diálogo. Isenta esse tipo da regra sigla_falante_no_texto.
+    ignora_sigla = tipo == "recitacao"
     artefatos = [
         (r"^[PTLVR]\.\s*", "sigla_falante_no_texto", SEV_ALTA),
         (r"\(De pé\)|\(Sentados?\)|\(Ajoelhados?\)", "postura_no_texto", SEV_MEDIA),
@@ -159,6 +164,8 @@ def _checar_artefatos_texto(b: BlocoLiturgico, achados: list[Achado]) -> None:
         if not isinstance(texto, str) or not texto:
             continue
         for padrao, regra, sev in artefatos:
+            if regra == "sigla_falante_no_texto" and ignora_sigla:
+                continue
             if re.search(padrao, texto):
                 achados.append(Achado(
                     sev, b.ordem, b.titulo or "", b.tipo,
@@ -443,6 +450,46 @@ def _checar_cobertura(src_norm: str, mont_norm: str, achados: list[Achado]) -> N
         ))
 
 
+def _checar_resposta_preces_no_fonte(missa: Missa, src_norm: str, achados: list[Achado]) -> None:
+    """A resposta (refrão) da Oração dos Fiéis TEM de existir no folheto-fonte.
+
+    Pega exatamente a bomba do refrão GENÉRICO do Missal ("Senhor, escutai a
+    nossa prece.") sendo injetado por cima do refrão real do folheto: se a
+    resposta renderizada não aparece no PDF-fonte, é texto padrão inventado.
+    Dupla checagem (substring exata → cobertura de palavras distintivas) pra
+    não falso-positivar por artefato de extração. → CRÍTICA (esconde até revisão).
+    """
+    from collections import Counter
+
+    for b in missa.blocos:
+        if not _eh_oracao_dos_fieis(b):
+            continue
+        turnos = _turnos_lista(b)
+        respostas = [
+            (t.get("texto") or "").strip() for t in turnos
+            if t.get("falante") == "T" and len(_norm(t.get("texto") or "")) >= 8
+        ]
+        if not respostas:
+            return
+        refrao = Counter(respostas).most_common(1)[0][0]
+        refrao_norm = _norm(refrao)
+        if refrao_norm and refrao_norm in src_norm:
+            return  # match exato com o folheto-fonte → ok
+        distintivas = [w for w in refrao_norm.split() if len(w) >= 5]
+        if not distintivas:
+            return
+        src_words = set(src_norm.split())
+        cob = sum(1 for w in distintivas if w in src_words) / len(distintivas)
+        if cob < 0.6:
+            achados.append(Achado(
+                SEV_CRITICA, b.ordem, b.titulo or "", b.tipo,
+                "resposta_preces_fora_do_folheto",
+                f"resposta das Preces {refrao[:80]!r} NÃO consta no folheto-fonte "
+                f"(cobertura {cob:.0%}) — provável refrão genérico injetado por cima do folheto",
+            ))
+        return  # só o 1º bloco de Preces
+
+
 # ---------------------------------------------------------------------------
 # Auditoria de uma missa
 # ---------------------------------------------------------------------------
@@ -479,6 +526,7 @@ def auditar_missa(missa: Missa, texto_fonte: str | None = None) -> RelatorioMiss
         mont_norm = _texto_montagem(missa)
         _checar_ancoras(src_norm, mont_norm, rel.achados)
         _checar_cobertura(src_norm, mont_norm, rel.achados)
+        _checar_resposta_preces_no_fonte(missa, src_norm, rel.achados)
     return rel
 
 
