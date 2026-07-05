@@ -36,6 +36,13 @@ export async function loginGoogle(token: string): Promise<LoginResponse> {
   return res.data
 }
 
+// Login com Google via token de acesso (botão próprio, fluxo OAuth token).
+export async function loginGoogleToken(access_token: string): Promise<LoginResponse> {
+  const res = await api.post<LoginResponse>('/auth/google-token', { access_token })
+  localStorage.setItem(TOKEN_KEY, res.data.access_token)
+  return res.data
+}
+
 export async function getUsuarioAtual(): Promise<Usuario> {
   const res = await api.get<Usuario>('/usuarios/me')
   return res.data

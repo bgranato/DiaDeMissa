@@ -21,7 +21,7 @@ from app.models.missa import Missa, BlocoLiturgico
 from app.models.igreja import Igreja, UsuarioIgreja
 from app.schemas.usuario import (
     UsuarioCreate, UsuarioResponse, UsuarioUpdate,
-    LoginRequest, LoginGoogleRequest, LoginResponse,
+    LoginRequest, LoginGoogleRequest, LoginGoogleTokenRequest, LoginResponse,
     RecuperarSenhaRequest, RedefinirSenhaRequest, AlterarSenhaRequest,
     PreferenciasResponse, PreferenciasUpdate,
     HistoricoResponse, HistoricoCreate,
@@ -644,6 +644,60 @@ def login_google(dados: LoginGoogleRequest, db: Session = Depends(get_db)):
         return LoginResponse(access_token=token, usuario=UsuarioResponse.model_validate(usuario))
     except ValueError:
         raise HTTPException(status_code=401, detail="Token Google inválido")
+
+
+@router.post("/auth/google-token", response_model=LoginResponse)
+def login_google_token(dados: LoginGoogleTokenRequest, db: Session = Depends(get_db)):
+    """Login com Google usando um token de ACESSO (fluxo do botão próprio).
+
+    Segurança: validamos o token no endpoint tokeninfo do Google e conferimos
+    que o campo `aud` corresponde ao NOSSO client_id — assim um token emitido
+    para outro app não consegue autenticar aqui.
+    """
+    import httpx
+    try:
+        ti = httpx.get(
+            "https://oauth2.googleapis.com/tokeninfo",
+            params={"access_token": dados.access_token},
+            timeout=10.0,
+        )
+        if ti.status_code != 200:
+            raise HTTPException(status_code=401, detail="Token Google inválido")
+        info = ti.json()
+        # `aud`/`azp` devem ser o NOSSO client_id (token emitido para este app).
+        if settings.GOOGLE_CLIENT_ID not in (info.get("aud"), info.get("azp")):
+            raise HTTPException(status_code=401, detail="Token Google de origem inválida")
+        email = info.get("email")
+        if not email:
+            raise HTTPException(status_code=401, detail="Permissão de e-mail não concedida")
+        google_id = info.get("sub")
+        nome = email
+        try:
+            ui = httpx.get(
+                "https://openidconnect.googleapis.com/v1/userinfo",
+                headers={"Authorization": f"Bearer {dados.access_token}"},
+                timeout=10.0,
+            )
+            if ui.status_code == 200:
+                nome = ui.json().get("name") or email
+        except Exception:
+            pass
+        usuario = db.query(Usuario).filter(
+            (Usuario.email == email) | (
+                (Usuario.provider == "google") & (Usuario.provider_id == google_id)
+            )
+        ).first()
+        if not usuario:
+            usuario = Usuario(nome=nome, email=email, provider="google", provider_id=google_id)
+            db.add(usuario)
+            db.commit()
+            db.refresh(usuario)
+        token = criar_access_token({"sub": usuario.id})
+        return LoginResponse(access_token=token, usuario=UsuarioResponse.model_validate(usuario))
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=401, detail="Falha no login com Google")
 
 
 @router.get("/usuarios/me", response_model=UsuarioResponse)

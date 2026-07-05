@@ -49,6 +49,10 @@ class LoginGoogleRequest(BaseModel):
     token: str
 
 
+class LoginGoogleTokenRequest(BaseModel):
+    access_token: str
+
+
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
