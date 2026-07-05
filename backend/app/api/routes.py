@@ -196,17 +196,8 @@ def missa_por_data_estruturada(data_iso: str, db: Session = Depends(get_db)):
     missa_db = db.query(Missa).filter(Missa.data == data_obj).first()
     if missa_db and missa_db.status_processamento == "concluido" and missa_db.blocos:
         return reconstruir_missa(missa_db)
-    # Fallback ao vivo: tenta CNBB pra essa data
-    try:
-        from app.services.scraper_cancaonova import buscar_liturgia
-        from app.services.persist_liturgia import persistir_liturgia_diaria
-        dados = buscar_liturgia(data_obj)
-        if dados:
-            missa_db = persistir_liturgia_diaria(db, dados)
-            if missa_db.blocos:
-                return reconstruir_missa(missa_db)
-    except Exception:
-        pass
+    # Regra "só folheto": sem folheto processado pra essa data → não há missa.
+    # Não fabricamos mais via CNBB/Missal Padrão.
     raise HTTPException(status_code=404, detail=f"Missa de {data_iso} indisponível")
 
 
@@ -244,23 +235,36 @@ def missa_atual(db: Session = Depends(get_db)):
         if missa_db and missa_db.status_processamento == "concluido" and missa_db.blocos:
             return reconstruir_missa(missa_db)
 
-    # Fallback ao vivo: tenta buscar da Canção Nova agora mesmo (para o dia real)
-    try:
-        from app.services.scraper_cancaonova import buscar_liturgia
-        from app.services.persist_liturgia import persistir_liturgia_diaria
-        dados = buscar_liturgia(hoje_real)
-        if dados:
-            missa_db = persistir_liturgia_diaria(db, dados)
-            if missa_db.blocos:
-                return reconstruir_missa(missa_db)
-    except Exception:
-        import logging
-        logging.exception("Falha em fallback ao vivo Canção Nova")
+    # Regra "só folheto": sem folheto processado pra hoje → não há missa.
+    # O app usa /missa/proxima pra mostrar a próxima missa disponível.
+    raise HTTPException(
+        status_code=404,
+        detail="Sem missa para hoje (só há missa em dias com folheto)",
+    )
 
-    # Último recurso: fixture (Ascensão 2026) pra frontend não quebrar
-    if _fixture_cache is None:
-        raise HTTPException(status_code=503, detail="Missa do dia indisponível")
-    return _fixture_cache
+
+@router.get("/missa/proxima")
+def missa_proxima(db: Session = Depends(get_db)):
+    """Próxima missa disponível (com folheto concluído), a partir de hoje.
+
+    Usado pelo app quando não há missa no dia: mostra 'próxima missa: <data>'.
+    Retorna {data, celebracao, categoria} ou {data: null} se nada disponível ainda.
+    """
+    hoje = _agora_brasilia().date()
+    candidatas = (
+        db.query(Missa)
+        .filter(Missa.data >= hoje, Missa.status_processamento == "concluido")
+        .order_by(Missa.data.asc())
+        .all()
+    )
+    for m in candidatas:
+        if m.blocos:
+            return {
+                "data": m.data.isoformat(),
+                "celebracao": m.celebracao,
+                "categoria": getattr(m, "categoria", None),
+            }
+    return {"data": None, "celebracao": None, "categoria": None}
 
 
 @router.get("/missas/hoje", response_model=MissaResponse)

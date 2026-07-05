@@ -7,7 +7,9 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from app.services.daily_pipeline import executar_pipeline_diario
+from app.services.atualizacao_igrejas_job import atualizar_catalogo_igrejas
 from app.services.notif_nao_acompanhou import gerar_notificacoes_nao_acompanhada
+from app.services.auditor_missa import executar_auditoria
 
 logger = logging.getLogger(__name__)
 
@@ -20,10 +22,50 @@ def iniciar_scheduler() -> BackgroundScheduler:
         return _scheduler
 
     sched = BackgroundScheduler(timezone="America/Sao_Paulo")
+
+    # Folheto Arquidiocese (PDF). Roda 5h da manhã.
     sched.add_job(
         executar_pipeline_diario,
         CronTrigger(hour=5, minute=0),
         id="download_folheto_diario",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    # Re-tentativa do Arquidiocese de hora em hora durante o dia.
+    # Se o cron das 5h falhou (filesystem read-only, rede, etc.) OU se o folheto
+    # foi publicado após esse horário, tentamos de novo a cada hora.
+    # Idempotente: se hash não mudou (já temos), o pipeline retorna 'ignorado'.
+    # Sobrescreve missa CNBB se Arquidiocese chega depois (proteção interna inverte:
+    # CNBB nunca sobrescreve Arquidiocese, mas Arquidiocese sempre sobrescreve CNBB).
+    sched.add_job(
+        executar_pipeline_diario,
+        CronTrigger(hour="6-22", minute=0),
+        id="folheto_arqrio_retry_horario",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    # (Removido) Job CNBB/Canção Nova + Missal Padrão: fabricava o Ordinário dos
+    # dias de semana. Regra "só folheto": as missas vêm EXCLUSIVAMENTE do folheto
+    # da Arquidiocese (pipeline acima). Dias sem folheto ficam sem missa.
+    # Auditoria automática — varre missas processadas, detecta problemas
+    # (preces amassadas, blocos vazios, artefatos vazando) e marca pendente_revisao.
+    # 5h15 dá tempo do pipeline + persistência terminarem.
+    sched.add_job(
+        executar_auditoria,
+        CronTrigger(hour=5, minute=15),
+        id="auditoria_missas",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    # Atualização semanal do catálogo de igrejas (Arquidiocese RJ) — segundas 4h.
+    # Mantém endereços, telefones, horários sempre atualizados de forma incremental.
+    sched.add_job(
+        atualizar_catalogo_igrejas,
+        CronTrigger(day_of_week="mon", hour=4, minute=0),
+        id="atualizar_igrejas_semanal",
         replace_existing=True,
         max_instances=1,
         coalesce=True,
@@ -39,8 +81,7 @@ def iniciar_scheduler() -> BackgroundScheduler:
     )
     sched.start()
     logger.info(
-        "Scheduler iniciado. Pipeline 5h, notif nao_acompanhou 22h. Próxima pipeline: %s",
-        sched.get_job("download_folheto_diario").next_run_time,
+        "Scheduler iniciado. Folheto Arquidiocese 5h (+retry horário), auditoria 5h15, notif 22h.",
     )
     _scheduler = sched
     return sched
