@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { Card, LargeButton, AccessibilityControls } from '../components/UI'
-import { Play, Bell, ArrowRight, CheckCircle2, Calendar, ScrollText, Settings2, Church, Search, MapPin, X, User } from 'lucide-react'
+import { Play, Bell, ArrowRight, CheckCircle2, Calendar, ScrollText, Settings2, Church, Search, MapPin, X, User, CalendarClock } from 'lucide-react'
 import type { Missa } from '../types/missa'
 import type { Igreja } from '../types/igreja'
 import { minhasIgrejas, buscarIgrejas } from '../services/igrejas'
+import { getProximaMissa, type ProximaMissa } from '../services/missa'
 import api from '../services/api'
 
 interface Props {
@@ -30,6 +31,7 @@ export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
   const status = statusOverride ?? statusDaMissa(missa?.data)
   const [lembretesNaoLidos, setLembretesNaoLidos] = useState(0)
   const [showAcessibilidade, setShowAcessibilidade] = useState(false)
+  const [proxima, setProxima] = useState<ProximaMissa | null>(null)
 
   // Seletor de igreja
   const [igrejaSelecionada, setIgrejaSelecionada] = useState<{ id: number; nome: string } | null>(null)
@@ -44,6 +46,12 @@ export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
       .then(r => setLembretesNaoLidos(r.data.filter(l => !l.lido).length))
       .catch(() => setLembretesNaoLidos(0))
   }, [])
+
+  // Sem missa hoje → busca a próxima missa disponível (estado de espera).
+  useEffect(() => {
+    if (missa) { setProxima(null); return }
+    getProximaMissa().then(setProxima).catch(() => setProxima(null))
+  }, [missa])
 
   // Sincroniza concluída do localStorage com o backend — UMA VEZ por sessão por missa.
   // sessionStorage evita re-sync a cada re-mount da Home.
@@ -278,8 +286,35 @@ export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
           <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-brand-blue opacity-5 rounded-full blur-3xl" />
         </Card>
       ) : (
-        <Card className="text-center p-12">
-          <p className="text-brand-text/60">Missa de hoje indisponível</p>
+        <Card className="ds-card-feature overflow-hidden relative">
+          <div className="relative z-10 flex flex-col items-center text-center gap-3 py-4">
+            <span className="p-3 rounded-2xl bg-brand-gold/10 text-brand-gold">
+              <CalendarClock size={28} />
+            </span>
+            <span className="ds-section-label">Não há missa hoje</span>
+            <p className="ds-body text-brand-text/70 dark:text-brand-white/70 max-w-sm">
+              O folheto está disponível aos sábados (à noite), domingos e solenidades.
+            </p>
+            {proxima?.data ? (
+              <div className="mt-2 flex flex-col items-center gap-1">
+                <span className="ds-section-label opacity-70">Próxima missa</span>
+                <span className="ds-pill ds-pill-gold">
+                  {new Date(proxima.data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </span>
+                {proxima.celebracao && (
+                  <h3 className="ds-title text-brand-blue dark:text-brand-white mt-1 break-words">
+                    {proxima.celebracao}
+                  </h3>
+                )}
+                <p className="ds-body-sm italic text-brand-slate mt-1">Volte no dia para acompanhar.</p>
+              </div>
+            ) : (
+              <p className="ds-body-sm italic text-brand-slate mt-1">
+                Assim que o próximo folheto for publicado, a missa aparece aqui.
+              </p>
+            )}
+          </div>
+          <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-brand-blue opacity-5 rounded-full blur-3xl" />
         </Card>
       )}
 

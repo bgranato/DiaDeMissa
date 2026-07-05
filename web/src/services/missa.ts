@@ -4,12 +4,30 @@ import type { Missa, PalavraDoDia } from '../types/missa'
 export async function getMissaHoje(): Promise<Missa> {
   const res = await api.get('/missa/atual')
   const m = res.data
+  // Descrição "Cor litúrgica: X" não é resumo — vira parte do subtítulo.
+  // Resumo de verdade só aparece em missas ricas (folheto Arquidiocese).
+  const descRaw: string = m.descricao || ''
+  const corMatch = descRaw.match(/Cor\s+lit[uú]rgica:\s*(\w+)/i)
+  const ehSoCor = /^\s*Cor\s+lit[uú]rgica:\s*\w+\s*$/i.test(descRaw)
+  let descReal = ehSoCor ? '' : descRaw
+  // Fallback em dias sem folheto Arquidiocese (semana): trecho do Evangelho do dia
+  // pra ainda ter um resumo no card. Sem fallback genérico tipo "Acompanhe a liturgia".
+  if (!descReal && m.palavra_do_dia?.texto) {
+    const ref = m.palavra_do_dia.referencia
+    descReal = ref
+      ? `${m.palavra_do_dia.texto} (${ref})`
+      : m.palavra_do_dia.texto
+  }
+  const subPartes: string[] = []
+  if (m.categoria) subPartes.push(m.categoria)
+  if (m.observacoes) subPartes.push(m.observacoes)
+  if (corMatch && !m.categoria) subPartes.push(`Cor litúrgica: ${corMatch[1]}`)
   return {
-    id: 1,
+    id: m.id ?? 0,
     data: m.data || '',
     celebracao: m.titulo_celebracao || '',
-    subtitulo: m.categoria ? `${m.categoria}${m.observacoes ? ' | ' + m.observacoes : ''}` : m.observacoes || null,
-    descricao: m.descricao || 'Acompanhe a liturgia diária da Igreja. Medite as leituras, salmos e evangelho do dia.',
+    subtitulo: subPartes.length ? subPartes.join(' · ') : null,
+    descricao: descReal || null,
     tempo_liturgico: null,
     status_processamento: 'concluido',
     total_blocos: (m.blocos || []).length,
@@ -22,8 +40,25 @@ export async function getMissaPorData(data: string): Promise<Missa> {
   return res.data
 }
 
+export interface ProximaMissa {
+  data: string | null
+  celebracao: string | null
+  categoria: string | null
+}
+
+// Próxima missa com folheto disponível (usada quando não há missa no dia).
+export async function getProximaMissa(): Promise<ProximaMissa> {
+  const res = await api.get<ProximaMissa>('/missa/proxima')
+  return res.data
+}
+
 export async function getMissaAtual(): Promise<{ blocos: any[] }> {
   const res = await api.get('/missa/atual')
+  return res.data
+}
+
+export async function getMissaEstruturadaPorData(data: string): Promise<any> {
+  const res = await api.get(`/missa/por-data/${data}`)
   return res.data
 }
 
