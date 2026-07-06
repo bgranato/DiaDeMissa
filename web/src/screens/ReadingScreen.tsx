@@ -219,7 +219,7 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
   )
 
   return (
-    <div className="reading-wide min-h-[100svh] bg-brand-bg dark:bg-slate-900 pb-24">
+    <div className="reading-wide min-h-[100svh] bg-brand-bg dark:bg-slate-900 pb-28">
       <AppHeader
         title=""
         onBack={onBack}
@@ -244,12 +244,13 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
         }
       />
 
-      {/* Navegação flutuante — fixa no centro-topo, acompanha o scroll. Atual grande
-          e centralizado; vizinhos (passados/futuros) menores e mais apagados.
+      {/* Navegação — BARRA FIXA NO RODAPÉ, acompanha o scroll. Atual grande e
+          centralizado; vizinhos (passados/futuros) menores e mais apagados.
           Só números REAIS do folheto (nunca inventa). */}
       {navEntries.length > 0 && (
-        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand-bg/85 dark:bg-slate-900/85 backdrop-blur-md shadow-strong border border-black/5 dark:border-white/10 pointer-events-auto">
+        <div className="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
+          <div className="reading-wide mx-auto pointer-events-auto bg-brand-bg/90 dark:bg-slate-900/90 backdrop-blur-md border-t border-black/5 dark:border-white/10 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+            <div className="flex items-center justify-center gap-1.5 px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
             {(() => {
               const start = Math.max(0, currentNav - 3)
               const end = Math.min(navEntries.length, currentNav + 4)
@@ -275,11 +276,10 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
               }
               return itens
             })()}
+            </div>
           </div>
         </div>
       )}
-      {/* Espaço pra barra flutuante não cobrir o conteúdo do topo */}
-      <div aria-hidden className="h-12" />
 
       {/* Referência da missa */}
       {missaData && (
