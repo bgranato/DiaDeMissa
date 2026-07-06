@@ -141,6 +141,23 @@ O. CATEGORIA das solenidades: Pentecostes, Santíssima Trindade, Corpus Christi
    Sagrado Coração, Imaculada, Assunção, Cristo Rei, etc. são "Solenidade".
    NUNCA use "Missa" como categoria; se não houver rótulo explícito, deduza pelo
    título da celebração (Domingo comum → "Domingo"; festa → "Festa").
+
+P. EVANGELHO — PREÂMBULO COMPLETO (NUNCA descarte, sem inventar). No bloco do
+   Evangelho (tipo "leitura", categoria "evangelho"), o campo `introducao` deve
+   trazer a saudação e a proclamação EXATAMENTE como no folheto, na ordem:
+   "O Senhor esteja convosco. Ele está no meio de nós. Proclamação do Evangelho de
+   Jesus Cristo segundo [Mateus/Marcos/Lucas/João]. Glória a vós, Senhor."
+   (inclua só o que o folheto tiver). E a abertura da proclamação
+   ("Naquele tempo, ...", "Naquela ocasião, ...") NÃO pode sumir: coloque-a no
+   INÍCIO do texto do PRIMEIRO versículo, mantendo o número.
+   Ex.: {"numero":25,"texto":"Naquele tempo, Jesus pôs-se a dizer: Eu te louvo..."}.
+
+Q. "OREMOS:" — nas orações iniciadas por "OREMOS:" (Coleta, Sobre as Oferendas,
+   Depois da Comunhão), PRESERVE o "OREMOS:" no início do texto/turno. Nunca descarte.
+
+R. SAUDAÇÃO DE ABERTURA DAS LEITURAS — mantenha a saudação inicial da leitura
+   ("Irmãos:", "Caríssimo:", "Caríssimos:", "Naqueles dias,", "Assim diz o Senhor:")
+   no INÍCIO do texto do PRIMEIRO versículo. Nunca a descarte.
 """
 
 # Catálogo de tipos de bloco que o JSON pode conter (espelha app/schema/missa.py).
