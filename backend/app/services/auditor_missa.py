@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
@@ -280,6 +281,7 @@ _ANCORAS = [
     (r"pai nosso", "Pai nosso", SEV_ALTA),
     (r"santo +santo +santo", "Santo", SEV_ALTA),
     (r"gl[oó]ria a deus nas alturas", "Glória (Hino de Louvor)", SEV_ALTA),
+    (r"proclama[çc][aã]o do evangelho", "Proclamação do Evangelho (preâmbulo)", SEV_ALTA),
 ]
 
 
@@ -288,17 +290,45 @@ def _norm(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
+def _ascii_fold(s: str) -> str:
+    """Remove acentos/cedilha (coração->coracao, aclamações->aclamacoes).
+
+    Usado SÓ na cobertura por palavra: a extração do PDF às vezes trunca a
+    palavra na quebra de linha ('aclamaçõ'), e dobrar sem acento + tolerar
+    truncagem evita falso-positivo sem afrouxar o limiar.
+    """
+    nkfd = unicodedata.normalize("NFKD", s)
+    return "".join(c for c in nkfd if not unicodedata.combining(c))
+
+
 def _texto_montagem(missa: Missa) -> str:
-    """Concatena, normalizado, TODO o texto renderizável da montagem."""
+    """Concatena, normalizado, TODO o texto da montagem (metadados + blocos).
+
+    Inclui os campos de nível da missa (descrição/celebração/categoria/créditos)
+    e TODOS os campos de texto dos blocos — inclusive introducao/conclusao/
+    resposta/versiculo — pra a checagem de cobertura não acusar falso-positivo.
+    """
     partes: list[str] = []
+    # Nível da missa (casa com masthead/créditos/parágrafo de abertura do folheto).
+    for campo in ("celebracao", "descricao", "observacoes", "categoria"):
+        v = getattr(missa, campo, None)
+        if isinstance(v, str):
+            partes.append(v)
+    cred = getattr(missa, "creditos_cantos", None)
+    if isinstance(cred, dict):
+        partes.extend([str(x) for x in cred.values() if x])
     for b in missa.blocos:
         if b.conteudo:
             partes.append(b.conteudo)
+        if b.titulo:
+            partes.append(b.titulo)
         ce = b.conteudo_estruturado or {}
+        for campo in ("introducao", "texto", "conclusao", "resposta",
+                      "versiculo", "descricao", "subtitulo"):
+            if isinstance(ce.get(campo), str):
+                partes.append(ce[campo])
         for t in ce.get("turnos") or []:
             partes.append(t.get("texto") or "")
-        if ce.get("texto"):
-            partes.append(ce["texto"])
         for r in ce.get("refrao") or []:
             if isinstance(r, str):
                 partes.append(r)
@@ -308,8 +338,6 @@ def _texto_montagem(missa: Missa) -> str:
         for v in ce.get("versiculos") or []:
             if isinstance(v, dict):
                 partes.append(v.get("texto") or "")
-        if ce.get("versiculo"):
-            partes.append(ce["versiculo"])
     return _norm(" ".join(partes))
 
 
@@ -450,6 +478,119 @@ def _checar_cobertura(src_norm: str, mont_norm: str, achados: list[Achado]) -> N
         ))
 
 
+# Marcadores onde começa o RODAPÉ de publicação (não é conteúdo litúrgico).
+# Tudo a partir daqui é cortado antes da checagem palavra-a-palavra.
+_RODAPE_MARCADORES = (
+    "editora nossa senhora",
+    "portal da arquidiocese",
+    "com aprovacao eclesiastica",
+    "publicacao da comissao",
+)
+
+# Palavras de masthead/rodapé de publicação + rótulos estruturais/rubricas que
+# legitimamente NÃO vão para a montagem. Evitam falso-positivo na cobertura.
+_NOISE_FONTE = {
+    # publicação / masthead / rodapé
+    "folheto", "oficial", "arquidiocese", "arquidiocesano", "arquidiocesana",
+    "sebastiao", "sebastião", "versao", "versão", "celular", "jubilar",
+    "comunicacao", "comunicação", "social", "arqrio", "www", "org", "http",
+    "https", "publicacao", "publicação", "comissao", "comissão", "eclesiastica",
+    "eclesiástica", "aprovacao", "aprovação", "editora", "portal", "livraria",
+    "nspaz", "ipanema", "angelica", "angélica", "benjamin", "constant",
+    "selecionados", "sacra", "producao", "produção", "senhora", "presidente",
+    # meses (data de publicação do folheto)
+    "janeiro", "fevereiro", "março", "marco", "abril", "junho", "julho",
+    "agosto", "setembro", "outubro", "novembro", "dezembro",
+    # rótulos estruturais / rubricas editoriais (não é texto rezado)
+    "refrao", "refrão", "estrofe", "antifona", "antífona", "rubrica",
+    "continua", "inclinam", "inclina", "sentados", "intenções", "intencoes",
+}
+
+
+def _texto_fonte_liturgico(src_norm: str) -> str:
+    """Corta o rodapé de publicação do texto-fonte normalizado.
+
+    Usa a ÚLTIMA ocorrência dos marcadores: "Editora Nossa Senhora da Paz"
+    aparece tanto no masthead do topo quanto no rodapé; queremos o rodapé.
+    """
+    corte = len(src_norm)
+    for marca in _RODAPE_MARCADORES:
+        i = src_norm.rfind(marca)
+        if i > 300:  # só corta se já passou o corpo litúrgico
+            corte = min(corte, i)
+    return src_norm[:corte]
+
+
+_NOISE_FONTE_FOLD = {_ascii_fold(w) for w in _NOISE_FONTE}
+
+
+def _tokens_liturgicos(txt: str) -> set[str]:
+    """Palavras distintivas (>=5 letras), SEM acento e sem ruído.
+
+    Descola o número do versículo ("10Depois" -> "depois"), dobra sem acento
+    (coração -> coracao) e descarta masthead/rodapé/rótulo (_NOISE_FONTE).
+    """
+    out: set[str] = set()
+    for w in txt.split():
+        w = _ascii_fold(w.lstrip("0123456789"))  # nº colado + sem acento
+        if len(w) >= 5 and w not in _NOISE_FONTE_FOLD:
+            out.add(w)
+    return out
+
+
+def _checar_cobertura_liturgica(src_norm: str, mont_norm: str, achados: list[Achado]) -> None:
+    """GATE de conteúdo: cada palavra distintiva do CORPO litúrgico do folheto
+    tem de aparecer na montagem. É o que garante que nada da missa seja omitido.
+
+    Diferente de `_checar_cobertura` (frouxa, tolera 30-45% de perda por causa
+    do ruído de masthead/rodapé), aqui o ruído é removido (rodapé truncado +
+    masthead/rótulos filtrados + nº de versículo descolado + acento dobrado) e
+    as palavras que faltam são LISTADAS. Uma palavra da fonte conta como
+    presente se casa exatamente OU se algum token da montagem começa por ela
+    com no máx. 2 letras a mais (cobre truncagem de extração 'aclamaçõ' ->
+    'aclamacoes'). Calibrado em missas reais: missa íntegra fica <0,5% (só
+    rubrica editorial), qualquer BLOCO omitido passa de 2% (Evangelho ~4%,
+    leitura ~9%). Acima de 2% → CRÍTICA → a missa vai a revisão e não chega ao
+    fiel incompleta; entre 0,8% e 2% → MÉDIA (revisar possível corte parcial).
+    """
+    src_lit = _texto_fonte_liturgico(src_norm)
+    palavras_src = _tokens_liturgicos(src_lit)
+    if len(palavras_src) < 80:
+        return  # fonte pequena/ruidosa — não confiável para o gate rígido
+    presentes = {
+        _ascii_fold(w.lstrip("0123456789")) for w in mont_norm.split()
+        if len(_ascii_fold(w.lstrip("0123456789"))) >= 5
+    }
+    presentes_lista = list(presentes)
+
+    def _presente(w: str) -> bool:
+        if w in presentes:
+            return True
+        # tolerância a truncagem da extração: montagem tem a palavra inteira,
+        # a fonte veio cortada ('aclamaco' é prefixo de 'aclamacoes').
+        return any(
+            t.startswith(w) and 0 < len(t) - len(w) <= 2 for t in presentes_lista
+        )
+
+    faltando = sorted(w for w in palavras_src if not _presente(w))
+    ratio = len(faltando) / len(palavras_src)
+    amostra = ", ".join(faltando[:25])
+    if ratio > 0.020:
+        achados.append(Achado(
+            SEV_CRITICA, 0, "Missa (geral)", "missa",
+            "conteudo_liturgico_ausente",
+            f"{len(faltando)} palavra(s) do folheto ({ratio:.1%}) NÃO aparecem na "
+            f"montagem — conteúdo litúrgico perdido: {amostra}",
+        ))
+    elif ratio > 0.008:
+        achados.append(Achado(
+            SEV_MEDIA, 0, "Missa (geral)", "missa",
+            "conteudo_liturgico_parcial",
+            f"{len(faltando)} palavra(s) do folheto podem estar faltando "
+            f"({ratio:.1%}): {amostra}",
+        ))
+
+
 def _checar_resposta_preces_no_fonte(missa: Missa, src_norm: str, achados: list[Achado]) -> None:
     """A resposta (refrão) da Oração dos Fiéis TEM de existir no folheto-fonte.
 
@@ -526,6 +667,7 @@ def auditar_missa(missa: Missa, texto_fonte: str | None = None) -> RelatorioMiss
         mont_norm = _texto_montagem(missa)
         _checar_ancoras(src_norm, mont_norm, rel.achados)
         _checar_cobertura(src_norm, mont_norm, rel.achados)
+        _checar_cobertura_liturgica(src_norm, mont_norm, rel.achados)
         _checar_resposta_preces_no_fonte(missa, src_norm, rel.achados)
     return rel
 
