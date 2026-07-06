@@ -34,7 +34,6 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
   const [loading, setLoading] = useState(true)
 
   const blocoRefs = useRef<(HTMLDivElement | null)[]>([])
-  const markerRef = useRef<HTMLDivElement>(null)
   const restauradoRef = useRef(false)
   const indiceSalvoRef = useRef(0)
 
@@ -162,16 +161,6 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
     }
   }, [loading, blocos.length])
 
-  // Centraliza a faixa de números no bloco atual.
-  useEffect(() => {
-    const strip = markerRef.current
-    if (!strip) return
-    const pill = strip.querySelector(`[data-marker="${currentIndex}"]`) as HTMLElement | null
-    if (pill) {
-      strip.scrollTo({ left: pill.offsetLeft - strip.clientWidth / 2 + pill.clientWidth / 2, behavior: 'smooth' })
-    }
-  }, [currentIndex])
-
   // Persiste progresso (debounced) sempre que o bloco atual muda.
   useEffect(() => {
     if (loading || blocos.length === 0) return
@@ -203,6 +192,18 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
       localStorage.removeItem(`@missa_bloco_${missaData}`)
     }
     onFinish()
+  }
+
+  // Navegação: só os blocos que o folheto NUMERA (nunca inventa número).
+  const navEntries = blocos
+    .map((b, i) => ({ i, n: b.numero_folheto as number | null | undefined }))
+    .filter(e => e.n != null) as { i: number; n: number }[]
+  // Entrada ativa = a do bloco atual, ou a última numerada antes dele (se o
+  // atual for rubrica/antífona sem número).
+  let currentNav = 0
+  for (let k = 0; k < navEntries.length; k++) {
+    if (navEntries[k].i <= currentIndex) currentNav = k
+    else break
   }
 
   if (loading) return (
@@ -243,26 +244,42 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
         }
       />
 
-      {/* Marcador de posição — faixa de números sticky, rola e centraliza o atual. */}
-      <div className="sticky top-14 z-20 bg-brand-bg/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-black/[0.06] dark:border-white/[0.06]">
-        <div ref={markerRef} className="flex gap-1.5 overflow-x-auto px-3 py-2" style={{ scrollbarWidth: 'none' }}>
-          {blocos.map((b, i) => (
-            <button
-              key={`m-${b.ordem ?? i}`}
-              data-marker={i}
-              onClick={() => jumpTo(i)}
-              title={b.titulo}
-              className={`flex-shrink-0 min-w-[2rem] h-8 px-2 rounded-full text-xs font-black transition-all ${
-                i === currentIndex
-                  ? 'bg-brand-gold text-white scale-110 shadow-soft'
-                  : 'bg-white dark:bg-slate-800 text-brand-blue/60 dark:text-brand-gold/50 border border-black/5'
-              }`}
-            >
-              {b.numero_folheto ?? (i + 1)}
-            </button>
-          ))}
+      {/* Navegação flutuante — fixa no centro-topo, acompanha o scroll. Atual grande
+          e centralizado; vizinhos (passados/futuros) menores e mais apagados.
+          Só números REAIS do folheto (nunca inventa). */}
+      {navEntries.length > 0 && (
+        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand-bg/85 dark:bg-slate-900/85 backdrop-blur-md shadow-strong border border-black/5 dark:border-white/10 pointer-events-auto">
+            {(() => {
+              const start = Math.max(0, currentNav - 3)
+              const end = Math.min(navEntries.length, currentNav + 4)
+              const itens = []
+              for (let k = start; k < end; k++) {
+                const e = navEntries[k]
+                const d = Math.abs(k - currentNav)
+                const estilo =
+                  d === 0 ? 'w-9 h-9 text-base bg-brand-gold text-white font-black shadow-soft'
+                  : d === 1 ? 'w-7 h-7 text-sm bg-white dark:bg-slate-800 text-brand-blue dark:text-brand-gold font-bold'
+                  : d === 2 ? 'w-6 h-6 text-xs bg-white/80 dark:bg-slate-800/80 text-brand-blue/50 dark:text-brand-gold/50 font-bold'
+                  : 'w-5 h-5 text-[10px] bg-white/60 dark:bg-slate-800/60 text-brand-blue/30 dark:text-brand-gold/30 font-bold'
+                itens.push(
+                  <button
+                    key={`nav-${e.i}`}
+                    onClick={() => jumpTo(e.i)}
+                    title={blocos[e.i]?.titulo}
+                    className={`flex-shrink-0 rounded-full flex items-center justify-center transition-all active:scale-90 ${estilo}`}
+                  >
+                    {e.n}
+                  </button>,
+                )
+              }
+              return itens
+            })()}
+          </div>
         </div>
-      </div>
+      )}
+      {/* Espaço pra barra flutuante não cobrir o conteúdo do topo */}
+      <div aria-hidden className="h-12" />
 
       {/* Referência da missa */}
       {missaData && (
@@ -348,10 +365,17 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
               )}
 
               <div className="flex items-start justify-between gap-3 mb-3">
-                <div className="border-l-4 border-brand-gold pl-3 flex-1 min-w-0">
-                  <h2 className="ds-headline text-brand-text dark:text-slate-100 break-words">
-                    {bloco._ehApendice ? bloco.titulo : `${bloco.numero_folheto ?? (i + 1)}. ${bloco.titulo}`}
-                  </h2>
+                <div className={`flex-1 min-w-0 ${bloco.numero_folheto != null ? 'border-l-4 border-brand-gold pl-3' : 'pl-1'}`}>
+                  {bloco.numero_folheto != null ? (
+                    <h2 className="ds-headline text-brand-text dark:text-slate-100 break-words">
+                      {`${bloco.numero_folheto}. ${bloco.titulo}`}
+                    </h2>
+                  ) : (
+                    /* Sem número no folheto (rubrica/antífona) → título leve, sem barra. */
+                    <h2 className="ds-title font-serif italic text-brand-slate dark:text-gray-300 break-words">
+                      {bloco.titulo}
+                    </h2>
+                  )}
                   {bloco.introducao && (
                     <p className="ds-body-sm font-serif italic text-brand-slate dark:text-gray-300 mt-0.5">{bloco.introducao}</p>
                   )}
