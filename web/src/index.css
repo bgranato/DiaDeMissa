@@ -245,9 +245,17 @@
   padding-bottom: calc(5rem + env(safe-area-inset-bottom) + 2rem);
 }
 
-html, body {
-  /* Previne overflow horizontal em qualquer cenário (blur balls, conteúdo longo, etc.) */
+html {
+  /* html é o scroller da página; overflow-x hidden aqui clipa o horizontal
+     (blur balls, conteúdo longo) SEM quebrar position:sticky dos filhos. */
   overflow-x: hidden;
+  max-width: 100vw;
+}
+body {
+  /* IMPORTANTE: no body usamos `clip`, não `hidden`. `hidden` faz o body virar
+     um container de rolagem (overflow-y: auto implícito), o que QUEBRA o
+     position:sticky de cabeçalhos/marcadores. `clip` clipa sem criar scroller. */
+  overflow-x: clip;
   max-width: 100vw;
 }
 

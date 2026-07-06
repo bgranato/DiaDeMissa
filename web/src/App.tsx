@@ -65,7 +65,7 @@ export default function App() {
   useEffect(() => { registrarNavegador(navigateTo) }, [navigateTo])
 
   return (
-    <div className="flex flex-col min-h-screen bg-brand-bg dark:bg-slate-900 overflow-x-hidden relative">
+    <div className="flex flex-col min-h-screen bg-brand-bg dark:bg-slate-900 overflow-x-clip relative">
       <div className="fixed inset-0 opacity-10 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-[-10%] left-[-5%] w-[60vw] max-w-[400px] aspect-square rounded-full bg-brand-gold blur-3xl" />
         <div className="absolute bottom-[-10%] right-[-5%] w-[70vw] max-w-[500px] aspect-square rounded-full bg-brand-blue blur-3xl" />

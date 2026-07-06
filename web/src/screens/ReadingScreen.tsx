@@ -128,21 +128,27 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
     return { blocos: list, secaoPorIndice: sec }
   })()
 
-  // Scroll-spy: detecta qual bloco está na faixa logo abaixo do topo → vira o "atual".
+  // Scroll-spy: o "bloco atual" é o último cujo topo já passou logo abaixo do
+  // cabeçalho + faixa (~130px). Mais preciso que IntersectionObserver p/ blocos altos.
   useEffect(() => {
     if (blocos.length === 0) return
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const visiveis = entries
-          .filter(e => e.isIntersecting)
-          .map(e => Number((e.target as HTMLElement).dataset.index))
-          .filter(n => Number.isFinite(n))
-        if (visiveis.length) setCurrentIndex(Math.min(...visiveis))
-      },
-      { rootMargin: '-104px 0px -78% 0px', threshold: 0 },
-    )
-    blocoRefs.current.forEach(el => el && obs.observe(el))
-    return () => obs.disconnect()
+    let raf = 0
+    const atualizar = () => {
+      raf = 0
+      const limite = 130
+      let atual = 0
+      for (let i = 0; i < blocoRefs.current.length; i++) {
+        const el = blocoRefs.current[i]
+        if (!el) continue
+        if (el.getBoundingClientRect().top <= limite) atual = i
+        else break
+      }
+      setCurrentIndex(atual)
+    }
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(atualizar) }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    atualizar()
+    return () => { window.removeEventListener('scroll', onScroll); if (raf) cancelAnimationFrame(raf) }
   }, [blocos.length])
 
   // Restaura o scroll pro bloco onde o usuário parou (uma vez, após carregar).
