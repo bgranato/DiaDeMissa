@@ -343,10 +343,10 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
               className="scroll-mt-28 mb-8"
             >
               {/* Cabeçalho de seção (só na primeira ocorrência) */}
-              {secao && (
+              {secao && secao.primeiraOcorrencia && (
                 <div className="mb-3 pb-3 border-b border-brand-gold/15">
                   <p className="ds-section-label mb-2">{secao.titulo}</p>
-                  {secao.primeiraOcorrencia && secao.descricao && (
+                  {secao.descricao && (
                     <p className="ds-body-sm font-serif italic text-brand-slate dark:text-gray-300">
                       {secao.descricao}
                     </p>
