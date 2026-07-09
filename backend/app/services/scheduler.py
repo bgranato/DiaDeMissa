@@ -10,6 +10,7 @@ from app.services.daily_pipeline import executar_pipeline_diario
 from app.services.atualizacao_igrejas_job import atualizar_catalogo_igrejas
 from app.services.notif_nao_acompanhou import gerar_notificacoes_nao_acompanhada
 from app.services.auditor_missa import executar_auditoria
+from app.services.alerta_folheto_faltando import alertar_folheto_faltando
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,25 @@ def iniciar_scheduler() -> BackgroundScheduler:
         gerar_notificacoes_nao_acompanhada,
         CronTrigger(hour=22, minute=0),
         id="notif_nao_acompanhou",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    # Vigia de folheto faltando — alerta admins por e-mail se o domingo iminente
+    # ficar sem missa. Sábado 13h (aviso, com tempo de recuperar do mirror) +
+    # domingo 8h (escalada). Se a missa for capturada no meio, o domingo não alerta.
+    sched.add_job(
+        alertar_folheto_faltando,
+        CronTrigger(day_of_week="sat", hour=13, minute=0),
+        id="alerta_folheto_sabado",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    sched.add_job(
+        alertar_folheto_faltando,
+        CronTrigger(day_of_week="sun", hour=8, minute=0),
+        id="alerta_folheto_domingo",
         replace_existing=True,
         max_instances=1,
         coalesce=True,
