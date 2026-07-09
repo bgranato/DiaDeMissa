@@ -245,6 +245,13 @@
   padding-bottom: calc(5rem + env(safe-area-inset-bottom) + 2rem);
 }
 
+/* Menu "Mais": nas fontes grandes de acessibilidade, cai para 2 colunas para os
+   rótulos (px fixo) respirarem em telas estreitas — nunca quebrar/transbordar. */
+html[data-font-size="extra-large"] .menu-mais-grid,
+html[data-font-size="huge"] .menu-mais-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 html {
   /* html é o scroller da página; overflow-x hidden aqui clipa o horizontal
      (blur balls, conteúdo longo) SEM quebrar position:sticky dos filhos. */

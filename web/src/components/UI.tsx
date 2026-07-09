@@ -421,15 +421,15 @@ export const BottomNav = ({
                   <X size={20} />
                 </button>
               </div>
-              <div className="grid grid-cols-3 gap-3 px-6 pb-8 pt-3">
+              <div className="menu-mais-grid grid grid-cols-3 gap-3 px-6 pb-8 pt-3">
                 {menuCompleto.map(item => (
                   <button key={item.id} onClick={() => ir(item.id)}
-                    className={`flex flex-col items-center gap-2 p-5 rounded-2xl transition-all active:scale-[0.96] ${
+                    className={`flex flex-col items-center gap-2 p-[16px] rounded-2xl transition-all active:scale-[0.96] ${
                       currentScreen === item.id
                         ? 'bg-brand-gold/15 border-2 border-brand-gold'
                         : 'bg-brand-bg dark:bg-slate-800 border-2 border-transparent'
                     }`}>
-                    <div className={`p-3 rounded-xl ${currentScreen === item.id ? 'bg-brand-gold text-white' : 'bg-brand-blue dark:bg-brand-gold text-white dark:text-brand-blue'}`}>
+                    <div className={`p-[12px] rounded-xl ${currentScreen === item.id ? 'bg-brand-gold text-white' : 'bg-brand-blue dark:bg-brand-gold text-white dark:text-brand-blue'}`}>
                       <item.icon size={22} />
                     </div>
                     <span className="text-[13px] font-black text-brand-gray-dark dark:text-brand-white text-center leading-tight [overflow-wrap:normal] [word-break:normal] hyphens-none">{item.label}</span>
