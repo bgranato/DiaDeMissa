@@ -432,7 +432,7 @@ export const BottomNav = ({
                     <div className={`p-3 rounded-xl ${currentScreen === item.id ? 'bg-brand-gold text-white' : 'bg-brand-blue dark:bg-brand-gold text-white dark:text-brand-blue'}`}>
                       <item.icon size={22} />
                     </div>
-                    <span className="text-xs font-black text-brand-gray-dark dark:text-brand-white text-center leading-tight">{item.label}</span>
+                    <span className="text-[13px] font-black text-brand-gray-dark dark:text-brand-white text-center leading-tight [overflow-wrap:normal] [word-break:normal] hyphens-none">{item.label}</span>
                   </button>
                 ))}
               </div>
