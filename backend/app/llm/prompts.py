@@ -158,6 +158,13 @@ Q. "OREMOS:" — nas orações iniciadas por "OREMOS:" (Coleta, Sobre as Oferend
 R. SAUDAÇÃO DE ABERTURA DAS LEITURAS — mantenha a saudação inicial da leitura
    ("Irmãos:", "Caríssimo:", "Caríssimos:", "Naqueles dias,", "Assim diz o Senhor:")
    no INÍCIO do texto do PRIMEIRO versículo. Nunca a descarte.
+
+S. SUBTÍTULO DO PREFÁCIO (Oração Eucarística) — no bloco da Oração Eucarística,
+   a linha "Prefácio ..." impressa logo abaixo do título (ex.: "Prefácio dos
+   Domingos do Tempo Comum I – O mistério pascal e o povo de Deus", "Prefácio da
+   Ascensão do Senhor, I – O mistério da Ascensão") vai para o campo "subtitulo"
+   do bloco. Nunca a descarte nem a jogue dentro dos turnos. Se não houver linha
+   de prefácio, "subtitulo": null.
 """
 
 # Catálogo de tipos de bloco que o JSON pode conter (espelha app/schema/missa.py).
