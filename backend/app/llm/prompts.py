@@ -152,8 +152,10 @@ P. EVANGELHO — PREÂMBULO COMPLETO (NUNCA descarte, sem inventar). No bloco do
    INÍCIO do texto do PRIMEIRO versículo, mantendo o número.
    Ex.: {"numero":25,"texto":"Naquele tempo, Jesus pôs-se a dizer: Eu te louvo..."}.
 
-Q. "OREMOS:" — nas orações iniciadas por "OREMOS:" (Coleta, Sobre as Oferendas,
-   Depois da Comunhão), PRESERVE o "OREMOS:" no início do texto/turno. Nunca descarte.
+Q. "OREMOS:" — nas orações que COMEÇAM com "OREMOS:" (tipicamente Coleta e
+   Depois da Comunhão), PRESERVE o "OREMOS:" no início do texto/turno; nunca
+   descarte. Mas NÃO acrescente "OREMOS:" onde o folheto não traz — "Sobre as
+   Oferendas" começa direto ("Acolhei, Senhor…"/"Senhor, …"), SEM "OREMOS:".
 
 R. SAUDAÇÃO DE ABERTURA DAS LEITURAS — mantenha a saudação inicial da leitura
    ("Irmãos:", "Caríssimo:", "Caríssimos:", "Naqueles dias,", "Assim diz o Senhor:")
