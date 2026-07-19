@@ -8,6 +8,31 @@ export default function BlocoRenderer({ bloco }: { bloco: any }) {
   return <div>{renderConteudo(bloco, tipo)}</div>
 }
 
+// "Leituras da Semana" vem como um parágrafo único com todos os dias grudados
+// ("20/2ª-FEIRA: ...; 21/3ª-FEIRA: ...; ..."). Quebramos em um dia por linha,
+// com o dia em negrito, sem alterar o conteúdo. Retorna null se não casar.
+const DIA_ABREV: Record<string, string> = {
+  '2ª-FEIRA': 'Seg', '3ª-FEIRA': 'Ter', '4ª-FEIRA': 'Qua',
+  '5ª-FEIRA': 'Qui', '6ª-FEIRA': 'Sex', 'SÁBADO': 'Sáb', 'DOMINGO': 'Dom',
+}
+function parseLeiturasSemana(texto: string) {
+  const re = /(\d{1,2})\/(\d?ª-FEIRA|SÁBADO|DOMINGO):\s*/g
+  const marcs: { idx: number; end: number; dia: string; rotulo: string }[] = []
+  let m: RegExpExecArray | null
+  while ((m = re.exec(texto)) !== null) {
+    marcs.push({ idx: m.index, end: re.lastIndex, dia: m[1], rotulo: m[2] })
+  }
+  if (marcs.length < 2) return null
+  return marcs.map((mk, i) => {
+    const fim = i + 1 < marcs.length ? marcs[i + 1].idx : texto.length
+    const corpo = texto.slice(mk.end, fim).trim().replace(/;\s*$/, '')
+    const ci = corpo.indexOf(':')
+    const santo = ci > -1 ? corpo.slice(0, ci).trim() : corpo
+    const refs = ci > -1 ? corpo.slice(ci + 1).trim() : ''
+    return { label: `${DIA_ABREV[mk.rotulo] || mk.rotulo}. ${mk.dia}`, santo, refs }
+  })
+}
+
 function renderConteudo(bloco: any, tipo: string) {
   switch (tipo) {
     case 'secao':
@@ -64,15 +89,36 @@ function renderConteudo(bloco: any, tipo: string) {
     case 'evangelho':
       return <LeituraCard leitura={bloco} />
     case 'oracao':
-    case 'recitacao':
+    case 'recitacao': {
+      const texto = bloco.texto || bloco.conteudo || ''
+      // "Leituras da Semana": um dia por linha, dia em negrito.
+      const dias = parseLeiturasSemana(texto)
+      if (dias) {
+        return (
+          <div className="px-4 pb-4 pt-4 flex flex-col gap-2.5">
+            {dias.map((d, i) => (
+              <div key={i}>
+                <p className="ds-body text-slate-800 dark:text-slate-200">
+                  <span className="font-bold text-brand-text dark:text-slate-100">{d.label}</span>
+                  {d.santo ? ` — ${d.santo}` : ''}
+                </p>
+                {d.refs && (
+                  <p className="ds-body-sm text-slate-600 dark:text-slate-400 pl-4">{d.refs}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )
+      }
       // Texto recitado contínuo (Credo, Pai-Nosso, Oração Eucarística).
       return (
         <div className="px-4 pb-4 pt-4">
           <p className="ds-body text-slate-800 dark:text-slate-200 whitespace-pre-line">
-            {bloco.texto || bloco.conteudo || ''}
+            {texto}
           </p>
         </div>
       )
+    }
     default:
       const textoFallback = bloco.conteudo || bloco.texto || ''
       if (textoFallback) {
