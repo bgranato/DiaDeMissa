@@ -167,6 +167,14 @@ S. SUBTÍTULO DO PREFÁCIO (Oração Eucarística) — no bloco da Oração Euca
    Ascensão do Senhor, I – O mistério da Ascensão") vai para o campo "subtitulo"
    do bloco. Nunca a descarte nem a jogue dentro dos turnos. Se não houver linha
    de prefácio, "subtitulo": null.
+
+T. RUBRICAS ENTRE PARÊNTESES (gestos/indicações) — preserve, no MESMO ponto do
+   texto em que aparecem, as rubricas entre parênteses que orientam gesto ou
+   condução, ex.: "(todos se inclinam até as palavras Virgem Maria)",
+   "(O Presidente continua)", "(Outros pedidos)", "(De pé)", "(Sentados)". Mantenha-as
+   literalmente dentro do turno/versículo onde estão impressas — nunca as apague.
+   NÃO confunda com a nota de perícope curta do Evangelho "(mais breve X,Y-Z)",
+   que pode ser omitida.
 """
 
 # Catálogo de tipos de bloco que o JSON pode conter (espelha app/schema/missa.py).
