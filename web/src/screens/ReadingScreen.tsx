@@ -356,10 +356,10 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
 
               {/* Apêndice (Leituras da Semana etc.) */}
               {bloco._ehApendice && (
-                <div className="ds-card-subtle mb-3 flex items-start gap-2">
-                  <span className="ds-section-label text-brand-gold whitespace-nowrap mt-0.5">Conteúdo Complementar</span>
-                  <span className="ds-body-sm font-serif italic text-brand-slate dark:text-gray-300">
-                    · para aprofundar com base na liturgia
+                <div className="ds-card-subtle mb-3 flex flex-col gap-0.5">
+                  <span className="ds-section-label text-brand-gold">Conteúdo Complementar</span>
+                  <span className="ds-body-sm font-serif italic text-brand-slate dark:text-gray-300 [overflow-wrap:normal] [word-break:normal] hyphens-none">
+                    para aprofundar com base na liturgia
                   </span>
                 </div>
               )}
