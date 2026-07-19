@@ -13,10 +13,9 @@ interface ThemeContextData {
 const ThemeContext = createContext<ThemeContextData>({} as ThemeContextData)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [fontSize, setFontSize] = useState(() => {
-    const stored = localStorage.getItem('@missa_hoje_font')
-    return stored ? Math.min(28, Math.max(14, Number(stored))) : 20
-  })
+  // Novo acesso SEMPRE começa no tamanho de fonte padrão (20px), mesmo que a
+  // pessoa tenha aumentado antes. (Tema/contraste seguem persistindo abaixo.)
+  const [fontSize, setFontSize] = useState(20)
   const [modoEscuro, setModoEscuroState] = useState(() => localStorage.getItem('@missa_hoje_dark') === 'true')
   const [altoContraste, setAltoContrasteState] = useState(() => localStorage.getItem('@missa_hoje_contrast') === 'true')
 

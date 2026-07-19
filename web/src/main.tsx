@@ -11,13 +11,11 @@ import './index.css'
 ;(function aplicarPreferenciasSalvas() {
   try {
     const p = JSON.parse(localStorage.getItem('missa_hoje_prefs') || '{}')
-    const mapa: Record<string, string> = {
-      small: '90%', medium: '100%', large: '115%', 'extra-large': '130%', huge: '150%',
-    }
-    if (p.fontSize && mapa[p.fontSize]) {
-      document.documentElement.style.fontSize = mapa[p.fontSize]
-      document.documentElement.setAttribute('data-font-size', p.fontSize)
-    }
+    // Novo acesso SEMPRE no tamanho padrão ('medium' = 100%), ignorando um valor
+    // maior salvo. Tema/contraste seguem persistindo. (O useAccessibility também
+    // normaliza a fonte salva para 'medium' ao montar.)
+    document.documentElement.style.fontSize = '100%'
+    document.documentElement.setAttribute('data-font-size', 'medium')
     document.documentElement.classList.toggle('dark', !!p.darkMode)
     document.documentElement.classList.toggle('high-contrast', !!p.highContrast)
   } catch { /* preferências ausentes/corrompidas: ignora e usa o padrão */ }

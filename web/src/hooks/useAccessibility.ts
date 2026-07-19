@@ -4,7 +4,9 @@ import { UserPreferences } from '../types/usuario';
 export function useAccessibility() {
   const [prefs, setPrefs] = useState<UserPreferences>(() => {
     const saved = localStorage.getItem('missa_hoje_prefs');
-    if (saved) return JSON.parse(saved);
+    // Novo acesso SEMPRE começa no tamanho de fonte padrão ('medium'), mesmo que a
+    // pessoa tenha aumentado antes. Tema e contraste continuam persistindo.
+    if (saved) return { ...JSON.parse(saved), fontSize: 'medium' };
     return {
       fontSize: 'medium',
       highContrast: false,
@@ -35,7 +37,8 @@ export function useAccessibility() {
       'small': '90%',
       'medium': '100%',
       'large': '115%',
-      'extra-large': '130%'
+      'extra-large': '130%',
+      'huge': '150%',
     };
     document.documentElement.style.fontSize = rootFontSizeMap[prefs.fontSize];
     document.documentElement.setAttribute('data-font-size', prefs.fontSize);
@@ -44,19 +47,19 @@ export function useAccessibility() {
   const toggleDarkMode = () => setPrefs(prev => ({ ...prev, darkMode: !prev.darkMode, highContrast: false }));
   const toggleHighContrast = () => setPrefs(prev => ({ ...prev, highContrast: !prev.highContrast, darkMode: false }));
 
+  const SIZES: UserPreferences['fontSize'][] = ['small', 'medium', 'large', 'extra-large', 'huge'];
+
   const increaseFontSize = () => {
-    const sizes: UserPreferences['fontSize'][] = ['small', 'medium', 'large', 'extra-large'];
-    const currentIndex = sizes.indexOf(prefs.fontSize);
-    if (currentIndex < sizes.length - 1) {
-      setPrefs(prev => ({ ...prev, fontSize: sizes[currentIndex + 1] }));
+    const currentIndex = SIZES.indexOf(prefs.fontSize);
+    if (currentIndex < SIZES.length - 1) {
+      setPrefs(prev => ({ ...prev, fontSize: SIZES[currentIndex + 1] }));
     }
   };
 
   const decreaseFontSize = () => {
-    const sizes: UserPreferences['fontSize'][] = ['small', 'medium', 'large', 'extra-large'];
-    const currentIndex = sizes.indexOf(prefs.fontSize);
+    const currentIndex = SIZES.indexOf(prefs.fontSize);
     if (currentIndex > 0) {
-      setPrefs(prev => ({ ...prev, fontSize: sizes[currentIndex - 1] }));
+      setPrefs(prev => ({ ...prev, fontSize: SIZES[currentIndex - 1] }));
     }
   };
 
