@@ -13,9 +13,13 @@ interface ThemeContextData {
 const ThemeContext = createContext<ThemeContextData>({} as ThemeContextData)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  // Novo acesso SEMPRE começa no tamanho de fonte padrão (20px), mesmo que a
-  // pessoa tenha aumentado antes. (Tema/contraste seguem persistindo abaixo.)
-  const [fontSize, setFontSize] = useState(20)
+  // Lê o tamanho salvo. O reset "novo acesso → padrão (20px)" é feito UMA VEZ no
+  // boot (main.tsx, que grava '@missa_hoje_font'='20'). Aqui NÃO forçamos 20,
+  // senão o ajuste da sessão sumiria a cada remontagem (ex.: fechar a config).
+  const [fontSize, setFontSize] = useState(() => {
+    const stored = localStorage.getItem('@missa_hoje_font')
+    return stored ? Math.min(28, Math.max(14, Number(stored))) : 20
+  })
   const [modoEscuro, setModoEscuroState] = useState(() => localStorage.getItem('@missa_hoje_dark') === 'true')
   const [altoContraste, setAltoContrasteState] = useState(() => localStorage.getItem('@missa_hoje_contrast') === 'true')
 

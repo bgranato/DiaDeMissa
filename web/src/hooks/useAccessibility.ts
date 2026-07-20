@@ -4,9 +4,10 @@ import { UserPreferences } from '../types/usuario';
 export function useAccessibility() {
   const [prefs, setPrefs] = useState<UserPreferences>(() => {
     const saved = localStorage.getItem('missa_hoje_prefs');
-    // Novo acesso SEMPRE começa no tamanho de fonte padrão ('medium'), mesmo que a
-    // pessoa tenha aumentado antes. Tema e contraste continuam persistindo.
-    if (saved) return { ...JSON.parse(saved), fontSize: 'medium' };
+    // Lê o localStorage como está. O reset "novo acesso → padrão" é feito UMA VEZ
+    // no boot (main.tsx), que já grava fontSize='medium'. Aqui NÃO forçamos medium,
+    // senão o ajuste feito na sessão sumiria a cada remontagem (ex.: fechar a config).
+    if (saved) return JSON.parse(saved);
     return {
       fontSize: 'medium',
       highContrast: false,

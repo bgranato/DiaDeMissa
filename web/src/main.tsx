@@ -11,11 +11,17 @@ import './index.css'
 ;(function aplicarPreferenciasSalvas() {
   try {
     const p = JSON.parse(localStorage.getItem('missa_hoje_prefs') || '{}')
-    // Novo acesso SEMPRE no tamanho padrão ('medium' = 100%), ignorando um valor
-    // maior salvo. Tema/contraste seguem persistindo. (O useAccessibility também
-    // normaliza a fonte salva para 'medium' ao montar.)
+    // Novo acesso (carga de página) SEMPRE começa no tamanho padrão. O reset é
+    // feito UMA VEZ aqui, no boot, e ESCRITO no localStorage — assim os hooks
+    // (useAccessibility/ThemeContext) inicializam já resetados. DENTRO da sessão
+    // o ajuste é mantido normalmente (os hooks leem o localStorage, que passa a
+    // guardar o valor aumentado até a próxima carga de página).
+    p.fontSize = 'medium'
+    localStorage.setItem('missa_hoje_prefs', JSON.stringify(p))
+    localStorage.setItem('@missa_hoje_font', '20')
     document.documentElement.style.fontSize = '100%'
     document.documentElement.setAttribute('data-font-size', 'medium')
+    document.documentElement.style.setProperty('--font-size', '20px')
     document.documentElement.classList.toggle('dark', !!p.darkMode)
     document.documentElement.classList.toggle('high-contrast', !!p.highContrast)
   } catch { /* preferências ausentes/corrompidas: ignora e usa o padrão */ }
