@@ -94,6 +94,78 @@ def _dedup_momento_silencio(missa: Missa) -> None:
         pass
 
 
+def _tokens_repeticao(src: str):
+    """Quebra um trecho de estrofe em tokens ('verse'|'repeat', texto), tratando o
+    marcador de repetição do folheto "//: TEXTO ://" (ou "//: TEXTO" no fim)."""
+    parts, pos = [], 0
+    for m in re.finditer(r"//:\s*(.+?)\s*://", src):
+        parts.append(("text", src[pos:m.start()])); parts.append(("repeat", m.group(1))); pos = m.end()
+    tail = src[pos:]
+    m2 = re.search(r"//:\s*(.+?)\s*$", tail)
+    if m2:
+        parts.append(("text", tail[:m2.start()])); parts.append(("repeat", m2.group(1)))
+    else:
+        parts.append(("text", tail))
+    out = []
+    for typ, txt in parts:
+        if typ == "repeat":
+            out.append(("repeat", txt.strip()))
+        else:
+            for v in txt.split("/"):
+                v = v.strip()
+                if v:
+                    out.append(("verse", v))
+    return out
+
+
+_FIM_CANTO = re.compile(r"LEITURAS DA SEMANA|EDITORA NOSSA|PORTAL DA ARQUID|COM APROVA", re.I)
+
+
+def _inserir_repeticoes_estrofes(missa: Missa, texto_limpo: str) -> None:
+    """Reinsere, de forma DETERMINÍSTICA, as repetições "//: … ://" que o folheto
+    imprime dentro das estrofes dos cantos (ex.: "Tantas graças…" no Canto Final).
+    SEGURO: só altera uma estrofe quando a contagem de versos do texto-fonte bate
+    com a da montagem — senão deixa o que o LLM produziu."""
+    if "//:" not in texto_limpo:
+        return
+    src_flat = re.sub(r"\s+", " ", texto_limpo)
+    for b in missa.blocos:
+        if getattr(b, "tipo", None) != "canto":
+            continue
+        estrofes = getattr(b, "estrofes", None) or []
+        if not estrofes:
+            continue
+        # posições da 1ª linha de cada estrofe no source achatado
+        starts = []
+        for est in estrofes:
+            key = re.sub(r"\s+", " ", (est[0] if est else "")).strip()[:30]
+            starts.append(src_flat.find(key) if key else -1)
+        novas = list(estrofes)
+        for i, est in enumerate(estrofes):
+            if starts[i] < 0:
+                continue
+            ini = starts[i]
+            proximos = [s for s in starts[i + 1:] if s > ini]
+            fim = min(proximos) if proximos else None
+            if fim is None:
+                mfim = _FIM_CANTO.search(src_flat, ini)
+                fim = mfim.start() if mfim else min(len(src_flat), ini + 800)
+            toks = _tokens_repeticao(src_flat[ini:fim])
+            if not any(t == "repeat" for t, _ in toks):
+                continue
+            nverse = sum(1 for t, _ in toks if t == "verse")
+            if nverse != len(est):
+                continue  # estrutura não casa → não mexe (seguro)
+            merged, mi = [], 0
+            for typ, txt in toks:
+                if typ == "repeat":
+                    merged.append(txt)
+                else:
+                    merged.append(est[mi]); mi += 1
+            novas[i] = merged
+        b.estrofes = novas
+
+
 def _corrigir_posicao_refrao(missa: Missa, texto_limpo: str) -> None:
     """Calcula `posicao_refrao_apos` dos cantos de forma DETERMINÍSTICA, pelo texto.
 
@@ -232,6 +304,7 @@ def estruturar_via_llm_mm(
     try:
         missa = asyncio.run(_chamar_llm_mm(client, pdf_bytes, texto_limpo, data_hint))
         _corrigir_posicao_refrao(missa, texto_limpo)
+        _inserir_repeticoes_estrofes(missa, texto_limpo)
         _dedup_momento_silencio(missa)
         return missa
     except Exception as e:
@@ -260,6 +333,7 @@ def estruturar_via_llm(
         missa = asyncio.run(_chamar_llm(client, texto_limpo, data_hint))
         # Correção determinística (não depende do LLM): posição do refrão pelo texto.
         _corrigir_posicao_refrao(missa, texto_limpo)
+        _inserir_repeticoes_estrofes(missa, texto_limpo)
         _dedup_momento_silencio(missa)
         return missa
     except Exception as e:
