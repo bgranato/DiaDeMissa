@@ -24,7 +24,7 @@ from app.schema.missa import (
 )
 from app.llm.base import LLMClient
 from app.llm.prompts import (
-    SYSTEM_PROMPT, build_user_prompt, build_correcao_prompt,
+    SYSTEM_PROMPT, build_user_prompt, build_user_prompt_mm, build_correcao_prompt,
 )
 
 logger = logging.getLogger(__name__)
@@ -161,6 +161,43 @@ async def _chamar_llm(client: LLMClient, texto_limpo: str, data_hint: Optional[s
     correcao = build_correcao_prompt(bruto, erro_msg)
     bruto2 = _limpar_cercas(await client.gerar(SYSTEM_PROMPT, correcao))
     return _montar_missa(json.loads(bruto2))
+
+
+async def _chamar_llm_mm(client: LLMClient, pdf_bytes: bytes, texto_limpo: str, data_hint: Optional[str]) -> Missa:
+    """Igual a _chamar_llm, mas envia o PDF (fonte da verdade) junto com o texto."""
+    user = build_user_prompt_mm(texto_limpo, data_hint)
+    bruto = _limpar_cercas(await client.gerar(SYSTEM_PROMPT, user, pdf_bytes=pdf_bytes))
+    try:
+        return _montar_missa(json.loads(bruto))
+    except (json.JSONDecodeError, ValidationError, ValueError) as e:
+        erro_msg = str(e)
+        logger.warning("LLM-MM: 1ª validação falhou (%s). Reprocessando...", erro_msg[:200])
+    correcao = build_correcao_prompt(bruto, erro_msg)
+    bruto2 = _limpar_cercas(await client.gerar(SYSTEM_PROMPT, correcao, pdf_bytes=pdf_bytes))
+    return _montar_missa(json.loads(bruto2))
+
+
+def estruturar_via_llm_mm(
+    pdf_bytes: bytes,
+    texto_limpo: str,
+    data_hint: Optional[str] = None,
+    client: Optional[LLMClient] = None,
+) -> Missa:
+    """Montagem MULTIMODAL: o LLM lê o PDF direto (fonte da verdade) + texto auxílio.
+
+    Elimina a classe de erros de extração/regex na origem. Em qualquer falha, cai
+    no caminho de texto (`estruturar_via_llm`), que por sua vez cai no regex.
+    """
+    if client is None:
+        from app.llm.factory import get_llm_client
+        client = get_llm_client()
+    try:
+        missa = asyncio.run(_chamar_llm_mm(client, pdf_bytes, texto_limpo, data_hint))
+        _corrigir_posicao_refrao(missa, texto_limpo)
+        return missa
+    except Exception as e:
+        logger.exception("LLM-MM falhou — fallback para montagem por texto (%s)", str(e)[:200])
+        return estruturar_via_llm(texto_limpo, data_hint, client)
 
 
 def estruturar_via_llm(

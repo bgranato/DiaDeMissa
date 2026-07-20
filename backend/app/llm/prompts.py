@@ -223,6 +223,26 @@ def build_user_prompt(texto_limpo: str, data_hint: str | None = None) -> str:
     )
 
 
+def build_user_prompt_mm(texto_ocr: str, data_hint: str | None = None) -> str:
+    """Prompt multimodal: o PDF anexado é a FONTE DA VERDADE; o texto é só auxílio."""
+    hint = f"\nDica de data (use se o cabeçalho não trouxer): {data_hint}\n" if data_hint else ""
+    return (
+        f"{REGRAS_FOLHETO}\n\n{SCHEMA_SPEC}\n{hint}\n"
+        "O PDF ANEXADO é o folheto OFICIAL e é a FONTE DA VERDADE. Leia o PDF e "
+        "estruture-o em JSON seguindo TODAS as regras acima. Preserve fielmente, "
+        "exatamente como impresso no PDF: referências bíblicas (inclusive o hífen "
+        "de intervalo, ex.: 'Ct 3,1-4a' — nunca 'Ct 3,14a'); rubricas entre "
+        "parênteses; a nota '(mais breve X,Y-Z)' na referência do Evangelho; a caixa "
+        "(maiúsculas/minúsculas) da consagração; e todos os versículos/estrofes.\n"
+        "O TEXTO abaixo é apenas um AUXÍLIO de extração automática e PODE CONTER "
+        "ERROS (hífens perdidos, acentos trocados, palavras coladas). Quando o texto "
+        "divergir do PDF, CONFIE NO PDF.\nRetorne só o JSON.\n\n"
+        "=== TEXTO (auxílio, pode conter erros) ===\n"
+        f"{texto_ocr}\n"
+        "=== FIM ==="
+    )
+
+
 def build_correcao_prompt(json_invalido: str, erro: str) -> str:
     """Prompt de reprocessamento: devolve ao modelo o erro de validação pra corrigir."""
     return (

@@ -24,7 +24,7 @@ class AnthropicClient(LLMClient):
         # (ex.: "claude-sonnet-4-6" se quiser mais qualidade).
         self.model = model or os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
 
-    async def gerar(self, system_prompt: str, user_prompt: str) -> str:
+    async def gerar(self, system_prompt: str, user_prompt: str, pdf_bytes: "bytes | None" = None) -> str:
         if not self.api_key:
             raise RuntimeError("ANTHROPIC_API_KEY não configurada")
         import httpx
@@ -35,15 +35,30 @@ class AnthropicClient(LLMClient):
             "anthropic-version": "2023-06-01",
             "content-type": "application/json",
         }
+        # Multimodal: manda o PDF como fonte da verdade + o texto como conteúdo.
+        # Permite trocar o modelo só na leitura do PDF via ANTHROPIC_MODEL_MM.
+        if pdf_bytes:
+            import base64
+            modelo = os.getenv("ANTHROPIC_MODEL_MM", self.model)
+            content = [
+                {"type": "document", "source": {
+                    "type": "base64", "media_type": "application/pdf",
+                    "data": base64.standard_b64encode(pdf_bytes).decode(),
+                }},
+                {"type": "text", "text": user_prompt},
+            ]
+        else:
+            modelo = self.model
+            content = user_prompt
         payload = {
-            "model": self.model,
+            "model": modelo,
             # Folheto completo gera JSON grande; 8192 truncava no meio (JSON inválido).
             # 16384 cobre folhetos longos com folga. Trocável via env ANTHROPIC_MAX_TOKENS.
             "max_tokens": int(os.getenv("ANTHROPIC_MAX_TOKENS", "16384")),
             "temperature": 0.0,
             "system": system_prompt,
             "messages": [
-                {"role": "user", "content": user_prompt},
+                {"role": "user", "content": content},
             ],
         }
         async with httpx.AsyncClient(timeout=180) as client:
@@ -54,13 +69,15 @@ class AnthropicClient(LLMClient):
             u = data.get("usage") or {}
             if u:
                 ent, sai = u.get("input_tokens", 0), u.get("output_tokens", 0)
-                # Haiku 4.5: $1/1M entrada, $5/1M saída (ajuste se trocar de modelo).
-                custo = ent / 1e6 * 1.0 + sai / 1e6 * 5.0
-                print(f"[LLM] {self.model} · entrada={ent} tok · saída={sai} tok · ~US$ {custo:.4f}")
+                # Preço por modelo (US$/1M tok, entrada/saída). Default = Haiku.
+                _preco = {"haiku": (1.0, 5.0), "sonnet": (3.0, 15.0), "opus": (15.0, 75.0)}
+                pin, pout = next((v for k, v in _preco.items() if k in modelo), (1.0, 5.0))
+                custo = ent / 1e6 * pin + sai / 1e6 * pout
+                print(f"[LLM] {modelo} · entrada={ent} tok · saída={sai} tok · ~US$ {custo:.4f}")
                 # Persiste o custo para o painel admin (best-effort, não bloqueia).
                 try:
                     from app.services.custo_llm_service import registrar_custo_llm
-                    registrar_custo_llm(self.model, ent, sai, custo)
+                    registrar_custo_llm(modelo, ent, sai, custo)
                 except Exception:
                     pass
             # content é uma lista de blocos; juntamos o texto.
