@@ -176,6 +176,35 @@ T. RUBRICAS ENTRE PARÊNTESES (gestos/indicações) — preserve, no MESMO ponto
    A nota de perícope curta do Evangelho "(mais breve X,Y-Z)" também deve ser
    preservada: acrescente-a ao final do campo "referencia" do Evangelho, exatamente
    como no folheto (ex.: "Mt 13,24-43 (mais breve 13,24-30)").
+
+U. FORMA BREVE DO EVANGELHO — COLCHETES: além da nota "(mais breve X,Y-Z)" na
+   referência (regra T), PRESERVE os colchetes "[" e "]" que o folheto imprime no
+   CORPO do Evangelho para delimitar o trecho da leitura mais breve. Mantenha-os
+   DENTRO do texto dos versículos: o "[" abre no início do primeiro versículo da
+   forma breve e o "]" fecha no fim do último (ex.: o versículo começa com
+   "[Jesus contou outra parábola…" e o versículo final termina "…no meu celeiro!']").
+   Não invente colchetes onde o folheto não os traz.
+
+V. ORAÇÃO DOS FIÉIS — NUMERAÇÃO DAS INTENÇÕES: preserve a numeração impressa das
+   intenções ("1.", "2.", "3.", "4."). Cada intenção é um turno próprio cujo texto
+   COMEÇA com o número como no folheto ("1. Pelo Santo Padre…"). A resposta da
+   assembleia ("T. Iluminai, Senhor…") deve aparecer SÓ onde o folheto a imprime
+   (tipicamente uma vez, após a 1ª intenção) — não a repita em cada intenção (a
+   renderização do app cuida de repetir). Não converta as intenções todas em "P".
+
+W. REPETIÇÕES NOS CANTOS ("//: … ://"): quando um verso/refrão vier marcado para
+   repetir com "//:" no início e ":// " no fim (ex. típico do Canto Final:
+   "//: Tantas graças, tantos benefícios, obrigado, Senhor e nosso Deus. ://"),
+   PRESERVE o texto que se repete como um verso próprio da estrofe (um item do
+   array de versos). A proibição de "/" da regra 1 NÃO se aplica a esse marcador:
+   remova apenas os marcadores "//:" e ":// " e mantenha o TEXTO do verso repetido.
+   Nunca descarte essas repetições.
+
+X. "MOMENTO DE SILÊNCIO PARA ORAÇÃO PESSOAL": esta rubrica aparece UMA única vez
+   no folheto (após o Canto de Comunhão, ANTES da Antífona da Comunhão). Coloque-a
+   uma só vez, no bloco da Comunhão, nessa posição — NUNCA a duplique nem a repita
+   em outro bloco. (É distinta do "Momento de silêncio para meditação pessoal" da
+   Homilia, que é outra rubrica e permanece no seu lugar.)
 """
 
 # Catálogo de tipos de bloco que o JSON pode conter (espelha app/schema/missa.py).

@@ -19,7 +19,10 @@ def limpar(texto: str) -> str:
         r"\1 \2",
         texto,
     )
-    texto = re.sub(r"(\s|^)([PTLVR])\.([A-ZÁÉÍÓÚÂÊÔÃÕÇ])", r"\1\2. \3", texto)
+    # Descola o marcador de falante ("P.Em" -> "P. Em") ANTES de qualquer
+    # não-espaço, não só maiúscula — senão "T.e paz na terra" (Glória) passava
+    # colado e virava "Te paz". Lookahead (?=\S) não consome o caractere seguinte.
+    texto = re.sub(r"(\s|^)([PTLVR])\.(?=\S)", r"\1\2. ", texto)
     # Indicadores ordinais: o folheto PDF mostra "10º Domingo" mas pdfplumber/poppler
     # extrai como "10o Domingo" (letra 'o' minúscula). Recompõe: dígitos seguidos
     # de 'o' (ou 'a' p/ feminino: "1a Carta") quando não é parte de uma palavra.

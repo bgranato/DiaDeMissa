@@ -29,6 +29,23 @@ from app.llm.prompts import (
 
 logger = logging.getLogger(__name__)
 
+# Marcador de fallback gravado em missa.observacoes quando a montagem NÃO veio do
+# caminho preferido (multimodal). persist_missa lê isso: fallback=regex → pendente_revisao.
+MARCA_FALLBACK = "[pipeline] fallback="
+
+
+def _marcar_fallback(missa, tipo: str) -> None:
+    """Prepende '[pipeline] fallback=<tipo>' em observacoes (não sobrescreve um
+    marcador já presente — o mais específico/pior, 'regex', vence)."""
+    try:
+        obs = missa.observacoes or ""
+        if MARCA_FALLBACK in obs:
+            return
+        missa.observacoes = f"{MARCA_FALLBACK}{tipo}" + (f" · {obs}" if obs else "")
+    except Exception:
+        pass
+
+
 _TIPO_PARA_CLASSE = {
     "secao": Secao,
     "canto": Canto,
@@ -54,6 +71,27 @@ def _norm_busca(s: str) -> str:
     """Normaliza para casamento robusto: minúsculas, só letras/números/espaço."""
     s = re.sub(r"[^0-9a-zà-úãõâêôçáéíóú ]", "", (s or "").lower())
     return re.sub(r"\s+", " ", s).strip()
+
+
+_MOMENTO_ORACAO = _norm_busca("Momento de silêncio para oração pessoal")
+
+
+def _dedup_momento_silencio(missa: Missa) -> None:
+    """Garante que a rubrica 'Momento de silêncio para oração pessoal' apareça como
+    bloco standalone UMA única vez (mantém o primeiro). Determinístico — o LLM às
+    vezes a duplica (antes e depois da Antífona da Comunhão)."""
+    try:
+        visto = False
+        novos = []
+        for b in (missa.blocos or []):
+            if _norm_busca(getattr(b, "titulo", "") or "") == _MOMENTO_ORACAO:
+                if visto:
+                    continue
+                visto = True
+            novos.append(b)
+        missa.blocos = novos
+    except Exception:
+        pass
 
 
 def _corrigir_posicao_refrao(missa: Missa, texto_limpo: str) -> None:
@@ -194,10 +232,14 @@ def estruturar_via_llm_mm(
     try:
         missa = asyncio.run(_chamar_llm_mm(client, pdf_bytes, texto_limpo, data_hint))
         _corrigir_posicao_refrao(missa, texto_limpo)
+        _dedup_momento_silencio(missa)
         return missa
     except Exception as e:
         logger.exception("LLM-MM falhou — fallback para montagem por texto (%s)", str(e)[:200])
-        return estruturar_via_llm(texto_limpo, data_hint, client)
+        missa = estruturar_via_llm(texto_limpo, data_hint, client)
+        # Se o caminho de texto não caiu em regex, registra que foi fallback=texto.
+        _marcar_fallback(missa, "texto")
+        return missa
 
 
 def estruturar_via_llm(
@@ -218,13 +260,11 @@ def estruturar_via_llm(
         missa = asyncio.run(_chamar_llm(client, texto_limpo, data_hint))
         # Correção determinística (não depende do LLM): posição do refrão pelo texto.
         _corrigir_posicao_refrao(missa, texto_limpo)
+        _dedup_momento_silencio(missa)
         return missa
     except Exception as e:
         logger.exception("LLM indisponível/falhou — fallback para regex (%s)", str(e)[:200])
         from app.pipeline.structure import estruturar
         missa = estruturar(texto_limpo)
-        try:
-            missa.observacoes = (missa.observacoes or "")
-        except Exception:
-            pass
+        _marcar_fallback(missa, "regex")
         return missa

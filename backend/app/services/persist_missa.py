@@ -78,6 +78,23 @@ def persistir_missa(
     db.commit()
     db.refresh(missa)
 
+    # Fallback barulhento: se a montagem caiu no REGEX (pior caminho), o
+    # structure_llm gravou "[pipeline] fallback=regex" em observacoes. Nesse caso
+    # a missa vai para pendente_revisao (esconde do fiel até revisão).
+    try:
+        if "[pipeline] fallback=regex" in (missa.observacoes or ""):
+            import logging
+            missa.status_processamento = "pendente_revisao"
+            db.add(missa)
+            db.commit()
+            db.refresh(missa)
+            logging.getLogger(__name__).warning(
+                "Missa %s montada por REGEX (fallback) — pendente_revisao", missa.data
+            )
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("Falha ao checar fallback %s", missa.data)
+
     # Compare-and-commit: auditoria síncrona pós-persistência.
     # Critérios CRÍTICOS marcam pendente_revisao (escondem do app até revisão).
     try:
