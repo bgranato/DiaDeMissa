@@ -24,7 +24,8 @@ class AnthropicClient(LLMClient):
         # (ex.: "claude-sonnet-4-6" se quiser mais qualidade).
         self.model = model or os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
 
-    async def gerar(self, system_prompt: str, user_prompt: str, pdf_bytes: "bytes | None" = None) -> str:
+    async def gerar(self, system_prompt: str, user_prompt: str,
+                    pdf_bytes: "bytes | None" = None, model: "str | None" = None) -> str:
         if not self.api_key:
             raise RuntimeError("ANTHROPIC_API_KEY não configurada")
         import httpx
@@ -39,7 +40,7 @@ class AnthropicClient(LLMClient):
         # Permite trocar o modelo só na leitura do PDF via ANTHROPIC_MODEL_MM.
         if pdf_bytes:
             import base64
-            modelo = os.getenv("ANTHROPIC_MODEL_MM", self.model)
+            modelo = model or os.getenv("ANTHROPIC_MODEL_MM", self.model)
             content = [
                 {"type": "document", "source": {
                     "type": "base64", "media_type": "application/pdf",
@@ -48,19 +49,22 @@ class AnthropicClient(LLMClient):
                 {"type": "text", "text": user_prompt},
             ]
         else:
-            modelo = self.model
+            modelo = model or self.model
             content = user_prompt
         payload = {
             "model": modelo,
             # Folheto completo gera JSON grande; 8192 truncava no meio (JSON inválido).
             # 16384 cobre folhetos longos com folga. Trocável via env ANTHROPIC_MAX_TOKENS.
             "max_tokens": int(os.getenv("ANTHROPIC_MAX_TOKENS", "16384")),
-            "temperature": 0.0,
             "system": system_prompt,
             "messages": [
                 {"role": "user", "content": content},
             ],
         }
+        # `temperature` é deprecado em alguns modelos novos (ex.: sonnet-5). Só
+        # envia onde é aceito (ex.: haiku-4-5) para não tomar 400.
+        if not any(x in modelo for x in ("sonnet-5", "opus-4")):
+            payload["temperature"] = 0.0
         async with httpx.AsyncClient(timeout=180) as client:
             resp = await client.post(url, headers=headers, json=payload)
             resp.raise_for_status()

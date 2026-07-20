@@ -11,9 +11,11 @@ class DeepSeekClient(LLMClient):
         self.api_key = api_key or os.getenv("DEEPSEEK_API_KEY", "")
         self.model = model
 
-    async def gerar(self, system_prompt: str, user_prompt: str) -> str:
+    async def gerar(self, system_prompt: str, user_prompt: str,
+                    pdf_bytes: "bytes | None" = None, model: "str | None" = None) -> str:
         if not self.api_key:
             raise RuntimeError("DEEPSEEK_API_KEY não configurada")
+        # DeepSeek não é multimodal aqui; pdf_bytes/model são ignorados.
         import httpx
         url = "https://api.deepseek.com/v1/chat/completions"
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}

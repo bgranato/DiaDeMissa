@@ -27,6 +27,7 @@ def persistir_missa(
     *,
     pdf_hash: Optional[str] = None,
     fonte_url: Optional[str] = None,
+    pdf_bytes: Optional[bytes] = None,
 ) -> MissaModel:
     """Upsert a missa estruturada no BD. Substitui blocos existentes."""
     data = _parse_data(missa_pydantic.data)
@@ -97,6 +98,30 @@ def persistir_missa(
         import logging
         logging.getLogger(__name__).exception(
             "Falha ao auditar missa %s (não bloqueante)", missa.data
+        )
+
+    # GATE PDF (pilar 2): um 2º modelo (Sonnet) confere a montagem contra o PDF
+    # OFICIAL. Divergência CRÍTICA (ref/rubrica/texto) → pendente_revisao. Precisa
+    # dos bytes do PDF + USAR_GATE_PDF=1. Fail-open dentro do auditar_contra_pdf.
+    try:
+        from app.services.auditor_folheto import usar_gate_pdf, auditar_contra_pdf
+        if pdf_bytes and usar_gate_pdf() and missa.status_processamento == "concluido":
+            import logging
+            rel_pdf = auditar_contra_pdf(missa, pdf_bytes)
+            if not rel_pdf["ok"]:
+                missa.status_processamento = "pendente_revisao"
+                db.add(missa)
+                db.commit()
+                db.refresh(missa)
+                logging.getLogger(__name__).warning(
+                    "GATE PDF: missa %s -> pendente_revisao (%d crítica(s)): %s",
+                    missa.data, len(rel_pdf["criticas"]),
+                    "; ".join(str(c.get("detalhe") or c.get("esperado_pdf")) for c in rel_pdf["criticas"])[:500],
+                )
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception(
+            "Gate PDF falhou (não bloqueante) %s", missa.data
         )
 
     # Alerta por e-mail "missa disponível" — 1x por missa, só se publicada (concluido).
