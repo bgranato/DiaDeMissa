@@ -173,8 +173,9 @@ T. RUBRICAS ENTRE PARÊNTESES (gestos/indicações) — preserve, no MESMO ponto
    condução, ex.: "(todos se inclinam até as palavras Virgem Maria)",
    "(O Presidente continua)", "(Outros pedidos)", "(De pé)", "(Sentados)". Mantenha-as
    literalmente dentro do turno/versículo onde estão impressas — nunca as apague.
-   NÃO confunda com a nota de perícope curta do Evangelho "(mais breve X,Y-Z)",
-   que pode ser omitida.
+   A nota de perícope curta do Evangelho "(mais breve X,Y-Z)" também deve ser
+   preservada: acrescente-a ao final do campo "referencia" do Evangelho, exatamente
+   como no folheto (ex.: "Mt 13,24-43 (mais breve 13,24-30)").
 """
 
 # Catálogo de tipos de bloco que o JSON pode conter (espelha app/schema/missa.py).

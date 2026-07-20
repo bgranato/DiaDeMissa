@@ -6,7 +6,14 @@ import unicodedata
 
 def limpar(texto: str) -> str:
     texto = unicodedata.normalize("NFC", texto)
-    texto = re.sub(r"(\w+)-\s*\n\s*(\w+)", r"\1\2", texto)
+    # De-hifenização de quebra de linha ("necessá-\nrio" -> "necessário"), MAS só
+    # quando o caractere antes do "-" é LETRA. Se for dígito, o "-" é hífen de
+    # intervalo de citação bíblica ("Ct 3,1-\n4a") e NÃO pode ser removido —
+    # senão vira referência errada ("Ct 3,14a").
+    texto = re.sub(r"(\w*[^\W\d])-\s*\n\s*(\w+)", r"\1\2", texto)
+    # Intervalo numérico quebrado na linha ("3,1-\n4a"): remove só a quebra,
+    # PRESERVANDO o hífen do intervalo -> "3,1-4a".
+    texto = re.sub(r"(\d-)\s*\n\s*(\d)", r"\1\2", texto)
     texto = re.sub(
         r"([a-záéíóúâêôãõçà,;:])\s*\n\s*([a-záéíóúâêôãõçà])",
         r"\1 \2",
