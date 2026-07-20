@@ -28,6 +28,7 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
   const [missaDescricao, setMissaDescricao] = useState<string | null>(null)
   const [descricaoExpandida, setDescricaoExpandida] = useState(false)
   const [missaCor, setMissaCor] = useState<string | null>(null)
+  const [missaCreditos, setMissaCreditos] = useState<Record<string, string | null> | null>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showIndex, setShowIndex] = useState(false)
   const [showReiniciar, setShowReiniciar] = useState(false)
@@ -54,6 +55,7 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
         setMissaTitulo(missa.titulo_celebracao || null)
         setMissaCategoria(missa.categoria || null)
         setMissaObservacoes(missa.observacoes || null)
+        setMissaCreditos(missa.creditos_cantos || null)
         const descRaw = missa.descricao || ''
         const cor = descRaw.match(/Cor\s+lit[uú]rgica:\s*(\w+)/i)
         setMissaCor(cor ? cor[1] : null)
@@ -327,6 +329,21 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
                 {descricaoExpandida ? '↑ Ver menos' : '↓ Ver mais'}
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Créditos dos cantos (do folheto) — pequenos, sob a apresentação. */}
+      {missaCreditos && (missaCreditos.entrada || missaCreditos.ofertas || missaCreditos.comunhao || missaCreditos.final) && (
+        <div className="ds-container pt-2">
+          <div className="ds-card-subtle">
+            <p className="ds-section-label text-brand-gold mb-1">Cantos</p>
+            <div className="ds-caption text-brand-slate dark:text-gray-400 leading-relaxed space-y-0.5">
+              {missaCreditos.entrada && <p><span className="font-bold">Entrada{missaCreditos.comunhao === missaCreditos.entrada ? ' e Comunhão' : ''}:</span> {missaCreditos.entrada}</p>}
+              {missaCreditos.comunhao && missaCreditos.comunhao !== missaCreditos.entrada && <p><span className="font-bold">Comunhão:</span> {missaCreditos.comunhao}</p>}
+              {missaCreditos.ofertas && <p><span className="font-bold">Ofertas:</span> {missaCreditos.ofertas}</p>}
+              {missaCreditos.final && <p><span className="font-bold">Final:</span> {missaCreditos.final}</p>}
+            </div>
           </div>
         </div>
       )}
