@@ -9,6 +9,7 @@ import { CalendarScreen } from './screens/CalendarScreen'
 import { JornadaScreen } from './screens/JornadaScreen'
 import LembretesScreen from './screens/LembretesScreen'
 import { ProfileScreen } from './screens/ProfileScreen'
+import { RevisaoScreen } from './screens/RevisaoScreen'
 import { AuthScreens } from './screens/AuthScreens'
 import { SplashScreen } from './screens/SplashScreen'
 import { ConclusionScreen } from './screens/ConclusionScreen'
@@ -89,6 +90,7 @@ export default function App() {
           {screen === 'design-system' && <DesignSystemScreen onBack={() => navigateTo('profile')} />}
           {screen === 'meus-dados' && <MeusDadosScreen onBack={() => navigateTo('profile')} />}
           {screen === 'alterar-senha' && <AlterarSenhaScreen onBack={() => navigateTo('profile')} />}
+          {screen === 'revisao' && <RevisaoScreen setScreen={navigateTo} />}
         </AnimatePresence>
 
         {!['splash', 'login', 'reading', 'conclusion', 'design-system', 'meus-dados', 'alterar-senha'].includes(screen) && (

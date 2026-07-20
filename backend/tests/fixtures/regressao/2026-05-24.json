@@ -1,0 +1,36 @@
+{
+  "data": "2026-05-24",
+  "modelo_extrator": "claude-sonnet-5",
+  "referencias": [
+    "(Cf. Sb 1,7)",
+    "(At 2,1-11)",
+    "[Sl 103(104)]",
+    "(1Cor 12,3b-7.12-13)",
+    "(Jo 20,19-23)",
+    "(At 2,4-11)",
+    "Gn 3,9-15.20",
+    "At 1,12-14",
+    "Sl 86(87)",
+    "Jo 19,25-34",
+    "1Pd 1,10-16",
+    "Sl 97(98)",
+    "Mc 10,28-31",
+    "1Pd 1,18-25",
+    "Sl 147(147B)",
+    "Mc 10,32-45",
+    "1Pd 2,2-12",
+    "Sl 99(100)",
+    "Mc 10,46-52",
+    "1Pd 4,7-13",
+    "Sl 95(96)",
+    "Mc 11,11-26",
+    "Jd 17,20-25",
+    "Sl 62(63)",
+    "Mc 11,27-33"
+  ],
+  "rubricas": [
+    "(todos se inclinam até e se fez homem)",
+    "(Outras intenções)",
+    "(O Presidente continua)"
+  ]
+}

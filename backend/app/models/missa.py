@@ -23,6 +23,9 @@ class Missa(Base):
     fonte_pdf_url = Column(String(500), nullable=False)
     pdf_hash = Column(String(64), nullable=True)
     status_processamento = Column(String(50), default="pendente")
+    # Resultado do gate de fidelidade PDF×montagem (divergências) — para o admin
+    # revisar as missas em pendente_revisao. {ok, criticas:[...], todas:[...]}.
+    revisao_json = Column(JSON, nullable=True)
     # Controle do alerta por e-mail "missa disponível": garante envio 1x por missa.
     alerta_email_enviado = Column(Boolean, default=False, nullable=False)
     data_criacao = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

@@ -388,6 +388,60 @@ def disparar_notif_nao_acompanhada(admin: Usuario = Depends(obter_usuario_admin)
     return gerar_notificacoes_nao_acompanhada()
 
 
+# ======================= REVISÃO DE MISSAS (gate PDF) =======================
+
+@router.get("/admin/missas/revisao")
+def admin_listar_revisao(
+    incluir_ok: bool = False,
+    admin: Usuario = Depends(obter_usuario_admin),
+    db: Session = Depends(get_db),
+):
+    """Lista missas para revisão (pendente_revisao) com as divergências do gate.
+
+    Cada item traz: data, título, status, o link do PDF-fonte, e as divergências
+    (críticas primeiro) apontadas pelo gate PDF×montagem. `incluir_ok=true` traz
+    também as concluídas que têm resultado de gate (para conferência).
+    """
+    q = db.query(Missa)
+    if incluir_ok:
+        q = q.filter(Missa.status_processamento.in_(["pendente_revisao", "concluido"]))
+    else:
+        q = q.filter(Missa.status_processamento == "pendente_revisao")
+    missas = q.order_by(desc(Missa.data)).limit(60).all()
+
+    def dump(m: Missa) -> dict:
+        rev = m.revisao_json or {}
+        return {
+            "data": m.data.isoformat() if m.data else None,
+            "titulo_celebracao": m.celebracao,
+            "status": m.status_processamento,
+            "pdf_url": f"/api/v1/missas/{m.data.isoformat()}/pdf-arqrio" if m.data else None,
+            "gate_ok": rev.get("ok"),
+            "criticas": rev.get("criticas", []),
+            "divergencias": rev.get("todas", []),
+        }
+
+    return {"total": len(missas), "missas": [dump(m) for m in missas]}
+
+
+@router.post("/admin/missas/{data_iso}/aprovar")
+def admin_aprovar_missa(
+    data_iso: str,
+    admin: Usuario = Depends(obter_usuario_admin),
+    db: Session = Depends(get_db),
+):
+    """Aprova manualmente uma missa em pendente_revisao → volta a `concluido`
+    (fica visível ao fiel). Use após conferir o diff PDF×montagem."""
+    from datetime import date as _date
+    m = db.query(Missa).filter(Missa.data == _date.fromisoformat(data_iso)).first()
+    if not m:
+        raise HTTPException(status_code=404, detail=f"Missa {data_iso} não encontrada")
+    m.status_processamento = "concluido"
+    db.add(m)
+    db.commit()
+    return {"data": data_iso, "status": m.status_processamento, "aprovado_por": admin.email}
+
+
 # ======================= PAINEL MASTER (admin) — Fase 1 =======================
 
 @router.get("/admin/usuarios")

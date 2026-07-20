@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'motion/react'
 import { AppHeader, Card } from '../components/UI'
-import { User, Bell, LogOut, KeyRound, Mail } from 'lucide-react'
+import { User, Bell, LogOut, KeyRound, Mail, ShieldAlert } from 'lucide-react'
 import type { Usuario } from '../types/usuario'
 import { getPreferencias, atualizarPreferencias } from '../services/preferencias'
 
@@ -62,6 +62,14 @@ export const ProfileScreen = ({ setScreen, usuario, onLogout }: Props) => {
             <span className="font-bold flex-1 text-left">Lembretes</span>
             <span className="text-brand-gray-dark/40">→</span>
           </button>
+
+          {usuario?.is_admin && (
+            <button onClick={() => setScreen('revisao')} className="flex items-center gap-4 bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-soft border border-black/5 active:scale-[0.98] transition-transform">
+              <ShieldAlert size={24} className="text-brand-blue" />
+              <span className="font-bold flex-1 text-left">Revisão de Missas</span>
+              <span className="text-brand-gray-dark/40">→</span>
+            </button>
+          )}
 
           {/* Alerta por e-mail quando a missa entra no sistema (ligado por padrão) */}
           <div className="flex items-center gap-4 bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-soft border border-black/5">

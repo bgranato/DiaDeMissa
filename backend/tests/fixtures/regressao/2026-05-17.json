@@ -1,0 +1,28 @@
+{
+  "data": "2026-05-17",
+  "modelo_extrator": "claude-sonnet-5",
+  "referencias": [
+    "(At 1,11)",
+    "(At 1,1-11)",
+    "[Sl 46(47),2-3.6-7.8-9 (R. 6)]",
+    "(Ef 1,17-23)",
+    "(Mt 28,19a.20b)",
+    "(Mt 28,16-20)",
+    "(Mt 28,20)",
+    "At 19,1-8; Sl 67(68); Jo 16,29-33",
+    "At 20,17-27; Sl 67(68); Jo 17,1-11a",
+    "At 20,28-38; Sl 67(68); Jo 17,11b-19",
+    "At 22,30;23,6-11; Sl 15(16); Jo 17,20-26",
+    "At 25,13b-21; Sl 102(103); Jo 21,15-19",
+    "At 28,16-20.30-31; Sl 10(11); Jo 21,20-25"
+  ],
+  "rubricas": [
+    "(todos se inclinam até as palavras Virgem Maria)",
+    "(Outras intenções)",
+    "(hoje)",
+    "(dizendo)",
+    "(Tiago e João, Tomé, Tiago e Filipe, Bartolomeu e Mateus, Simão e Tadeu, Lino, Cleto, Clemente, Sisto, Cornélio e Cipriano, Lourenço e Crisógono, João e Paulo, Cosme e Damião)",
+    "(O Presidente continua)",
+    "(Inácio, Alexandre, Marcelino e Pedro, Felicidade e Perpétua, Águeda e Luzia, Inês, Cecília, Anastácia)"
+  ]
+}

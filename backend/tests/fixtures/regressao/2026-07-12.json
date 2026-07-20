@@ -1,0 +1,38 @@
+{
+  "data": "2026-07-12",
+  "modelo_extrator": "claude-sonnet-5",
+  "referencias": [
+    "Cf. Sl 16,15",
+    "Is 55,10-11",
+    "Sl 64(65),10.11.12-13.14 (R. Lc 8,8)",
+    "Rm 8,18-23",
+    "Cf. Lc 8,11",
+    "Mt 13,1-23 (mais breve 13,1-9)",
+    "Cf. Sl 83,4-5",
+    "Is 1,10-17",
+    "Sl 49(50)",
+    "Mt 10,34-11,1",
+    "Is 7,1-9",
+    "Sl 47(48)",
+    "Mt 11,20-24",
+    "Is 10,5-7.13-16",
+    "Sl 93(94)",
+    "Mt 11,25-27",
+    "Zc 2,14-17",
+    "Lc 1,46-47.48-49.50-51.52-53.54-55",
+    "Mt 12,46-50",
+    "Is 38,1-6.21-22.7-8",
+    "Is 38,10.11.12.16",
+    "Mt 12,1-8",
+    "Mq 2,1-5",
+    "Sl 9B(10)",
+    "Mt 12,14-21"
+  ],
+  "rubricas": [
+    "(todos se inclinam até as palavras Virgem Maria)",
+    "(Outros pedidos)",
+    "(dizendo)",
+    "(O Presidente continua)",
+    "(Santo do dia ou padroeiro)"
+  ]
+}

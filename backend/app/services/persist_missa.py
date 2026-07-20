@@ -108,6 +108,15 @@ def persistir_missa(
         if pdf_bytes and usar_gate_pdf() and missa.status_processamento == "concluido":
             import logging
             rel_pdf = auditar_contra_pdf(missa, pdf_bytes)
+            # Guarda o resultado do gate para o admin revisar (diff PDF×montagem).
+            missa.revisao_json = {
+                "ok": rel_pdf.get("ok"),
+                "criticas": rel_pdf.get("criticas", []),
+                "todas": rel_pdf.get("todas", []),
+            }
+            db.add(missa)
+            db.commit()
+            db.refresh(missa)
             if not rel_pdf["ok"]:
                 missa.status_processamento = "pendente_revisao"
                 db.add(missa)
