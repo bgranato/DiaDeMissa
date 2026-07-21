@@ -267,6 +267,46 @@ def missa_proxima(db: Session = Depends(get_db)):
     return {"data": None, "celebracao": None, "categoria": None}
 
 
+@router.get("/missa/agenda")
+def missa_agenda(db: Session = Depends(get_db)):
+    """Agenda enxuta: as 3 últimas missas anteriores (com conteúdo) + a próxima.
+
+    A próxima vem com `montada`: True se o folheto já foi montado (tem card completo),
+    False se ainda não — nesse caso retorna só a data prevista (próximo domingo), para
+    o app mostrar um card "em breve" que se atualiza sozinho quando a missa for montada.
+    """
+    from datetime import timedelta
+    hoje = _agora_brasilia().date()
+
+    def _dump(m):
+        return {"id": m.id, "data": m.data.isoformat(), "celebracao": m.celebracao,
+                "categoria": getattr(m, "categoria", None)}
+
+    anteriores = []
+    for m in (db.query(Missa)
+              .filter(Missa.data < hoje, Missa.status_processamento == "concluido")
+              .order_by(Missa.data.desc()).all()):
+        if m.blocos:
+            anteriores.append(_dump(m))
+        if len(anteriores) >= 3:
+            break
+
+    proxima = None
+    for m in (db.query(Missa)
+              .filter(Missa.data >= hoje, Missa.status_processamento == "concluido")
+              .order_by(Missa.data.asc()).all()):
+        if m.blocos:
+            proxima = {**_dump(m), "montada": True}
+            break
+    if proxima is None:
+        # ainda não montada: próximo domingo (folheto sai sáb/dom/solenidades)
+        dias = (6 - hoje.weekday()) % 7  # weekday: seg=0 … dom=6
+        prox_dom = hoje if dias == 0 else hoje + timedelta(days=dias)
+        proxima = {"data": prox_dom.isoformat(), "celebracao": None, "categoria": None, "montada": False}
+
+    return {"anteriores": anteriores, "proxima": proxima}
+
+
 @router.get("/missas/hoje", response_model=MissaResponse)
 def get_missa_hoje(db: Session = Depends(get_db)):
     hoje_real = _agora_brasilia().date()
