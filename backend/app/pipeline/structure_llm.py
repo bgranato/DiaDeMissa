@@ -166,6 +166,20 @@ def _inserir_repeticoes_estrofes(missa: Missa, texto_limpo: str) -> None:
         b.estrofes = novas
 
 
+def _limpar_numero_estrofe_orfao(missa: Missa) -> None:
+    """Remove o número da estrofe SEGUINTE grudado no fim do último verso da anterior
+    ("…obrigado, Senhor e nosso Deus. 2." → "…nosso Deus."). Determinístico."""
+    try:
+        for b in missa.blocos or []:
+            if getattr(b, "tipo", None) != "canto":
+                continue
+            for est in (getattr(b, "estrofes", None) or []):
+                if isinstance(est, list) and est:
+                    est[-1] = re.sub(r"\s+\d{1,2}\.\s*$", "", est[-1]).rstrip()
+    except Exception:
+        pass
+
+
 def _corrigir_posicao_refrao(missa: Missa, texto_limpo: str) -> None:
     """Calcula `posicao_refrao_apos` dos cantos de forma DETERMINÍSTICA, pelo texto.
 
@@ -305,6 +319,7 @@ def estruturar_via_llm_mm(
         missa = asyncio.run(_chamar_llm_mm(client, pdf_bytes, texto_limpo, data_hint))
         _corrigir_posicao_refrao(missa, texto_limpo)
         _inserir_repeticoes_estrofes(missa, texto_limpo)
+        _limpar_numero_estrofe_orfao(missa)
         _dedup_momento_silencio(missa)
         return missa
     except Exception as e:
@@ -334,6 +349,7 @@ def estruturar_via_llm(
         # Correção determinística (não depende do LLM): posição do refrão pelo texto.
         _corrigir_posicao_refrao(missa, texto_limpo)
         _inserir_repeticoes_estrofes(missa, texto_limpo)
+        _limpar_numero_estrofe_orfao(missa)
         _dedup_momento_silencio(missa)
         return missa
     except Exception as e:

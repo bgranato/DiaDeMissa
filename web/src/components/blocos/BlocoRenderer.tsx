@@ -110,12 +110,20 @@ function renderConteudo(bloco: any, tipo: string) {
           </div>
         )
       }
-      // Texto recitado contínuo (Credo, Pai-Nosso, Oração Eucarística).
+      // Texto recitado contínuo (Credo, Pai-Nosso, Oração Eucarística, Coleta…).
+      // Se o bloco tiver `resposta` (ex.: "Amém." da assembleia), renderiza com o
+      // chip T — esses blocos podem vir como tipo "oracao" (não só "dialogo").
       return (
-        <div className="px-4 pb-4 pt-4">
+        <div className="px-4 pb-4 pt-4 ds-stack-sm">
           <p className="ds-body text-slate-800 dark:text-slate-200 whitespace-pre-line">
             {texto}
           </p>
+          {bloco.resposta && (
+            <div className="flex gap-2 items-start">
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold flex items-center justify-center mt-0.5">T</span>
+              <p className="ds-body font-bold text-slate-800 dark:text-slate-200 flex-1">{bloco.resposta}</p>
+            </div>
+          )}
         </div>
       )
     }
