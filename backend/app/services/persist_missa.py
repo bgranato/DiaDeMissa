@@ -95,6 +95,28 @@ def persistir_missa(
         import logging
         logging.getLogger(__name__).exception("Falha ao checar fallback %s", missa.data)
 
+    # Verificador LEXICAL (determinístico, roda ANTES do gate): o structure gravou
+    # "[lexical] palavras fora do fonte: …" em observacoes se achou palavra da montagem
+    # ausente no texto-fonte (suspeita de typo). modo 'bloquear' → pendente_revisao;
+    # 'alertar' (default) → e-mail aos admins, sem bloquear.
+    try:
+        from app.services.verificador_lexical import MARCA_LEXICAL, modo, enviar_alerta_lexical
+        if MARCA_LEXICAL in (missa.observacoes or ""):
+            import logging
+            palavras = (missa.observacoes or "").split(MARCA_LEXICAL, 1)[1].split(" · ")[0]
+            if modo() == "bloquear":
+                missa.status_processamento = "pendente_revisao"
+                db.add(missa); db.commit(); db.refresh(missa)
+                logging.getLogger(__name__).warning(
+                    "LEXICAL: missa %s -> pendente_revisao (palavras: %s)", missa.data, palavras)
+            else:
+                logging.getLogger(__name__).warning(
+                    "LEXICAL (alerta): missa %s tem palavras fora do fonte: %s", missa.data, palavras)
+                enviar_alerta_lexical(missa.data.isoformat(), [{"palavra": p.strip(), "bloco": "?", "campo": "?", "contexto": ""} for p in palavras.split(",")])
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("Verificador léxico (persist) falhou %s", missa.data)
+
     # Compare-and-commit: auditoria síncrona pós-persistência.
     # Critérios CRÍTICOS marcam pendente_revisao (escondem do app até revisão).
     try:

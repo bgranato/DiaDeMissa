@@ -40,16 +40,40 @@ def processar_pdf(fonte: Union[str, Path, None] = None) -> Missa:
     if _usar_llm_mm():
         logger.info("Estruturação: LLM MULTIMODAL (PDF direto)")
         from app.pipeline.structure_llm import estruturar_via_llm_mm
-        return estruturar_via_llm_mm(pdf_bytes, texto_limpo)
-
-    # Com USAR_LLM=1: usa o LLM (entende o documento → corrige a classe inteira
-    # de erros do regex). O próprio estruturar_via_llm já cai no regex como
-    # fallback se o LLM falhar/estiver sem chave, então a flag é segura.
-    if _usar_llm():
+        missa = estruturar_via_llm_mm(pdf_bytes, texto_limpo)
+    elif _usar_llm():
+        # Com USAR_LLM=1: usa o LLM (entende o documento → corrige a classe inteira
+        # de erros do regex). O próprio estruturar_via_llm já cai no regex como
+        # fallback se o LLM falhar/estiver sem chave, então a flag é segura.
         logger.info("Estruturação: LLM (USAR_LLM ativo)")
         from app.pipeline.structure_llm import estruturar_via_llm
-        return estruturar_via_llm(texto_limpo)
+        missa = estruturar_via_llm(texto_limpo)
+    else:
+        logger.info("Estruturação: regex (USAR_LLM inativo)")
+        from app.pipeline.structure import estruturar
+        missa = estruturar(texto_limpo)
 
-    logger.info("Estruturação: regex (USAR_LLM inativo)")
-    from app.pipeline.structure import estruturar
-    return estruturar(texto_limpo)
+    _verificar_lexico(missa, texto_limpo)
+    return missa
+
+
+def _verificar_lexico(missa, texto_limpo: str) -> None:
+    """Camada determinística entre montagem e gate: toda palavra do texto litúrgico
+    da montagem deve existir no vocabulário do texto-fonte. Palavra ausente = suspeita
+    de typo do LLM. Marca `observacoes` com "[lexical] palavras fora do fonte: …".
+    O persist_missa decide (bloquear → pendente_revisao, ou alertar → e-mail)."""
+    try:
+        from app.services.verificador_lexical import ativo, verificar_lexico, resumo, MARCA_LEXICAL
+        if not ativo():
+            return
+        blocos = [b.model_dump() for b in (missa.blocos or [])]
+        sus = verificar_lexico(texto_limpo, blocos, getattr(missa, "descricao", None))
+        if not sus:
+            return
+        for s in sus:
+            logger.warning("[lexical] %s (%s): '%s' — …%s…", s["bloco"], s["campo"], s["palavra"], s["contexto"])
+        marca = MARCA_LEXICAL + resumo(sus)
+        obs = getattr(missa, "observacoes", None) or ""
+        missa.observacoes = marca + (f" · {obs}" if obs else "")
+    except Exception:
+        logger.exception("Verificador léxico falhou (não bloqueante)")
