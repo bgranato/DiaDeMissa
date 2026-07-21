@@ -209,6 +209,18 @@ X. "MOMENTO DE SILÊNCIO PARA ORAÇÃO PESSOAL": esta rubrica aparece UMA única
    uma só vez, no bloco da Comunhão, nessa posição — NUNCA a duplique nem a repita
    em outro bloco. (É distinta do "Momento de silêncio para meditação pessoal" da
    Homilia, que é outra rubrica e permanece no seu lugar.)
+
+Y. MARCADORES LITÚRGICOS MENORES — preserve EXATAMENTE como o folheto imprime,
+   quando (e só quando) aparecem:
+   - "(2x)" / "(bis)" indicando repetição de refrão/verso → mantenha no verso;
+   - "(R. N)" na referência do Salmo (ex.: "Sl 85(86)…(R. 5a)") → mantenha no campo
+     "referencia" do Salmo;
+   - "(hoje)" e "(dizendo)" nas Orações Eucarísticas, e os parênteses das listas de
+     santos/opções ("(São N.: Santo do dia ou padroeiro)") → mantenha no texto;
+   - sufixo de meio-versículo "a"/"b" e o marcador de capítulo nas citações
+     ("Os 2,16.17b-18.21-22", "Mt 10,1") → copie o número/sufixo EXATAMENTE, sem
+     arredondar nem transformar em ordinal (é "11a", nunca "11ª").
+   Se o folheto NÃO traz o marcador, NÃO invente.
 """
 
 # Catálogo de tipos de bloco que o JSON pode conter (espelha app/schema/missa.py).

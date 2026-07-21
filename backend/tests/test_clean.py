@@ -36,6 +36,27 @@ class TestClean:
         esperado = "Aleluia! P. Em nome\n\nFim."
         assert limpar(texto) == esperado
 
+    # --- Regressão do ordinal em CITAÇÕES bíblicas (não vira "ª") ---
+    # O sufixo de meio-versículo (a/b) precedido de dígito/hífen/ponto NÃO pode
+    # virar ordinal: "Jo 17,1-11a" deve continuar "11a", nunca "11ª".
+    def test_ordinal_nao_corrompe_intervalo_com_letra(self):
+        assert limpar("Jo 17,1-11a") == "Jo 17,1-11a"
+        assert limpar("Ct 3,1-4a") == "Ct 3,1-4a"
+        assert limpar("Ex 19,2-6a") == "Ex 19,2-6a"
+
+    def test_ordinal_nao_corrompe_meio_versiculo_apos_ponto(self):
+        assert limpar("Jo 15,26b.27a") == "Jo 15,26b.27a"
+        assert limpar("2Rs 17,5-8.13-15a.18") == "2Rs 17,5-8.13-15a.18"
+
+    def test_intervalo_numerico_preserva_hifen(self):
+        assert limpar("Mt 7,1-5") == "Mt 7,1-5"
+        assert limpar("Ct 3,1-\n4a") == "Ct 3,1-4a"  # quebra de linha no intervalo
+
+    def test_ordinal_solto_ainda_converte(self):
+        # ordinal de verdade (não é citação): dígito seguido de 'a'/'o' após espaço/início
+        assert limpar("1a Leitura") == "1ª Leitura"
+        assert limpar("10o Domingo") == "10º Domingo"
+
 
 class TestExtrairPostura:
     def test_mesma_linha(self):
