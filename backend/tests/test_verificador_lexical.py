@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import pytest
 
-from app.services.verificador_lexical import verificar_lexico
+from app.services.verificador_lexical import verificar_lexico, verificar_aspas
 
 
 FONTE = "Curai os doentes, ressuscitai os mortos. De graça recebestes, de graça deveis dar!"
@@ -41,6 +41,20 @@ def test_ignora_numeros_e_siglas():
                  "turnos": [{"falante": "L", "texto": "Sl 23 P T L 1 2 3"}]}]
     # 'sl' tem 2 letras (ignorado); números ignorados
     assert verificar_lexico("qualquer texto fonte aqui", montagem, None) == []
+
+
+# --- Aspas do discurso direto (regra L) ---
+
+def test_aspas_dropadas_geram_deficit():
+    fonte = 'proclamava Jesus: “Devo anunciar às cidades o Reino de Deus”, e partiu.'
+    montagem = [{"titulo": "Canto", "estrofes": [["Devo anunciar às cidades o Reino de Deus, proclamava Jesus."]]}]
+    assert verificar_aspas(fonte, montagem) >= 2  # 2 aspas curvas dropadas
+
+
+def test_aspas_preservadas_sem_deficit():
+    fonte = 'proclamava Jesus: “Devo anunciar às cidades o Reino de Deus”, e partiu.'
+    montagem = [{"titulo": "Canto", "estrofes": [['“Devo anunciar às cidades o Reino de Deus”, proclamava Jesus.']]}]
+    assert verificar_aspas(fonte, montagem) == 0
 
 
 # --- Integração: 9 missas do banco (requer DB + PDFs; pula sem eles) ---

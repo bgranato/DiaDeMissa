@@ -7,6 +7,10 @@ REGRAS OBRIGATÓRIAS (violar qualquer uma invalida sua resposta):
 
 1. NUNCA inclua "/", "##", "**", "*" no conteúdo de qualquer campo.
    - "/" no folheto separa versos. Cada verso = item separado do array.
+   - "*" no SALMO é a flexa (mediante) que divide o versículo em dois hemistíquios.
+     Trate igual ao "/": divida no "*" em DOIS itens do array (remova o "*"). Ex.:
+     "Ó Senhor, vós sois bom e sois clemente, * sois perdão para quem vos invoca."
+     → ["Ó Senhor, vós sois bom e sois clemente,", "sois perdão para quem vos invoca."].
 
 2. NUNCA retorne palavras com hífen de quebra de linha.
    "Ale-luia" → "Aleluia". "vence-dor" → "vencedor".
@@ -122,9 +126,15 @@ K. REFRÃO E ESTROFES — TRANSCREVA NA ORDEM EXATA EM QUE APARECEM no texto.
    valor "padrão" — leia do texto. (A posição é ainda reconferida por código a partir
    do texto-fonte, então o que importa é manter a ordem real e o refrão correto.)
 
-L. ASPAS: PRESERVE as aspas (" " ' ') do texto original nas falas e leituras.
-   Não as remova. Rubricas curtas no fim de um canto ("Momento de silêncio para
-   oração pessoal") ficam como rubrica/anexo do bloco, não viram seção nova.
+L. ASPAS DO DISCURSO DIRETO — PRESERVE SEMPRE, EXATAMENTE como no folheto, TODAS as
+   aspas: as curvas de abertura/fechamento (“ ”), as retas (" "), as simples (‘ ’ ' ')
+   e as angulares («»). Vale para LEITURAS, EVANGELHO e CANTOS/estrofes — inclusive
+   quando o verso do canto começa e termina com aspas ("“Devo anunciar às cidades o
+   Reino de Deus”, proclamava Jesus."). NÃO remova a aspa de abertura nem a de
+   fechamento; copie-as no MESMO ponto. É ERRO comum dropar as aspas de discurso
+   direto em cantos e parábolas ("“Assim como a chuva…”") — não faça isso.
+   Rubricas curtas no fim de um canto ("Momento de silêncio para oração pessoal")
+   ficam como rubrica/anexo do bloco, não viram seção nova.
 
 M. DESCRIÇÃO vs OBSERVAÇÕES (não confunda):
    - O parágrafo de reflexão de abertura (ex.: "Hoje celebramos...", "Reunidos em

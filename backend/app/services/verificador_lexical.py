@@ -95,6 +95,28 @@ def _textos_do_bloco(bd: dict):
     return out
 
 
+_ASPAS = "“”\"«»"  # duplas/angulares (as simples ' são ambíguas com apóstrofo)
+MARCA_ASPAS = "[aspas] aspas do fonte ausentes na montagem: "
+
+
+def _conta_aspas(texto: str) -> int:
+    return sum((texto or "").count(c) for c in _ASPAS)
+
+
+def verificar_aspas(texto_limpo: str, blocos: list[dict]) -> int:
+    """Déficit de aspas: quantas aspas duplas/angulares o texto-fonte tem a mais que
+    a montagem (discurso direto dropado — regra L). 0 = ok. Tolerância p/ ruído de
+    masthead/rodapé no fonte fica no limiar de quem consome (só alerta se > limiar)."""
+    fonte = _conta_aspas(texto_limpo)
+    if fonte == 0:
+        return 0
+    mont = 0
+    for bd in blocos or []:
+        for _campo, txt in _textos_do_bloco(bd):
+            mont += _conta_aspas(txt)
+    return max(0, fonte - mont)
+
+
 def _conhecida(k: str, vocab: set[str]) -> bool:
     """Palavra conhecida se está no vocabulário OU se uma token da fonte (≥5 letras)
     é a palavra da montagem sem até 3 letras finais. Isso absorve a TRUNCAGEM que a

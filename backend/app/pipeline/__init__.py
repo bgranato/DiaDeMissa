@@ -63,17 +63,26 @@ def _verificar_lexico(missa, texto_limpo: str) -> None:
     de typo do LLM. Marca `observacoes` com "[lexical] palavras fora do fonte: …".
     O persist_missa decide (bloquear → pendente_revisao, ou alertar → e-mail)."""
     try:
-        from app.services.verificador_lexical import ativo, verificar_lexico, resumo, MARCA_LEXICAL
+        from app.services.verificador_lexical import (
+            ativo, verificar_lexico, verificar_aspas, resumo, MARCA_LEXICAL, MARCA_ASPAS,
+        )
         if not ativo():
             return
         blocos = [b.model_dump() for b in (missa.blocos or [])]
+        marcas = []
         sus = verificar_lexico(texto_limpo, blocos, getattr(missa, "descricao", None))
-        if not sus:
+        if sus:
+            for s in sus:
+                logger.warning("[lexical] %s (%s): '%s' — …%s…", s["bloco"], s["campo"], s["palavra"], s["contexto"])
+            marcas.append(MARCA_LEXICAL + resumo(sus))
+        # Aspas do discurso direto (regra L): alerta se a montagem dropou aspas do fonte.
+        deficit = verificar_aspas(texto_limpo, blocos)
+        if deficit > 4:
+            logger.warning("[aspas] déficit de %d aspas (discurso direto dropado?)", deficit)
+            marcas.append(MARCA_ASPAS + str(deficit))
+        if not marcas:
             return
-        for s in sus:
-            logger.warning("[lexical] %s (%s): '%s' — …%s…", s["bloco"], s["campo"], s["palavra"], s["contexto"])
-        marca = MARCA_LEXICAL + resumo(sus)
         obs = getattr(missa, "observacoes", None) or ""
-        missa.observacoes = marca + (f" · {obs}" if obs else "")
+        missa.observacoes = " · ".join(marcas) + (f" · {obs}" if obs else "")
     except Exception:
         logger.exception("Verificador léxico falhou (não bloqueante)")

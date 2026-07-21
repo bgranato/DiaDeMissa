@@ -100,22 +100,22 @@ def persistir_missa(
     # ausente no texto-fonte (suspeita de typo). modo 'bloquear' → pendente_revisao;
     # 'alertar' (default) → e-mail aos admins, sem bloquear.
     try:
-        from app.services.verificador_lexical import MARCA_LEXICAL, modo, enviar_alerta_lexical
-        if MARCA_LEXICAL in (missa.observacoes or ""):
+        from app.services.verificador_lexical import MARCA_LEXICAL, MARCA_ASPAS, modo, enviar_alerta_lexical
+        obs = missa.observacoes or ""
+        achados = [m for m in (MARCA_LEXICAL, MARCA_ASPAS) if m in obs]
+        if achados:
             import logging
-            palavras = (missa.observacoes or "").split(MARCA_LEXICAL, 1)[1].split(" · ")[0]
+            detalhe = " · ".join(seg for seg in obs.split(" · ") if seg.startswith("[lexical]") or seg.startswith("[aspas]"))
             if modo() == "bloquear":
                 missa.status_processamento = "pendente_revisao"
                 db.add(missa); db.commit(); db.refresh(missa)
-                logging.getLogger(__name__).warning(
-                    "LEXICAL: missa %s -> pendente_revisao (palavras: %s)", missa.data, palavras)
+                logging.getLogger(__name__).warning("VERIF (bloqueio): missa %s -> pendente_revisao — %s", missa.data, detalhe)
             else:
-                logging.getLogger(__name__).warning(
-                    "LEXICAL (alerta): missa %s tem palavras fora do fonte: %s", missa.data, palavras)
-                enviar_alerta_lexical(missa.data.isoformat(), [{"palavra": p.strip(), "bloco": "?", "campo": "?", "contexto": ""} for p in palavras.split(",")])
+                logging.getLogger(__name__).warning("VERIF (alerta): missa %s — %s", missa.data, detalhe)
+                enviar_alerta_lexical(missa.data.isoformat(), [{"palavra": detalhe, "bloco": "-", "campo": "-", "contexto": ""}])
     except Exception:
         import logging
-        logging.getLogger(__name__).exception("Verificador léxico (persist) falhou %s", missa.data)
+        logging.getLogger(__name__).exception("Verificador (persist) falhou %s", missa.data)
 
     # Compare-and-commit: auditoria síncrona pós-persistência.
     # Critérios CRÍTICOS marcam pendente_revisao (escondem do app até revisão).
