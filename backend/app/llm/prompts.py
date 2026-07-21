@@ -145,9 +145,13 @@ O. CATEGORIA das solenidades: Pentecostes, Santíssima Trindade, Corpus Christi
 P. EVANGELHO — PREÂMBULO COMPLETO (NUNCA descarte, sem inventar). No bloco do
    Evangelho (tipo "leitura", categoria "evangelho"), o campo `introducao` deve
    trazer a saudação e a proclamação EXATAMENTE como no folheto, na ordem:
-   "O Senhor esteja convosco. Ele está no meio de nós. Proclamação do Evangelho de
+   "O Senhor esteja convosco. Ele está no meio de nós. <FÓRMULA> do Evangelho de
    Jesus Cristo segundo [Mateus/Marcos/Lucas/João]. Glória a vós, Senhor."
-   (inclua só o que o folheto tiver). E a abertura da proclamação
+   (inclua só o que o folheto tiver). ATENÇÃO à <FÓRMULA>: o folheto imprime
+   "Proclamação do Evangelho…" OU "Conclusão do Evangelho…" (esta última quando a
+   perícope é o TRECHO FINAL daquele Evangelho, ex.: Mt 28,16-20). COPIE a palavra
+   EXATAMENTE como está impressa — "Proclamação" ou "Conclusão" — NUNCA normalize
+   uma na outra. E a abertura da proclamação
    ("Naquele tempo, ...", "Naquela ocasião, ...") NÃO pode sumir: coloque-a no
    INÍCIO do texto do PRIMEIRO versículo, mantendo o número.
    Ex.: {"numero":25,"texto":"Naquele tempo, Jesus pôs-se a dizer: Eu te louvo..."}.
