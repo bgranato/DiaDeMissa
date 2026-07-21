@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { motion } from 'motion/react'
 import { AppHeader, Card } from '../components/UI'
 import { BuscaMissas } from '../components/BuscaMissas'
-import { CheckCircle2, Clock, Play, BellPlus, Check, Hourglass } from 'lucide-react'
+import { CheckCircle2, Clock, Play, BellPlus, BellOff, Hourglass } from 'lucide-react'
 import api from '../services/api'
 
 interface Props { setScreen: (s: string) => void }
@@ -37,9 +37,19 @@ function partesData(data: string) {
 export const CalendarScreen = ({ setScreen }: Props) => {
   const [agenda, setAgenda] = useState<Agenda | null>(null)
   const [loading, setLoading] = useState(true)
-  const [lembretesAdicionados, setLembretesAdicionados] = useState<Set<string>>(new Set())
-  const [lembreteEmCriacao, setLembreteEmCriacao] = useState<string | null>(null)
+  // mapa missa_id -> lembrete_id (existentes), para o botão saber se já tem lembrete
+  const [lembretes, setLembretes] = useState<Record<number, number>>({})
+  const [lembreteEmAcao, setLembreteEmAcao] = useState<string | null>(null)
   const primeiraCarga = useRef(true)
+
+  const carregarLembretes = useCallback(async () => {
+    try {
+      const r = await api.get<{ id: number; missa_id: number | null }[]>('/usuarios/me/lembretes')
+      const map: Record<number, number> = {}
+      for (const l of r.data) if (l.missa_id) map[l.missa_id] = l.id
+      setLembretes(map)
+    } catch { /* mantém */ }
+  }, [])
 
   const carregar = useCallback(async () => {
     try {
@@ -55,44 +65,50 @@ export const CalendarScreen = ({ setScreen }: Props) => {
   // Auto-atualização: recarrega ao abrir, a cada 60s e quando a aba volta ao foco.
   // Assim, quando a próxima missa for montada, o card "em breve" vira o card real.
   useEffect(() => {
-    carregar()
+    carregar(); carregarLembretes()
     const id = setInterval(carregar, 60000)
-    const onVis = () => { if (document.visibilityState === 'visible') carregar() }
+    const onVis = () => { if (document.visibilityState === 'visible') { carregar(); carregarLembretes() } }
     document.addEventListener('visibilitychange', onVis)
     return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis) }
-  }, [carregar])
+  }, [carregar, carregarLembretes])
 
   function abrirMissa(data: string) {
     localStorage.setItem('@missa_data_alvo', data)
     setScreen('reading')
   }
 
-  async function adicionarLembrete(m: MissaAgenda) {
-    if (!m.id || lembretesAdicionados.has(m.data)) return
-    setLembreteEmCriacao(m.data)
+  // Toggle: adiciona se não tem, REMOVE se já tem (toda ação é reversível).
+  async function toggleLembrete(m: MissaAgenda) {
+    if (!m.id) return
+    setLembreteEmAcao(m.data)
     try {
-      const dataAlerta = new Date(m.data + 'T08:00:00')
-      await api.post('/usuarios/me/lembretes', {
-        missa_id: m.id,
-        titulo: m.celebracao || 'Missa',
-        nota: `Não esqueça da missa: ${m.celebracao || 'Missa'}`,
-        data_hora_alerta: dataAlerta.toISOString(),
-        minutos_antecedencia: 30,
-        tipo: 'usuario',
-      })
-      setLembretesAdicionados(prev => new Set(prev).add(m.data))
+      const existente = lembretes[m.id]
+      if (existente) {
+        await api.delete(`/usuarios/me/lembretes/${existente}`)
+      } else {
+        const dataAlerta = new Date(m.data + 'T08:00:00')
+        await api.post('/usuarios/me/lembretes', {
+          missa_id: m.id,
+          titulo: m.celebracao || 'Missa',
+          nota: `Não esqueça da missa: ${m.celebracao || 'Missa'}`,
+          data_hora_alerta: dataAlerta.toISOString(),
+          minutos_antecedencia: 30,
+          tipo: 'usuario',
+        })
+      }
+      await carregarLembretes()
     } catch {
-      alert('Não foi possível adicionar o lembrete agora.')
+      alert('Não foi possível atualizar o lembrete agora.')
     } finally {
-      setLembreteEmCriacao(null)
+      setLembreteEmAcao(null)
     }
   }
 
   function CardMissa({ m, proxima }: { m: MissaAgenda; proxima?: boolean }) {
     const { dia, mes, diaSemana } = partesData(m.data)
     const status = statusLocal(m.data)
-    const lembreteOK = lembretesAdicionados.has(m.data)
-    const lembreteCarregando = lembreteEmCriacao === m.data
+    const temLembrete = !!(m.id && lembretes[m.id])
+    const lembreteCarregando = lembreteEmAcao === m.data
     return (
       <Card className={proxima ? 'ds-card-feature' : ''}>
         <div className="flex items-start gap-4">
@@ -114,11 +130,11 @@ export const CalendarScreen = ({ setScreen }: Props) => {
             <Play size={16} /><span className="truncate">Acompanhar</span>
           </button>
           {proxima && (
-            <button onClick={() => adicionarLembrete(m)} disabled={lembreteOK || lembreteCarregando}
-              title={lembreteOK ? 'Lembrete já adicionado' : 'Adicionar lembrete'}
-              className={`ds-btn flex-shrink-0 ${lembreteOK ? 'ds-btn-secondary' : 'ds-btn-outline'}`}>
-              {lembreteOK ? <Check size={16} /> : <BellPlus size={16} />}
-              <span className="hidden sm:inline">{lembreteOK ? 'Adicionado' : 'Lembrete'}</span>
+            <button onClick={() => toggleLembrete(m)} disabled={lembreteCarregando}
+              title={temLembrete ? 'Remover lembrete' : 'Adicionar lembrete'}
+              className={`ds-btn flex-shrink-0 ${temLembrete ? 'ds-btn-secondary' : 'ds-btn-outline'}`}>
+              {temLembrete ? <BellOff size={16} /> : <BellPlus size={16} />}
+              <span className="hidden sm:inline">{lembreteCarregando ? '…' : (temLembrete ? 'Remover' : 'Lembrete')}</span>
             </button>
           )}
         </div>
