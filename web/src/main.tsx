@@ -9,19 +9,19 @@ import './index.css'
 // Corrige o bug em que o tamanho de fonte (e modos) não era reaplicado ao recarregar
 // — o seletor mostrava o valor salvo, mas o texto voltava ao padrão.
 ;(function aplicarPreferenciasSalvas() {
+  // Tamanho do texto é PERSISTIDO entre acessos (requisito de acessibilidade):
+  // a escolha A-/A/A+ do usuário vale na próxima carga de página. Se não houver
+  // preferência salva, o padrão é 'medium' — que já vem +2pt via --ds-scale.
+  const ROOT_PCT: Record<string, string> = {
+    small: '90%', medium: '100%', large: '115%', 'extra-large': '130%', huge: '150%',
+  }
   try {
     const p = JSON.parse(localStorage.getItem('missa_hoje_prefs') || '{}')
-    // Novo acesso (carga de página) SEMPRE começa no tamanho padrão. O reset é
-    // feito UMA VEZ aqui, no boot, e ESCRITO no localStorage — assim os hooks
-    // (useAccessibility/ThemeContext) inicializam já resetados. DENTRO da sessão
-    // o ajuste é mantido normalmente (os hooks leem o localStorage, que passa a
-    // guardar o valor aumentado até a próxima carga de página).
-    p.fontSize = 'medium'
+    const fs = ROOT_PCT[p.fontSize] ? p.fontSize : 'medium'
+    p.fontSize = fs
     localStorage.setItem('missa_hoje_prefs', JSON.stringify(p))
-    localStorage.setItem('@missa_hoje_font', '20')
-    document.documentElement.style.fontSize = '100%'
-    document.documentElement.setAttribute('data-font-size', 'medium')
-    document.documentElement.style.setProperty('--font-size', '20px')
+    document.documentElement.style.fontSize = ROOT_PCT[fs]
+    document.documentElement.setAttribute('data-font-size', fs)
     document.documentElement.classList.toggle('dark', !!p.darkMode)
     document.documentElement.classList.toggle('high-contrast', !!p.highContrast)
   } catch { /* preferências ausentes/corrompidas: ignora e usa o padrão */ }

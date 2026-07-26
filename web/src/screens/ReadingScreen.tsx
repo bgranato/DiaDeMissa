@@ -4,6 +4,7 @@ import { AppHeader } from '../components/UI'
 import { getMissaAtual, getMissaEstruturadaPorData, salvarProgressoMissa, concluirMissa } from '../services/missa'
 import { logError } from '../services/logger'
 import BlocoRenderer from '../components/blocos/BlocoRenderer'
+import { tituloDuplicaTexto, ordenarBlocos } from '../lib/blocoText'
 import { List as ListIcon, X, Check, RotateCcw } from 'lucide-react'
 
 interface Props {
@@ -88,30 +89,17 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
     const descSec = new Map<string, string>()
     const secaoJaUsada = new Set<string>()
 
-    for (const b of todosBlocos) {
+    // ORDEM ESTRITA da API: o renderer respeita o campo `ordem` do folheto e NÃO
+    // reordena localmente (ex.: não puxa a Antífona da Comunhão para antes/depois
+    // do "Momento de silêncio"). Cada bloco aparece exatamente na sua posição.
+    const ordenados = ordenarBlocos(todosBlocos)
+
+    for (const b of ordenados) {
       if (b.tipo === 'secao' && b.descricao) descSec.set(b.titulo, b.descricao)
     }
 
-    const ehAntifonaAnexavel = (b: any) => {
-      if (b.tipo !== 'antifona') return false
-      const t = (b.titulo || '').toLowerCase()
-      return t.includes('entrada') || t.includes('comunhão') || t.includes('comunhao')
-    }
-
-    for (const b of todosBlocos) {
+    for (const b of ordenados) {
       if (b.tipo === 'secao') continue
-      if (ehAntifonaAnexavel(b)) {
-        const ultimo = list[list.length - 1]
-        if (ultimo) {
-          ultimo.antifonas_anexadas = ultimo.antifonas_anexadas || []
-          ultimo.antifonas_anexadas.push({
-            titulo: b.titulo,
-            texto: b.texto || b.conteudo || '',
-            referencia: b.referencia || null,
-          })
-          continue
-        }
-      }
       const ehApendice = b.secao === 'apendice'
       const secaoTitulo = ehApendice ? null : (b.secao || null)
       const idxNovo = list.length
@@ -383,7 +371,9 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
 
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className={`flex-1 min-w-0 ${bloco.numero_folheto != null ? 'border-l-4 border-brand-gold pl-3' : 'pl-1'}`}>
-                  {bloco.numero_folheto != null ? (
+                  {/* A4 — se o corpo apenas repete o título, não exibe o título aqui
+                     (o BlocoRenderer mostra o texto uma vez, em estilo de rubrica). */}
+                  {tituloDuplicaTexto(bloco.titulo, bloco.texto) ? null : bloco.numero_folheto != null ? (
                     <h2 className="ds-headline text-brand-text dark:text-slate-100 break-words">
                       {`${bloco.numero_folheto}. ${bloco.titulo}`}
                     </h2>

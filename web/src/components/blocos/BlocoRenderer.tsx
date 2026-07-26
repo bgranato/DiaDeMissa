@@ -2,35 +2,11 @@ import { CantoCard } from './CantoCard'
 import { DialogoCard } from './DialogoCard'
 import { AntifonaCard } from './AntifonaCard'
 import { LeituraCard } from './LeituraCard'
+import { parseLeiturasSemana, tituloDuplicaTexto, ehVivencia } from '../../lib/blocoText'
 
 export default function BlocoRenderer({ bloco }: { bloco: any }) {
   const tipo = bloco.tipo || ''
   return <div>{renderConteudo(bloco, tipo)}</div>
-}
-
-// "Leituras da Semana" vem como um parágrafo único com todos os dias grudados
-// ("20/2ª-FEIRA: ...; 21/3ª-FEIRA: ...; ..."). Quebramos em um dia por linha,
-// com o dia em negrito, sem alterar o conteúdo. Retorna null se não casar.
-const DIA_ABREV: Record<string, string> = {
-  '2ª-FEIRA': 'Seg', '3ª-FEIRA': 'Ter', '4ª-FEIRA': 'Qua',
-  '5ª-FEIRA': 'Qui', '6ª-FEIRA': 'Sex', 'SÁBADO': 'Sáb', 'DOMINGO': 'Dom',
-}
-function parseLeiturasSemana(texto: string) {
-  const re = /(\d{1,2})\/(\d?ª-FEIRA|SÁBADO|DOMINGO):\s*/g
-  const marcs: { idx: number; end: number; dia: string; rotulo: string }[] = []
-  let m: RegExpExecArray | null
-  while ((m = re.exec(texto)) !== null) {
-    marcs.push({ idx: m.index, end: re.lastIndex, dia: m[1], rotulo: m[2] })
-  }
-  if (marcs.length < 2) return null
-  return marcs.map((mk, i) => {
-    const fim = i + 1 < marcs.length ? marcs[i + 1].idx : texto.length
-    const corpo = texto.slice(mk.end, fim).trim().replace(/;\s*$/, '')
-    const ci = corpo.indexOf(':')
-    const santo = ci > -1 ? corpo.slice(0, ci).trim() : corpo
-    const refs = ci > -1 ? corpo.slice(ci + 1).trim() : ''
-    return { label: `${DIA_ABREV[mk.rotulo] || mk.rotulo}. ${mk.dia}`, santo, refs }
-  })
 }
 
 function renderConteudo(bloco: any, tipo: string) {
@@ -107,6 +83,26 @@ function renderConteudo(bloco: any, tipo: string) {
                 )}
               </div>
             ))}
+          </div>
+        )
+      }
+      // A4 — Título ≈ texto (ex.: "Momento de silêncio para oração pessoal"):
+      // o corpo só repete o título → exibe uma vez, em estilo de rubrica.
+      if (tituloDuplicaTexto(bloco.titulo, texto)) {
+        return (
+          <div className="px-4 pb-4 pt-2">
+            <p className="ds-body-sm italic text-center text-slate-500 dark:text-slate-400">{texto}</p>
+          </div>
+        )
+      }
+      // A5 — Vivência: exibe o chip "L" (Leitor), decidido pelo TÍTULO.
+      if (ehVivencia(bloco.titulo)) {
+        return (
+          <div className="px-4 pb-4 pt-4">
+            <div className="flex gap-2 items-start">
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold flex items-center justify-center mt-0.5">L</span>
+              <p className="ds-body text-slate-800 dark:text-slate-200 flex-1 whitespace-pre-line">{texto}</p>
+            </div>
           </div>
         )
       }

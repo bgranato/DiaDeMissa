@@ -4,6 +4,8 @@
 //   L = Leitor                    — leitor leigo (Salmo, Preces, 1ª e 2ª Leituras)
 //   V = Versículo                 — solista de salmo/aclamação
 //   R = Refrão (Resposta)         — refrão cantado pela assembleia
+import { rotuloRubrica } from '../../lib/blocoText'
+
 const ESTILO_FALANTE: Record<string, { bg: string; label: string; peso: string; nome: string }> = {
   P: { bg: 'bg-blue-100 text-blue-700', label: 'P', peso: 'font-normal', nome: 'Padre' },
   T: { bg: 'bg-amber-100 text-amber-700', label: 'T', peso: 'font-bold', nome: 'Todos' },
@@ -14,19 +16,9 @@ const ESTILO_FALANTE: Record<string, { bg: string; label: string; peso: string; 
 }
 
 export function DialogoCard({ dialogo }: { dialogo: any }) {
-  const turnosOriginais = dialogo.turnos || []
-
-  // Mescla turnos CONSECUTIVOS do mesmo falante em um único parágrafo,
-  // separando os textos por quebra dupla. Reduz altura sem perder semântica.
-  const turnos: any[] = []
-  for (const t of turnosOriginais) {
-    const ultimo = turnos[turnos.length - 1]
-    if (ultimo && ultimo.falante === t.falante && t.falante !== 'rubrica') {
-      ultimo.texto = `${ultimo.texto}\n\n${t.texto}`
-    } else {
-      turnos.push({ ...t })
-    }
-  }
+  // Cada turno é um PARÁGRAFO próprio, SEMPRE (não fundir turnos consecutivos —
+  // a Consagração da OE tem várias falas "P" que precisam quebrar em parágrafos).
+  const turnos: any[] = dialogo.turnos || []
 
   // Coleta SÓ os papéis usados neste bloco pra mostrar a legenda contextual
   const papeisUsados = Array.from(new Set(
@@ -39,30 +31,23 @@ export function DialogoCard({ dialogo }: { dialogo: any }) {
         if (turno.falante === 'rubrica') {
           return (
             <p key={i} className="ds-caption text-right italic text-slate-400 px-2">
-              ({turno.texto})
+              {rotuloRubrica(turno.texto)}
             </p>
           )
         }
         const estilo = ESTILO_FALANTE[turno.falante] || ESTILO_FALANTE.P
-        const ehLongo = (turno.texto || '').length > 80
-        // Sem uppercase forçado: o texto já vem do folheto com a caixa correta
-        // (narrativa normal + palavras da instituição em MAIÚSCULAS). Fiel à
-        // diagramação e aos destaques do folheto.
-        if (ehLongo) {
-          return (
-            <p key={i} className={`ds-body text-slate-800 dark:text-slate-200 ${estilo.peso}`}>
-              <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${estilo.bg} text-[10px] font-bold mr-2 align-middle`}>
-                {estilo.label}
-              </span>
-              <span className="align-middle">{turno.texto}</span>
-            </p>
-          )
-        }
+        // Chip só no PRIMEIRO turno de uma sequência do mesmo falante; nos
+        // seguintes, um espaçador da mesma largura mantém o alinhamento.
+        const mostraChip = i === 0 || turnos[i - 1].falante !== turno.falante
         return (
           <div key={i} className="flex gap-2 items-start">
-            <span className={`flex-shrink-0 w-5 h-5 rounded-full ${estilo.bg} text-[10px] font-bold flex items-center justify-center mt-0.5`}>
-              {estilo.label}
-            </span>
+            {mostraChip ? (
+              <span className={`flex-shrink-0 w-5 h-5 rounded-full ${estilo.bg} text-[10px] font-bold flex items-center justify-center mt-0.5`}>
+                {estilo.label}
+              </span>
+            ) : (
+              <span className="flex-shrink-0 w-5 h-5" aria-hidden="true" />
+            )}
             <p className={`ds-body text-slate-800 dark:text-slate-200 flex-1 ${estilo.peso}`}>
               {turno.texto}
             </p>
