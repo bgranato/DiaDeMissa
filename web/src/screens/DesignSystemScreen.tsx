@@ -7,7 +7,7 @@ export const DesignSystemScreen = ({ onBack }: { onBack: () => void }) => {
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="pb-32 bg-brand-bg dark:bg-slate-900 min-h-screen"
+      className="ds-bottom-nav-padding bg-brand-bg dark:bg-slate-900 min-h-screen"
     >
       <AppHeader title="Design System" onBack={onBack} />
       

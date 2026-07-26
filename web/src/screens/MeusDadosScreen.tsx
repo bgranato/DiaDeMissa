@@ -40,8 +40,8 @@ export const MeusDadosScreen = ({ onBack }: Props) => {
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-brand-bg dark:bg-slate-900 pb-32">
-      <AppHeader title="Meus dados" showAccessibility={false} onBack={onBack} />
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-brand-bg dark:bg-slate-900 ds-bottom-nav-padding">
+      <AppHeader title="Meus dados" onBack={onBack} />
 
       <div className="max-w-lg mx-auto px-5 mt-6">
         <Card className="p-6">

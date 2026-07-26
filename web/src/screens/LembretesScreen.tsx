@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import { AppHeader, Card, LargeButton } from '../components/UI'
-import { Plus, X, Church, CalendarClock, Megaphone } from 'lucide-react'
+import { Plus, X, Megaphone, Check, CheckCheck, AlertTriangle, Cross } from 'lucide-react'
 import api from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -14,10 +14,22 @@ interface Lembrete {
   tipo: string
   remetente: string
   ativo: boolean
+  lido: boolean
 }
 
 interface Props {
   onBack: () => void
+}
+
+// Partículas comuns em nomes que NÃO contam pra iniciais
+const PARTICULAS = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'di', 'del', 'della'])
+
+function iniciaisDoNome(nome: string | undefined | null): string {
+  if (!nome) return '?'
+  const partes = nome.trim().split(/\s+/).filter(p => p && !PARTICULAS.has(p.toLowerCase()))
+  if (partes.length === 0) return '?'
+  if (partes.length === 1) return partes[0][0]!.toUpperCase()
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
 }
 
 export default function LembretesScreen({ onBack }: Props) {
@@ -115,9 +127,19 @@ export default function LembretesScreen({ onBack }: Props) {
     catch { alert('Erro') }
   }
 
+  async function marcarLido(id: number) {
+    try { await api.post(`/usuarios/me/lembretes/${id}/lido`); carregar() }
+    catch { alert('Erro') }
+  }
+
+  async function marcarTodosLidos() {
+    try { await api.post('/usuarios/me/lembretes/marcar-todos-lidos'); carregar() }
+    catch { alert('Erro') }
+  }
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-brand-bg dark:bg-slate-900 pb-32">
-      <AppHeader title="Lembretes" showAccessibility={false} onBack={onBack} />
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-brand-bg dark:bg-slate-900 ds-bottom-nav-padding">
+      <AppHeader title="Lembretes" onBack={onBack} />
 
       <div className="max-w-lg mx-auto px-5 mt-6 flex flex-col gap-4">
         {/* Painel admin: broadcast com segmentação */}
@@ -172,25 +194,8 @@ export default function LembretesScreen({ onBack }: Props) {
           </Card>
         )}
 
-        {/* Lembretes pré-definidos */}
-        <Card className="p-6">
-          <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-            <Church size={20} className="text-brand-gold" />
-            Lembretes da Igreja
-          </h3>
-          <button onClick={() => criarLembreteApp('domingo')}
-            className="w-full flex items-center gap-4 p-4 bg-brand-blue/[0.08] dark:bg-slate-800 rounded-2xl active:scale-[0.98] transition-transform mb-3">
-            <CalendarClock size={24} className="text-brand-gold" />
-            <div className="text-left flex-1">
-              <p className="font-bold">Missa de Domingo</p>
-              <p className="text-sm text-brand-gray-dark/60">Alerta 30min antes, às 11h</p>
-            </div>
-            <Plus size={20} />
-          </button>
-        </Card>
-
-        {/* Formulário de novo lembrete */}
-        {showForm ? (
+        {/* Formulário de novo lembrete (modal inline) */}
+        {showForm && (
           <Card className="p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-lg">Novo Lembrete</h3>
@@ -215,43 +220,82 @@ export default function LembretesScreen({ onBack }: Props) {
                 <option value={1440}>1 dia antes</option>
               </select>
             </div>
-            <LargeButton variant="primary" onClick={criarLembrete} className="w-full">Salvar Lembrete</LargeButton>
+            <LargeButton variant="primary" onClick={async () => { await criarLembrete(); }} className="w-full">Salvar Lembrete</LargeButton>
           </Card>
-        ) : (
-          <button onClick={() => setShowForm(true)}
-            className="flex items-center justify-center gap-3 w-full p-5 bg-brand-white dark:bg-slate-800 rounded-[24px] shadow-soft border border-black/5 active:scale-[0.98] transition-transform font-bold text-brand-blue dark:text-brand-gold">
-            <Plus size={24} /> Novo Lembrete Personalizado
-          </button>
         )}
 
-        {/* Lista de lembretes */}
-        <h4 className="font-bold text-brand-gray-dark/40 text-xs uppercase tracking-wider mt-4 ml-2">
-          Seus Lembretes ({lembretes.length})
-        </h4>
+        {/* Cabeçalho da lista com botão "+ Lembrete" inline + marcar todos como lidos */}
+        <div className="flex items-center justify-between mt-4 ml-2 mr-1">
+          <h4 className="font-bold text-brand-gray-dark/40 dark:text-brand-white/40 text-xs uppercase tracking-wider">
+            Seus Lembretes ({lembretes.length})
+          </h4>
+          <div className="flex items-center gap-2">
+            {lembretes.some(l => !l.lido) && (
+              <button onClick={marcarTodosLidos}
+                className="flex items-center gap-1.5 text-xs font-bold text-brand-blue dark:text-brand-gold hover:opacity-70 transition-opacity">
+                <CheckCheck size={14} /> Marcar todos
+              </button>
+            )}
+            <button onClick={() => setShowForm(true)}
+              className="flex items-center gap-1 px-3 py-1.5 bg-brand-blue text-white dark:bg-brand-gold dark:text-brand-blue rounded-full text-xs font-black uppercase tracking-wider active:scale-95 transition-transform">
+              <Plus size={14} /> Lembrete
+            </button>
+          </div>
+        </div>
 
-        {lembretes.map(l => (
-          <div key={l.id} className="bg-brand-white dark:bg-slate-800 rounded-[20px] p-5 shadow-soft border border-black/5 flex items-start gap-4">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold ${l.tipo === 'master' ? 'bg-red-500' : l.tipo === 'app' ? 'bg-brand-gold' : 'bg-brand-blue'}`}>
-              {l.tipo === 'master' ? 'ADM' : l.tipo === 'app' ? 'AP' : 'U'}
+        {lembretes.map(l => {
+          // Define o ícone/conteúdo do badge por tipo:
+          // - master   → ! (aviso do administrador)
+          // - app / nao_acompanhada → cruz (alerta de missa do sistema)
+          // - usuario  → iniciais do nome do dono (BL, AS, etc.)
+          let badgeBg = 'bg-brand-blue'
+          let badgeContent: any = iniciaisDoNome(usuario?.nome)
+          if (l.tipo === 'master') {
+            badgeBg = 'bg-red-500'
+            badgeContent = <AlertTriangle size={20} />
+          } else if (l.tipo === 'app' || l.tipo === 'nao_acompanhada') {
+            badgeBg = 'bg-brand-gold'
+            badgeContent = <Cross size={20} strokeWidth={2.5} />
+          }
+          return (
+          <div key={l.id}
+            className={`bg-brand-white dark:bg-slate-800 rounded-[20px] p-5 shadow-soft flex items-start gap-4 transition-colors ${
+              l.lido ? 'border border-black/5 opacity-60' : 'border-2 border-brand-gold/50'
+            }`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 ${badgeBg}`}>
+              {badgeContent}
             </div>
             <div className="flex-1">
-              <div className="font-bold">{l.titulo}</div>
-              {l.nota && <div className="text-sm text-brand-gray-dark/60 mt-1">{l.nota}</div>}
-              <div className="flex items-center gap-2 mt-2 text-xs text-brand-gray-dark/40">
+              <div className="flex items-center gap-2">
+                <div className="font-bold">{l.titulo}</div>
+                {!l.lido && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" title="Não lido" />}
+              </div>
+              {l.nota && <div className="text-sm text-brand-gray-dark/60 dark:text-brand-white/60 mt-1">{l.nota}</div>}
+              <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-brand-gray-dark/40 dark:text-brand-white/40">
                 <span>{new Date(l.data_hora_alerta).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                 <span>•</span>
                 <span>{l.minutos_antecedencia}min antes</span>
-                {l.remetente !== 'usuario' && <><span>•</span><span className="text-brand-gold font-bold">{l.remetente}</span></>}
+                {l.remetente && l.remetente !== 'Missa do Dia' && <><span>•</span><span className="text-brand-gold font-bold">{l.remetente}</span></>}
               </div>
             </div>
-            <button onClick={() => deletar(l.id)} className="p-2 text-red-500 hover:opacity-80">
-              <X size={18} />
-            </button>
+            <div className="flex flex-col items-end gap-2">
+              {!l.lido && (
+                <button onClick={() => marcarLido(l.id)} title="Marcar como lido"
+                  className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-full transition-colors">
+                  <Check size={18} />
+                </button>
+              )}
+              <button onClick={() => deletar(l.id)} title="Excluir"
+                className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors">
+                <X size={18} />
+              </button>
+            </div>
           </div>
-        ))}
+          )
+        })}
 
         {!loading && lembretes.length === 0 && (
-          <p className="text-center text-brand-gray-dark/40 mt-8">Nenhum lembrete ainda.</p>
+          <p className="text-center text-brand-gray-dark/40 mt-8">Nenhum lembrete ainda. Toque em <strong>+ Lembrete</strong> pra criar.</p>
         )}
       </div>
     </motion.div>

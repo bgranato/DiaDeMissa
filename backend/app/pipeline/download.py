@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from pathlib import Path
 
 import httpx
 
 PDF_URL = "https://www.arqrio.com.br/app/painel/amissa/amissa.pdf"
-CACHE_DIR = Path("data/pdfs")
+# Cache de PDFs em path absoluto fora do diretório do app (writable, persistente,
+# imune a deploy rsync --delete e a problemas transitórios de filesystem do app).
+# Override via env DIADEMISSA_PDF_CACHE; em dev, default é ./data/pdfs (relativo).
+_DEFAULT_CACHE = "/var/lib/diademissa/pdfs" if Path("/var/lib/diademissa").exists() else "data/pdfs"
+CACHE_DIR = Path(os.environ.get("DIADEMISSA_PDF_CACHE", _DEFAULT_CACHE))
 TIMEOUT = 30
 
 

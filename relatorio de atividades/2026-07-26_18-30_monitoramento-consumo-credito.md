@@ -161,4 +161,4 @@ As 2 falhas (`test_zero_barras_separadoras`, `test_rejeita_barra_no_texto`) são
 
 ## 7. Commits
 
-(a registrar no fechamento — arquivos acima)
+- `baa8cf9` — feat(monitor): consumo/credito LLM — digest semanal + alerta limiar/pico + emergencia 402

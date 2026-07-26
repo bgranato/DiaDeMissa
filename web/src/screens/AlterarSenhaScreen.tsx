@@ -2,19 +2,35 @@ import { useState, type FormEvent } from 'react'
 import { motion } from 'motion/react'
 import { AppHeader, Card, LargeButton } from '../components/UI'
 import { Lock, Save } from 'lucide-react'
-import { alterarSenha } from '../services/auth'
+import { alterarSenha, recuperarSenha } from '../services/auth'
+import { useAuth } from '../contexts/AuthContext'
 
 interface Props {
   onBack: () => void
 }
 
 export const AlterarSenhaScreen = ({ onBack }: Props) => {
+  const { usuario } = useAuth()
   const [senhaAtual, setSenhaAtual] = useState('')
   const [novaSenha, setNovaSenha] = useState('')
   const [confirma, setConfirma] = useState('')
   const [erro, setErro] = useState('')
   const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
+  const [enviandoReset, setEnviandoReset] = useState(false)
+
+  async function pedirLinkRecuperacao() {
+    if (!usuario?.email) { setErro('Sessão sem e-mail; faça login novamente'); return }
+    setErro(''); setInfo(''); setEnviandoReset(true)
+    try {
+      await recuperarSenha(usuario.email)
+      setInfo(`Enviamos um link de recuperação para ${usuario.email}. Verifique sua caixa de entrada.`)
+    } catch {
+      setErro('Não foi possível enviar agora. Tente novamente em alguns minutos.')
+    } finally {
+      setEnviandoReset(false)
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -34,8 +50,8 @@ export const AlterarSenhaScreen = ({ onBack }: Props) => {
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-brand-bg dark:bg-slate-900 pb-32">
-      <AppHeader title="Alterar senha" showAccessibility={false} onBack={onBack} />
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-brand-bg dark:bg-slate-900 ds-bottom-nav-padding">
+      <AppHeader title="Alterar senha" onBack={onBack} />
 
       <div className="max-w-lg mx-auto px-5 mt-6">
         <Card className="p-6">
@@ -49,6 +65,14 @@ export const AlterarSenhaScreen = ({ onBack }: Props) => {
                 <Lock size={20} className="text-brand-gold" />
                 <input type="password" className="bg-transparent w-full text-lg font-medium outline-none placeholder:text-gray-400 dark:text-white" placeholder="••••••" value={senhaAtual} onChange={e => setSenhaAtual(e.target.value)} />
               </div>
+              <button
+                type="button"
+                onClick={pedirLinkRecuperacao}
+                disabled={enviandoReset}
+                className="text-sm font-medium text-brand-blue dark:text-brand-gold hover:opacity-70 transition-opacity mt-2 disabled:opacity-40"
+              >
+                {enviandoReset ? 'Enviando...' : 'Esqueci minha senha'}
+              </button>
             </div>
 
             <div>
@@ -71,6 +95,15 @@ export const AlterarSenhaScreen = ({ onBack }: Props) => {
               {loading ? 'Alterando...' : 'Alterar senha'}
             </LargeButton>
           </form>
+
+          <button
+            type="button"
+            onClick={pedirLinkRecuperacao}
+            disabled={enviandoReset}
+            className="w-full text-center text-sm font-medium text-brand-blue dark:text-brand-gold hover:opacity-70 transition-opacity mt-4 disabled:opacity-40"
+          >
+            {enviandoReset ? 'Enviando...' : 'Esqueci minha senha atual'}
+          </button>
         </Card>
       </div>
     </motion.div>
