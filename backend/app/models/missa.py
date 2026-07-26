@@ -22,6 +22,10 @@ class Missa(Base):
     palavra_do_dia = Column(JSON, nullable=True)
     fonte_pdf_url = Column(String(500), nullable=False)
     pdf_hash = Column(String(64), nullable=True)
+    # Versão das regras de montagem que produziram esta missa (<hash8>+<modelo>).
+    # null = montada por versão ANTIGA (antes do versionamento) → candidata a
+    # reprocesso automático. Ver app/core/pipeline_version.py.
+    pipeline_version = Column(String(80), nullable=True)
     status_processamento = Column(String(50), default="pendente")
     # Resultado do gate de fidelidade PDF×montagem (divergências) — para o admin
     # revisar as missas em pendente_revisao. {ok, criticas:[...], todas:[...]}.

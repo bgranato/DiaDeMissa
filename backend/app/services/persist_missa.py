@@ -13,6 +13,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.pipeline_version import pipeline_version
 from app.models.missa import Missa as MissaModel, BlocoLiturgico
 from app.schema.missa import Missa as MissaSchema
 
@@ -46,6 +47,7 @@ def persistir_missa(
         palavra_do_dia=missa_pydantic.palavra_do_dia.model_dump() if missa_pydantic.palavra_do_dia else None,
         fonte_pdf_url=fonte_url or settings.PDF_URL,
         pdf_hash=pdf_hash,
+        pipeline_version=pipeline_version(),
         status_processamento="concluido",
     )
 
