@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import tempfile
 from datetime import date
 from pathlib import Path
@@ -41,10 +42,21 @@ def auto_atualizar_montagens(db, hoje: Optional[date] = None) -> dict:
     reprocesso é não-regressivo: se cair em pendente_revisao, restaura o backup
     e mantém a montagem boa. Idempotente: após atualizar, a missa passa a ter a
     versão atual e não é mais selecionada."""
-    from app.services.reprocesso_seguro import reprocessar_com_seguranca
+    from app.services.publicacao_convergente import montar_e_publicar
+    from app.pipeline.extract import extrair_texto_estruturado
+    from app.pipeline.clean import limpar
+
+    # SEGURANÇA: a auto-atualização roda no event loop do scheduler e o fluxo
+    # convergente é pesado (LLM de visão, minutos) — se rodar em rajada, BLOQUEIA
+    # o worker (→ 502). Fica DESLIGADA por padrão no processo do serviço; rode-a
+    # como processo separado (scripts/reprocessar_convergente.py) ou ligue com
+    # AUTO_ATUALIZAR_MISSAS=1. LIMITE por tick evita tempestade.
+    if os.getenv("AUTO_ATUALIZAR_MISSAS", "0").strip().lower() not in ("1", "true", "yes", "on"):
+        return {"selecionadas": 0, "atualizadas": 0, "desligada": True}
+    limite = int(os.getenv("AUTO_ATUALIZAR_LIMITE", "1"))
 
     hoje = hoje or date.today()
-    alvos = selecionar_para_reprocesso(db, hoje)
+    alvos = selecionar_para_reprocesso(db, hoje)[:limite]
     resultados = []
     for m in alvos:
         pdf_path = CACHE_DIR / "archive" / f"{m.data.isoformat()}.pdf"
@@ -54,11 +66,14 @@ def auto_atualizar_montagens(db, hoje: Optional[date] = None) -> dict:
             continue
         try:
             pdf_bytes = pdf_path.read_bytes()
+            texto = limpar(extrair_texto_estruturado(pdf_path))
         except OSError as e:
             logger.warning("auto-atualiza %s: erro lendo PDF (%s)", m.data, e)
             resultados.append({"data": m.data.isoformat(), "resultado": "sem_pdf"})
             continue
-        resultados.append(reprocessar_com_seguranca(db, m, pdf_bytes))
+        # Fluxo NOVO (conferência convergente): só montagem aprovada substitui;
+        # reprovada/erro-de-montagem NÃO clobbera a boa existente (guarda item 0b).
+        resultados.append(montar_e_publicar(db, m.data.isoformat(), pdf_bytes, texto))
     resumo = {
         "alvo_pipeline_version": pipeline_version(),
         "selecionadas": len(alvos),

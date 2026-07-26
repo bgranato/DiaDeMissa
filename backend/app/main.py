@@ -22,12 +22,18 @@ app = FastAPI(
 
 @app.on_event("startup")
 def _startup_scheduler() -> None:
-    if not settings.DEBUG:
-        iniciar_scheduler()
-    else:
-        # Em DEBUG, ainda iniciamos o scheduler para que a rota manual funcione,
-        # mas o cron noturno só dispara em ambiente de produção real.
-        iniciar_scheduler()
+    import os
+    import threading
+    # Gate de emergência: DISABLE_SCHEDULER=1 sobe a API SEM o scheduler.
+    if os.getenv("DISABLE_SCHEDULER", "0").strip().lower() in ("1", "true", "yes", "on"):
+        return
+    # DEFERE o início do scheduler: a API precisa fazer BIND imediatamente. O
+    # scheduler, ao subir, pode disparar um job "atrasado" (misfire) que roda a
+    # montagem (download + LLM + gate) — se isso rodar dentro do startup, o worker
+    # demora minutos para ficar "ready" (502 na janela). Deferindo em thread, a
+    # API atende na hora e o scheduler/montagem roda depois, sem bloquear.
+    _atraso = float(os.getenv("SCHEDULER_START_DELAY", "20"))
+    threading.Timer(_atraso, iniciar_scheduler).start()
 
 
 @app.on_event("shutdown")

@@ -58,7 +58,7 @@ def _carregar_fixture():
         print(f"Erro ao carregar fixture: {e}")
 
 # Fallback fixture para quando o BD ainda não tem a missa do dia
-_carregar_fixture()
+#_carregar_fixture()  # REMOVIDO: rodava montagem (multimodal LLM) no IMPORT -> boot lento/502; _fixture_cache nunca e lido
 
 
 @router.get("/missas/buscar")
