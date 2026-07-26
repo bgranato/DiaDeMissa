@@ -162,3 +162,38 @@ As 2 falhas (`test_zero_barras_separadoras`, `test_rejeita_barra_no_texto`) são
 ## 7. Commits
 
 - `baa8cf9` — feat(monitor): consumo/credito LLM — digest semanal + alerta limiar/pico + emergencia 402
+
+---
+
+## ADENDO (18:45) — Desfecho da task de background que caiu (reprocesso 07-19 / 06-14)
+
+Uma task de background anterior ("reprocesso convergente de 07-19 e 06-14") caiu com
+`Connection reset / Broken pipe` — a conexão SSH foi derrubada pelo restart do
+`diademissa-api` durante o deploy deste monitoramento.
+
+**Verificação ANTES de re-disparar (GET público com cache-buster + leitura read-only do banco):**
+
+| Item | 2026-07-19 | 2026-06-14 |
+|---|---|---|
+| GET público (`/missa/por-data`) | HTTP 200, 27.356 bytes | HTTP 200, 26.912 bytes |
+| status | `concluido` | `concluido` |
+| pipeline_version | `3b186835+claude-sonnet-5` | `3b186835+claude-sonnet-5` |
+| conferida / iterações / custo | True / 0 / US$ 1.0407 | True / 0 / US$ 1.451 |
+
+- O endpoint público só serve missa com `status_processamento == "concluido"` **e**
+  blocos (`routes.py:197`) — logo, HTTP 200 com blocos completos = concluída.
+- **pipeline_version de produção** (com `ANTHROPIC_MODEL_MM=claude-sonnet-5` do .env do
+  systemd) = `3b186835+claude-sonnet-5` → **idêntica** à das duas missas. (Um teste
+  ad-hoc sem o .env mostrou `+haiku-default`/`+claude-haiku` — artefato de não carregar
+  o EnvironmentFile; o hash de regras `3b186835` bate nos dois casos.)
+
+**Spot-check de campos-alvo (2 por missa):**
+- **07-19:** colchetes da forma breve presentes no Evangelho (`"[Jesus contou outra..."`);
+  "e paz na terra" presente no Hino de Louvor. ✅
+- **06-14:** "deveis" presente no Evangelho; 1ª Leitura iniciando no **v.2**
+  (`versiculos[0].numero == 2`). ✅
+
+**Decisão:** ambas ÍNTEGRAS (como esperado — a publicação convergente só grava no final
+e as guardas impedem escrita parcial/degradada). **NÃO reprocessadas — custo zero.**
+As tasks mortas já haviam saído (exit 0), nada a matar. Evidência (JSONs dos GETs)
+capturada em `/tmp/missa_2026-07-19.json` e `/tmp/missa_2026-06-14.json`.
