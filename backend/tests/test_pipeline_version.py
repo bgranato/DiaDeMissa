@@ -28,7 +28,9 @@ def db():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    Base.metadata.create_all(bind=engine)
+    # Cria só as tabelas do teste (o metadata global tem FKs a tabelas de outros
+    # models não importados aqui, ex. igrejas).
+    Base.metadata.create_all(bind=engine, tables=[MissaModel.__table__, BlocoLiturgico.__table__])
     Session = sessionmaker(bind=engine)
     s = Session()
     try:
