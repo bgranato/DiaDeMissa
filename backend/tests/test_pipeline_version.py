@@ -63,6 +63,31 @@ def test_pipeline_version_estavel_e_nao_vazia():
     assert v == pipeline_version()   # determinística no processo
 
 
+def test_persistir_fallback_nao_substitui_boa(db):
+    """GUARDA item 0b: persistir_missa com montagem em '[pipeline] fallback='
+    NÃO substitui uma montagem boa (concluida, sem fallback) já existente."""
+    import app.services.persist_missa as pm
+    from app.schema.missa import Missa as MissaSchema, Creditos, Secao
+    # missa boa existente (concluida, sem fallback), com 1 bloco marcador
+    boa = _missa(db, date(2026, 8, 2), versao=pipeline_version(), status="concluido", blocos=1)
+    id_boa = boa.id
+    titulos_antes = [b.titulo for b in
+                     db.query(BlocoLiturgico).filter(BlocoLiturgico.missa_id == id_boa).all()]
+    # nova montagem para a MESMA data, porém em fallback
+    schema = MissaSchema(
+        data="2026-08-02", ano_liturgico="C", titulo_celebracao="DEGRADADA",
+        categoria="comum", creditos_cantos=Creditos(),
+        observacoes="[pipeline] fallback=texto",
+        blocos=[Secao(ordem=0, titulo="LIXO")],
+    )
+    ret = pm.persistir_missa(db, schema)
+    assert ret.id == id_boa                                  # devolveu a existente
+    titulos_depois = [b.titulo for b in
+                      db.query(BlocoLiturgico).filter(BlocoLiturgico.missa_id == id_boa).all()]
+    assert titulos_depois == titulos_antes                  # blocos bons preservados
+    assert "LIXO" not in titulos_depois
+
+
 def test_persistir_grava_pipeline_version(db, monkeypatch):
     """persistir_missa deve gravar a pipeline_version atual na missa."""
     from app.schema.missa import Missa as MissaSchema, Creditos, Secao

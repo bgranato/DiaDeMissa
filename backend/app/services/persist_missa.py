@@ -34,6 +34,25 @@ def persistir_missa(
     data = _parse_data(missa_pydantic.data)
     existente = db.query(MissaModel).filter(MissaModel.data == data).first()
 
+    # GUARDA (item 0b) — montagem em FALLBACK nunca substitui uma montagem boa
+    # existente (concluida, SEM marcador de fallback). Protege contra o clobber
+    # que já degradou o 26/07 duas vezes: o job/auto-atualização, ao cair em
+    # "[pipeline] fallback=texto", NÃO pode apagar a montagem boa que está no ar.
+    _obs_nova = missa_pydantic.observacoes or ""
+    if (
+        "[pipeline] fallback=" in _obs_nova
+        and existente is not None
+        and existente.status_processamento == "concluido"
+        and "[pipeline] fallback=" not in (existente.observacoes or "")
+    ):
+        import logging
+        logging.getLogger(__name__).warning(
+            "GUARDA: montagem de %s veio em fallback (%s) — mantida a montagem BOA "
+            "existente (id=%s); NÃO substituída.",
+            data, _obs_nova[:60], existente.id,
+        )
+        return existente
+
     payload = dict(
         data=data,
         celebracao=missa_pydantic.titulo_celebracao,
