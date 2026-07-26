@@ -103,9 +103,15 @@ def reprocessar_com_seguranca(
             fonte_url=settings.PDF_URL,
             pdf_bytes=pdf_bytes,
         )
-        if nova.status_processamento == "concluido":
+        # Só substitui com montagem MULTIMODAL LIMPA: concluido E sem marcador de
+        # fallback. Um reprocesso que caiu para "[pipeline] fallback=texto/regex"
+        # (ex.: multimodal indisponível) NÃO pode substituir a montagem existente —
+        # senão degrada (refrão/hemistíquios). Nesse caso, restaura o backup.
+        obs_nova = nova.observacoes or ""
+        houve_fallback = "[pipeline] fallback=" in obs_nova
+        if nova.status_processamento == "concluido" and not houve_fallback:
             logger.info(
-                "auto-atualiza %s: %s -> %s (concluido)",
+                "auto-atualiza %s: %s -> %s (concluido, multimodal limpo)",
                 data_iso, versao_antes, nova.pipeline_version,
             )
             return {
@@ -115,8 +121,9 @@ def reprocessar_com_seguranca(
                 "pipeline_version": nova.pipeline_version,
                 "motivo": None,
             }
-        # Regressão: gate/lexical/auditor reprovaram — mantém a montagem boa.
-        motivo = (nova.observacoes or "")[:200]
+        # Regressão: gate/lexical/auditor reprovaram OU caiu em fallback — mantém a
+        # montagem boa que já estava no ar.
+        motivo = ("fallback: " + obs_nova[:180]) if houve_fallback else obs_nova[:200]
         restaurar_snapshot(db, missa, snap)
         logger.warning(
             "auto-atualiza %s: reprocesso saiu %s — REVERTIDO ao backup (%s)",

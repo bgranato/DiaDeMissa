@@ -129,3 +129,36 @@ def test_reprocesso_reprovado_nao_substitui(db, monkeypatch):
                           db.query(BlocoLiturgico).filter(BlocoLiturgico.missa_id == m2.id).order_by(BlocoLiturgico.ordem)]
     assert ids_titulos_depois == ids_titulos_antes        # 3 blocos originais de volta
     assert "DEGRADADO" not in [t for _, t in ids_titulos_depois]
+
+
+def test_reprocesso_fallback_nao_substitui(db, monkeypatch):
+    """Mesmo 'concluido', se a montagem caiu em '[pipeline] fallback=' (multimodal
+    indisponível), NÃO substitui a montagem existente — reverte ao backup."""
+    hoje = date(2026, 7, 26)
+    m = _missa(db, hoje + timedelta(days=1), versao="antiga+haiku", blocos=3)
+    titulos_antes = [b.titulo for b in
+                     db.query(BlocoLiturgico).filter(BlocoLiturgico.missa_id == m.id).order_by(BlocoLiturgico.ordem)]
+
+    monkeypatch.setattr("app.pipeline.processar_pdf", lambda p: object(), raising=False)
+
+    def persist_fallback(db_, missa_pyd, **kw):
+        mm = db_.query(MissaModel).filter(MissaModel.data == m.data).first()
+        db_.query(BlocoLiturgico).filter(BlocoLiturgico.missa_id == mm.id).delete()
+        db_.add(BlocoLiturgico(missa_id=mm.id, ordem=0, tipo="secao", titulo="FALLBACK",
+                               conteudo_estruturado={"ordem": 0}, visivel=True))
+        mm.status_processamento = "concluido"                 # gate passou...
+        mm.observacoes = "[pipeline] fallback=texto"          # ...mas foi fallback!
+        mm.pipeline_version = pipeline_version()
+        db_.add(mm); db_.commit(); db_.refresh(mm)
+        return mm
+    monkeypatch.setattr("app.services.persist_missa.persistir_missa", persist_fallback, raising=False)
+
+    res = reprocessar_com_seguranca(db, m, b"%PDF-fake")
+
+    assert res["resultado"] == "revertido"
+    m2 = db.query(MissaModel).filter(MissaModel.data == m.data).first()
+    assert m2.pipeline_version == "antiga+haiku"              # versão boa restaurada
+    titulos_depois = [b.titulo for b in
+                      db.query(BlocoLiturgico).filter(BlocoLiturgico.missa_id == m2.id).order_by(BlocoLiturgico.ordem)]
+    assert titulos_depois == titulos_antes                    # backup restaurado
+    assert "FALLBACK" not in titulos_depois

@@ -17,6 +17,26 @@ import logging
 import re
 from typing import Optional
 
+logger = logging.getLogger(__name__)
+
+
+def _run_coro(coro):
+    """Roda uma corrotina de forma segura, HAJA ou NÃO um event loop rodando.
+
+    `asyncio.run()` lança "cannot be called from a running event loop" quando o
+    pipeline é chamado de dentro do loop (ex.: auto-atualização via APScheduler no
+    processo do uvicorn) — o que derrubava o caminho MULTIMODAL para fallback=texto.
+    Se já há loop rodando, executa a corrotina numa thread separada (com seu próprio
+    loop); senão usa asyncio.run direto.
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        return ex.submit(asyncio.run, coro).result()
+
 from pydantic import ValidationError
 
 from app.schema.missa import (
@@ -26,8 +46,6 @@ from app.llm.base import LLMClient
 from app.llm.prompts import (
     SYSTEM_PROMPT, build_user_prompt, build_user_prompt_mm, build_correcao_prompt,
 )
-
-logger = logging.getLogger(__name__)
 
 # Marcador de fallback gravado em missa.observacoes quando a montagem NÃO veio do
 # caminho preferido (multimodal). persist_missa lê isso: fallback=regex → pendente_revisao.
@@ -316,7 +334,7 @@ def estruturar_via_llm_mm(
         from app.llm.factory import get_llm_client
         client = get_llm_client()
     try:
-        missa = asyncio.run(_chamar_llm_mm(client, pdf_bytes, texto_limpo, data_hint))
+        missa = _run_coro(_chamar_llm_mm(client, pdf_bytes, texto_limpo, data_hint))
         _corrigir_posicao_refrao(missa, texto_limpo)
         _inserir_repeticoes_estrofes(missa, texto_limpo)
         _limpar_numero_estrofe_orfao(missa)
@@ -345,7 +363,7 @@ def estruturar_via_llm(
         client = get_llm_client()
 
     try:
-        missa = asyncio.run(_chamar_llm(client, texto_limpo, data_hint))
+        missa = _run_coro(_chamar_llm(client, texto_limpo, data_hint))
         # Correção determinística (não depende do LLM): posição do refrão pelo texto.
         _corrigir_posicao_refrao(missa, texto_limpo)
         _inserir_repeticoes_estrofes(missa, texto_limpo)
