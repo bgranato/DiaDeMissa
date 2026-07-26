@@ -99,6 +99,20 @@ def iniciar_scheduler() -> BackgroundScheduler:
         max_instances=1,
         coalesce=True,
     )
+    # Monitoramento de consumo/crédito de LLM.
+    from app.services.monitor_llm import enviar_digest_semanal, checar_limiares
+    # Digest semanal — segunda 08h (BRT, tz do scheduler).
+    sched.add_job(
+        enviar_digest_semanal,
+        CronTrigger(day_of_week="mon", hour=8, minute=0),
+        id="llm_digest_semanal", replace_existing=True, max_instances=1, coalesce=True,
+    )
+    # Alerta de limiar/pico/erro-de-crédito — diário 07h.
+    sched.add_job(
+        checar_limiares,
+        CronTrigger(hour=7, minute=0),
+        id="llm_alerta_limiar", replace_existing=True, max_instances=1, coalesce=True,
+    )
     sched.start()
     logger.info(
         "Scheduler iniciado. Folheto Arquidiocese 5h (+retry horário), auditoria 5h15, notif 22h.",

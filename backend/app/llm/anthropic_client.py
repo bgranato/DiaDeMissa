@@ -25,7 +25,8 @@ class AnthropicClient(LLMClient):
         self.model = model or os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
 
     async def gerar(self, system_prompt: str, user_prompt: str,
-                    pdf_bytes: "bytes | None" = None, model: "str | None" = None) -> str:
+                    pdf_bytes: "bytes | None" = None, model: "str | None" = None,
+                    contexto: str = "montagem_folheto", referencia: "str | None" = None) -> str:
         if not self.api_key:
             raise RuntimeError("ANTHROPIC_API_KEY não configurada")
         import httpx
@@ -82,7 +83,7 @@ class AnthropicClient(LLMClient):
             print(f"[LLM] {modelo} · entrada={ent} tok · saída={sai} tok · ~US$ {custo:.4f}")
             try:
                 from app.services.custo_llm_service import registrar_custo_llm
-                registrar_custo_llm(modelo, ent, sai, custo)
+                registrar_custo_llm(modelo, ent, sai, custo, contexto=contexto, referencia=referencia)
             except Exception:
                 pass
 

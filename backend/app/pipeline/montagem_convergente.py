@@ -49,9 +49,9 @@ async def _gerar(papel: str, system: str, user: str, pdf_bytes: bytes) -> str:
     ehg = ("google/" in modelo) or ("gemini" in modelo.lower())
     if ehg and os.getenv("OPENROUTER_API_KEY"):
         from app.llm.openrouter_client import OpenRouterClient
-        return await OpenRouterClient().gerar(system, user, pdf_bytes=pdf_bytes, model=modelo)
+        return await OpenRouterClient().gerar(system, user, pdf_bytes=pdf_bytes, model=modelo, contexto=f"conv:{papel}")
     from app.llm.factory import get_llm_client
-    return await get_llm_client().gerar(system, user, pdf_bytes=pdf_bytes, model=modelo)
+    return await get_llm_client().gerar(system, user, pdf_bytes=pdf_bytes, model=modelo, contexto=f"conv:{papel}")
 
 
 def _extrair_json(txt: str) -> dict:

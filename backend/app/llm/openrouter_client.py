@@ -19,7 +19,8 @@ class OpenRouterClient(LLMClient):
         self.model = model or os.getenv("MODELO_MAPA", "google/gemini-2.0-flash-001")
 
     async def gerar(self, system_prompt: str, user_prompt: str,
-                    pdf_bytes: "bytes | None" = None, model: "str | None" = None) -> str:
+                    pdf_bytes: "bytes | None" = None, model: "str | None" = None,
+                    contexto: str = "montagem_folheto", referencia: "str | None" = None) -> str:
         if not self.api_key:
             raise RuntimeError("OPENROUTER_API_KEY não configurada")
         import httpx
@@ -56,7 +57,7 @@ class OpenRouterClient(LLMClient):
                     # preço aproximado do Gemini Flash; ajuste se trocar de modelo
                     custo = ent/1e6*0.10 + sai/1e6*0.40
                     print(f"[LLM] {modelo} · entrada={ent} tok · saída={sai} tok · ~US$ {custo:.4f}")
-                    registrar_custo_llm(modelo, ent, sai, custo)
+                    registrar_custo_llm(modelo, ent, sai, custo, contexto=contexto, referencia=referencia)
                 except Exception:
                     pass
             return (data["choices"][0]["message"]["content"] or "").strip()

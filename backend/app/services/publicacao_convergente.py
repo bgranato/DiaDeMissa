@@ -54,8 +54,21 @@ def montar_e_publicar(db: Session, data_iso: str, pdf_bytes: bytes,
         missa_pyd, meta = montar_com_conferencia(pdf_bytes, texto_limpo, data_hint=data_iso)
     except Exception as e:  # noqa: BLE001
         logger.exception("montagem multimodal falhou para %s — retry/alerta, NÃO publica", data_iso)
-        _alerta(data_iso, f"Montagem multimodal falhou: {str(e)[:200]}. Retry agendado.")
-        return {"data": data_iso, "resultado": "erro_montagem", "conferida": False,
+        # Emergência: falha por CRÉDITO/QUOTA → e-mail NA HORA + missa retida
+        # (nunca publica degradada por falta de crédito; o retry reprocessa com saldo).
+        from app.services import monitor_llm
+        if monitor_llm.eh_erro_credito(e):
+            provedor = "openrouter" if "openrouter" in str(e).lower() else "anthropic"
+            monitor_llm.alerta_emergencia_credito(provedor, "montagem", data_iso, str(e))
+            resultado = "sem_credito"
+        else:
+            _alerta(data_iso, f"Montagem multimodal falhou: {str(e)[:200]}. Retry agendado.")
+            resultado = "erro_montagem"
+        # Se não há montagem boa existente, garante pendente_revisao para revisão humana.
+        if not boa_existe and existente is not None:
+            existente.status_processamento = "pendente_revisao"
+            db.add(existente); db.commit()
+        return {"data": data_iso, "resultado": resultado, "conferida": False,
                 "iteracoes": 0, "custo_usd": _custo_no_intervalo(db, inicio), "motivo": str(e)[:200]}
 
     custo = _custo_no_intervalo(db, inicio)

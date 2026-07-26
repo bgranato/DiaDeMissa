@@ -83,7 +83,7 @@ async def _chamar(pdf_bytes: bytes, montagem_json: str):
     client = get_llm_client()
     modelo = os.getenv("ANTHROPIC_MODEL_GATE", "claude-sonnet-5")
     user = INSTR + "\n\n=== MONTAGEM (JSON) ===\n" + montagem_json
-    bruto = await client.gerar(SYSTEM, user, pdf_bytes=pdf_bytes, model=modelo)
+    bruto = await client.gerar(SYSTEM, user, pdf_bytes=pdf_bytes, model=modelo, contexto="gate")
     return _extrair_json(bruto)
 
 
