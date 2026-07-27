@@ -5,7 +5,9 @@ email_sender e o scheduler. NÃO usamos Auto-Reload (decisão de controle de
 gastos) — por isso os alertas de limiar/pico e o retry-quando-houver-saldo.
 
 Config via .env (tudo os.getenv, sem pydantic p/ não mexer no Settings):
-  MONITOR_EMAIL              destino dos alertas (default: admins do banco)
+  MONITOR_EMAILS             destinos dos alertas, lista separada por vírgula
+                             (default: MONITOR_EMAIL; senão admins do banco)
+  MONITOR_EMAIL              destino único (compat; use MONITOR_EMAILS p/ vários)
   MONITOR_SALDO_LIMIAR_USD   limiar de saldo baixo (default 5)
   MONITOR_PICO_FATOR         fator de pico de gasto 7d vs média (default 2.0)
   MONITOR_DIGEST             liga/desliga digest semanal (default 1)
@@ -42,9 +44,16 @@ def _on(env: str, default: str = "1") -> bool:
 
 
 def _destinatarios() -> list[str]:
-    alvo = os.getenv("MONITOR_EMAIL", "").strip()
+    # MONITOR_EMAILS (plural, lista separada por vírgula) tem prioridade; MONITOR_EMAIL
+    # (singular) mantido por compatibilidade. Dedup preservando ordem.
+    alvo = (os.getenv("MONITOR_EMAILS", "") or os.getenv("MONITOR_EMAIL", "")).strip()
     if alvo:
-        return [e.strip() for e in alvo.split(",") if e.strip()]
+        vistos, out = set(), []
+        for e in alvo.split(","):
+            e = e.strip()
+            if e and e.lower() not in vistos:
+                vistos.add(e.lower()); out.append(e)
+        return out
     try:
         from app.core.database import SessionLocal
         from app.models.usuario import Usuario
