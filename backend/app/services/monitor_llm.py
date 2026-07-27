@@ -18,9 +18,11 @@ Config via .env (tudo os.getenv, sem pydantic p/ não mexer no Settings):
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,62 @@ def _f(env: str, default: float) -> float:
 
 def _on(env: str, default: str = "1") -> bool:
     return os.getenv(env, default).strip().lower() in ("1", "true", "yes", "on")
+
+
+def _agora() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+# --------------------------------------------------- cooldown / dedupe de alertas
+# Anti-loop ESTRUTURAL: cada chave de alerta só reenvia após uma janela mínima.
+# Persistido em arquivo JSON (sobrevive a restart e é compartilhado pelos 2 workers,
+# então o segundo worker do scheduler não reenvia). Sem isso, um alerta cuja condição
+# persiste (pico, saldo baixo) reenviaria a cada execução do job, e a emergência 402
+# reenviaria a cada retry.
+def _cooldown_path() -> Path:
+    p = os.getenv("MONITOR_COOLDOWN_FILE", "").strip()
+    if p:
+        return Path(p)
+    return Path(__file__).resolve().parents[2] / "data" / "monitor_cooldown.json"
+
+
+def _cooldown_load() -> dict:
+    try:
+        return json.loads(_cooldown_path().read_text("utf-8"))
+    except Exception:
+        return {}
+
+
+def _cooldown_save(d: dict) -> None:
+    try:
+        fp = _cooldown_path()
+        fp.parent.mkdir(parents=True, exist_ok=True)
+        fp.write_text(json.dumps(d), "utf-8")
+    except Exception:
+        logger.exception("monitor: falha ao salvar cooldown")
+
+
+def _pode_enviar(chave: str, janela_seg: float) -> bool:
+    """True se `chave` não foi enviada dentro de `janela_seg`. Se True, já registra o
+    envio (marca agora) para o próximo teste respeitar a janela."""
+    d = _cooldown_load()
+    agora = _agora()
+    ult = d.get(chave)
+    if ult:
+        try:
+            quando = datetime.fromisoformat(ult)
+            if (agora - quando).total_seconds() < janela_seg:
+                return False
+        except Exception:
+            pass
+    d[chave] = agora.isoformat()
+    _cooldown_save(d)
+    return True
+
+
+_JANELA_24H = 24 * 3600
+_JANELA_1H = 3600
+_JANELA_SEMANA = 6 * 24 * 3600  # 6d: garante ≤1 por semana sem barrar o job semanal
 
 
 def _destinatarios() -> list[str]:
@@ -179,7 +237,7 @@ def _links_recarga_html() -> str:
 # ---------------------------------------------------------------- DIGEST semanal
 def montar_digest() -> tuple[str, str]:
     """Retorna (assunto, html) do digest da última semana. Não envia."""
-    agora = datetime.now(timezone.utc)
+    agora = _agora()
     ini_semana = agora - timedelta(days=7)
     etapas = gasto_por_etapa(ini_semana, agora)
     total = _total(etapas)
@@ -215,6 +273,8 @@ def montar_digest() -> tuple[str, str]:
 def enviar_digest_semanal() -> dict:
     if not _on("MONITOR_DIGEST"):
         return {"enviado": False, "motivo": "desligado (MONITOR_DIGEST)"}
+    if not _pode_enviar("digest", _JANELA_SEMANA):
+        return {"enviado": False, "motivo": "cooldown (já enviado nesta semana)"}
     assunto, html = montar_digest()
     return {"enviado": _enviar(assunto, html), "assunto": assunto}
 
@@ -223,7 +283,7 @@ def enviar_digest_semanal() -> dict:
 def _erros_credito_recentes(horas: int = 24) -> int:
     from app.core.database import SessionLocal
     from app.models.custo_llm import CustoLLM
-    desde = datetime.now(timezone.utc) - timedelta(hours=horas)
+    desde = _agora() - timedelta(hours=horas)
     db = SessionLocal()
     try:
         return db.query(CustoLLM).filter(
@@ -234,17 +294,20 @@ def _erros_credito_recentes(horas: int = 24) -> int:
 
 def checar_limiares() -> dict:
     """Avalia os 3 gatilhos e envia e-mail se algum disparar. Retorna o diagnóstico."""
-    agora = datetime.now(timezone.utc)
+    agora = _agora()
     limiar = _f("MONITOR_SALDO_LIMIAR_USD", 5.0)
     fator = _f("MONITOR_PICO_FATOR", 2.0)
-    alertas = []
+    # (chave_cooldown, texto). Cada gatilho tem sua própria janela de 24h — assim uma
+    # condição que persiste (pico, saldo baixo) não reenvia a cada execução do job.
+    candidatos = []
 
     # (a) saldo baixo
     saldos = [saldo_openrouter(), saldo_anthropic()]
     for s in saldos:
         if s["saldo_usd"] is not None and s["saldo_usd"] < limiar:
-            alertas.append(f"Saldo BAIXO em <b>{s['provedor']}</b>: US$ {s['saldo_usd']:.2f} "
-                           f"(&lt; limiar US$ {limiar:.2f}).")
+            candidatos.append((f"saldo:{s['provedor']}",
+                               f"Saldo BAIXO em <b>{s['provedor']}</b>: US$ {s['saldo_usd']:.2f} "
+                               f"(&lt; limiar US$ {limiar:.2f})."))
 
     # (b) pico: gasto 7d > fator × média histórica (semanas -2..-5)
     total7 = _total(gasto_por_etapa(agora - timedelta(days=7), agora))
@@ -252,23 +315,32 @@ def checar_limiares() -> dict:
               for k in range(2, 6)]
     media4 = sum(medias) / len(medias) if medias else 0.0
     if media4 > 0 and total7 > fator * media4:
-        alertas.append(f"PICO de gasto: US$ {total7:.2f} nos últimos 7 dias &gt; "
-                       f"{fator:.0f}× a média histórica (US$ {media4:.2f}). Possível loop/bug gastador.")
+        candidatos.append(("pico",
+                           f"PICO de gasto: US$ {total7:.2f} nos últimos 7 dias &gt; "
+                           f"{fator:.0f}× a média histórica (US$ {media4:.2f}). Possível loop/bug gastador."))
 
     # (c) erro de crédito/quota nas últimas 24h
     n_erros = _erros_credito_recentes(24)
     if n_erros:
-        alertas.append(f"{n_erros} erro(s) de crédito/quota de LLM nas últimas 24h.")
+        candidatos.append(("erro_credito_24h",
+                           f"{n_erros} erro(s) de crédito/quota de LLM nas últimas 24h."))
 
     diag = {"limiar": limiar, "total7": total7, "media4": round(media4, 4),
-            "erros_credito_24h": n_erros, "alertas": alertas, "enviado": False}
+            "erros_credito_24h": n_erros,
+            "alertas": [t for _, t in candidatos], "enviado": False}
     if not _on("MONITOR_ALERTA_LIMIAR"):
         diag["motivo"] = "desligado (MONITOR_ALERTA_LIMIAR)"
         return diag
-    if alertas:
+
+    # Dedupe: só inclui no e-mail os gatilhos fora do cooldown de 24h.
+    frescos = [t for chave, t in candidatos if _pode_enviar(f"limiar:{chave}", _JANELA_24H)]
+    diag["suprimidos"] = len(candidatos) - len(frescos)
+    if frescos:
         html = ("<h2>⚠️ Alerta de crédito/consumo LLM — Dia de Missa</h2><ul>"
-                + "".join(f"<li>{a}</li>" for a in alertas) + "</ul>" + _links_recarga_html())
+                + "".join(f"<li>{a}</li>" for a in frescos) + "</ul>" + _links_recarga_html())
         diag["enviado"] = _enviar("[Dia de Missa] ALERTA de crédito/consumo LLM", html)
+    elif candidatos:
+        diag["motivo"] = "cooldown (todos os gatilhos já alertados nas últimas 24h)"
     return diag
 
 
@@ -293,8 +365,13 @@ def registrar_erro_credito(provedor: str, etapa: str, data_missa: str) -> None:
 
 def alerta_emergencia_credito(provedor: str, etapa: str, data_missa: str, detalhe: str = "") -> bool:
     """E-mail NA HORA quando uma chamada LLM falha por crédito/quota."""
+    # Sempre registra a ocorrência (alimenta o gatilho 2c do alerta diário)...
     registrar_erro_credito(provedor, etapa, data_missa)
     if not _on("MONITOR_ALERTA_EMERGENCIA"):
+        return False
+    # ...mas o E-MAIL é 1 por hora por (provedor, missa) — o 402 dispara a cada retry.
+    if not _pode_enviar(f"402:{provedor}:{data_missa}", _JANELA_1H):
+        logger.info("monitor: emergencia 402 em cooldown (%s/%s)", provedor, data_missa)
         return False
     html = (
         f"<h2>🚨 SEM CRÉDITO LLM — montagem retida</h2>"

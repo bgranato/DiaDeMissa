@@ -241,3 +241,55 @@ Serviço reiniciado para os jobs automáticos (digest/limiar/emergência) lerem 
 > e não no corporativo, confirma-se a filtragem no lado de `agenciacampana.com.br`.
 
 **Commit:** `feat(monitor): MONITOR_EMAILS (lista de destinos) + granato1402 como 2o destino`.
+
+---
+
+## ADENDO P0 (21:xx) — LOOP DE E-MAILS: estancamento, causa raiz e cooldown/dedupe
+
+**1. Estancado imediatamente.** Desliguei os 3 alertas via `.env`
+(`MONITOR_DIGEST=0`, `MONITOR_ALERTA_LIMIAR=0`, `MONITOR_ALERTA_EMERGENCIA=0`) + restart.
+Confirmação: as funções passaram a retornar `enviado: False, motivo: desligado (...)`
+para digest e limiar, e `alerta_emergencia_credito` retornou `False`.
+
+**2. Causa raiz (estrutural, com evidência):**
+- **Sem cooldown/dedupe.** Cada tipo de alerta reenviava a cada disparo:
+  - **Pico/saldo** — `checar_limiares` recomputa a mesma condição ("US$ 25.83 > 2× média
+    US$ 0.33") e reenviaria o e-mail **a cada execução** do job.
+  - **Emergência 402** — dispara **a cada retry**. O journal mostra rajadas de
+    `httpx.HTTPStatusError: 400 ... "Your credit balance is too low"` às **13:18 e 14:27**,
+    com múltiplas ocorrências **no mesmo segundo** e fallbacks encadeados
+    (`LLM-MM falhou → fallback texto → fallback regex`).
+- **Amplificador `--workers 2`.** O `ExecStart` roda `uvicorn ... --workers 2`; o
+  scheduler é iniciado no `startup` de **cada worker** (`uvicorn[614006]` e `[614007]`
+  aparecem lado a lado nos logs) → **cada job/e-mail dobrado**.
+- Somado a reenvios manuais de teste e a vários restarts durante o deploy do dia.
+- Nota correlata: 30 montagens `montagem_folheto` entre 19:24–20:00 (uma a cada ~1min)
+  — pico de gasto real que o próprio alerta de pico corretamente sinalizou.
+
+**3. Correção estrutural — cooldown/dedupe (`monitor_llm.py`):**
+- Estado persistido em `data/monitor_cooldown.json` (sobrevive a restart e é
+  **compartilhado pelos 2 workers** → o segundo worker não reenvia). Path configurável
+  por `MONITOR_COOLDOWN_FILE` (usado nos testes).
+- `_pode_enviar(chave, janela)` — só libera se a chave não foi enviada dentro da janela;
+  ao liberar, já marca o envio.
+- Janelas: **pico** e **saldo:{provedor}** = 24h; **emergência** `402:{provedor}:{missa}`
+  = 1h; **digest** = 6 dias (≤1 por semana sem barrar o job semanal).
+- A emergência **continua registrando toda ocorrência** em `custo_llm` (alimenta o
+  gatilho 2c), mas só **e-mail** 1×/h por missa. O limiar monta o e-mail só com os
+  gatilhos fora do cooldown (`suprimidos` no diagnóstico).
+
+**4. Testes (3 novos, anti-loop):**
+- `test_emergencia_cooldown_1h_por_missa` — 5 retries do mesmo 402 → **1 e-mail**;
+  as 5 ocorrências ficam registradas; missa diferente → novo e-mail.
+- `test_limiar_pico_nao_reenvia_em_24h` — 2ª checagem na mesma janela: `enviado False`,
+  `suprimidos ≥ 1`, total **1 e-mail**.
+- `test_digest_cooldown_semanal` — 2ª chamada na semana: `cooldown`, total **1 e-mail**.
+- Suíte do módulo: **10 passed** (no servidor).
+
+**5. Reativação + confirmação:**
+- Toggles de volta a `1`, restart, serviço `active`. Os jobs agendados só disparam
+  07h (limiar) e seg 08h (digest) — nada dispara na hora seguinte; emergência só com
+  402 real. Enviado **UM** e-mail de confirmação *"✅ Monitoramento normalizado"*.
+- Monitoramento de 1h em andamento (checagem a cada 5min por novos envios).
+
+**Commit:** `fix(monitor): cooldown/dedupe anti-loop (pico/saldo 24h, 402 1h/missa, digest semanal)`.
