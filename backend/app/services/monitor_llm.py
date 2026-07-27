@@ -137,6 +137,12 @@ def _enviar(assunto: str, html: str) -> bool:
     return ok
 
 
+# Contextos que NÃO são gasto de montagem: erro de crédito (custo 0) e recargas
+# (crédito adicionado, contabilizado à parte no saldo estimado).
+_CTX_RECARGA = "recarga_credito"
+_NAO_GASTO = ("erro_credito", _CTX_RECARGA)
+
+
 # ---------------------------------------------------------------- custo (custo_llm)
 def gasto_por_etapa(inicio: datetime, fim: datetime | None = None) -> dict:
     """Soma custo_usd por contexto (etapa) no intervalo. Retorna {etapa: usd}."""
@@ -147,7 +153,7 @@ def gasto_por_etapa(inicio: datetime, fim: datetime | None = None) -> dict:
     try:
         rows = db.query(CustoLLM).filter(
             CustoLLM.data_criacao >= inicio, CustoLLM.data_criacao < fim,
-            CustoLLM.contexto != "erro_credito",
+            CustoLLM.contexto.notin_(_NAO_GASTO),
         ).all()
         por = {}
         for r in rows:
@@ -193,34 +199,54 @@ def saldo_openrouter() -> dict:
         return {"provedor": "openrouter", "saldo_usd": None, "detalhe": f"erro: {str(e)[:80]}"}
 
 
-def saldo_anthropic() -> dict:
-    """Anthropic não expõe SALDO; a Admin API dá custo (requer sk-ant-admin...).
-    Sem chave admin → n/d (conferir no console)."""
-    adm = os.getenv("ANTHROPIC_ADMIN_KEY", "").strip()
-    if not adm:
-        return {"provedor": "anthropic", "saldo_usd": None,
-                "detalhe": "n/d — conferir no console (sem ANTHROPIC_ADMIN_KEY)"}
+def total_recargas() -> float:
+    """Soma das recargas registradas (custo_llm contexto='recarga_credito')."""
+    from app.core.database import SessionLocal
+    from app.models.custo_llm import CustoLLM
+    db = SessionLocal()
     try:
-        import httpx
-        ini = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%dT00:00:00Z")
-        r = httpx.get("https://api.anthropic.com/v1/organizations/cost_report",
-                      headers={"x-api-key": adm, "anthropic-version": "2023-06-01"},
-                      params={"starting_at": ini}, timeout=15)
-        r.raise_for_status()
-        # custo (não saldo) — informativo
-        return {"provedor": "anthropic", "saldo_usd": None,
-                "detalhe": f"custo 7d via Admin API: {r.json()}"[:200]}
-    except Exception as e:  # noqa: BLE001
-        return {"provedor": "anthropic", "saldo_usd": None,
-                "detalhe": f"n/d — conferir no console (Admin API: {str(e)[:60]})"}
+        rows = db.query(CustoLLM).filter(CustoLLM.contexto == _CTX_RECARGA).all()
+        return round(sum(float(r.custo_usd or 0.0) for r in rows), 2)
+    finally:
+        db.close()
+
+
+def gasto_acumulado() -> float:
+    """Gasto total histórico (exclui erro_credito e recargas)."""
+    from app.core.database import SessionLocal
+    from app.models.custo_llm import CustoLLM
+    db = SessionLocal()
+    try:
+        rows = db.query(CustoLLM).filter(CustoLLM.contexto.notin_(_NAO_GASTO)).all()
+        return round(sum(float(r.custo_usd or 0.0) for r in rows), 2)
+    finally:
+        db.close()
+
+
+def saldo_anthropic() -> dict:
+    """A Admin API da Anthropic expõe CUSTO/USO, não o saldo de créditos pré-pagos —
+    não há endpoint de saldo. Usamos SALDO ESTIMADO = recargas registradas − gasto
+    acumulado (custo_llm). Preciso apenas se todas as recargas forem registradas via
+    scripts/registrar_recarga.py."""
+    recargas = total_recargas()
+    if recargas > 0:
+        gasto = gasto_acumulado()
+        saldo = round(recargas - gasto, 2)
+        return {"provedor": "anthropic", "saldo_usd": saldo, "estimado": True,
+                "detalhe": f"estimado: recargas US$ {recargas:.2f} − gasto US$ {gasto:.2f} "
+                           f"(registre recargas com scripts/registrar_recarga.py)"}
+    return {"provedor": "anthropic", "saldo_usd": None,
+            "detalhe": "n/d — registre recargas com scripts/registrar_recarga.py <valor> "
+                       "(Anthropic não expõe saldo por API)"}
 
 
 def _bloco_saldos_html() -> str:
     linhas = []
     for s in (saldo_openrouter(), saldo_anthropic()):
-        saldo = f"US$ {s['saldo_usd']:.2f}" if s["saldo_usd"] is not None else "n/d"
+        rot = "saldo estimado ~" if s.get("estimado") else "saldo "
+        saldo = f"{rot}US$ {s['saldo_usd']:.2f}" if s["saldo_usd"] is not None else "n/d"
         link = LINKS_RECARGA.get(s["provedor"], "")
-        linhas.append(f"<li><b>{s['provedor']}</b>: saldo {saldo} — {s['detalhe']} "
+        linhas.append(f"<li><b>{s['provedor']}</b>: {saldo} — {s['detalhe']} "
                       f"(<a href='{link}'>recarregar</a>)</li>")
     # Auto-Reload: não usamos por decisão de controle de gastos
     linhas.append("<li><b>Auto-Reload</b>: DESLIGADO por decisão de controle de gastos — "
@@ -295,7 +321,8 @@ def _erros_credito_recentes(horas: int = 24) -> int:
 def checar_limiares() -> dict:
     """Avalia os 3 gatilhos e envia e-mail se algum disparar. Retorna o diagnóstico."""
     agora = _agora()
-    limiar = _f("MONITOR_SALDO_LIMIAR_USD", 5.0)
+    # MONITOR_LIMIAR_SALDO (novo nome) tem prioridade; MONITOR_SALDO_LIMIAR_USD por compat.
+    limiar = _f("MONITOR_LIMIAR_SALDO", _f("MONITOR_SALDO_LIMIAR_USD", 5.0))
     fator = _f("MONITOR_PICO_FATOR", 2.0)
     # (chave_cooldown, texto). Cada gatilho tem sua própria janela de 24h — assim uma
     # condição que persiste (pico, saldo baixo) não reenvia a cada execução do job.
@@ -304,10 +331,12 @@ def checar_limiares() -> dict:
     # (a) saldo baixo
     saldos = [saldo_openrouter(), saldo_anthropic()]
     for s in saldos:
-        if s["saldo_usd"] is not None and s["saldo_usd"] < limiar:
+        if s["saldo_usd"] is not None and s["saldo_usd"] <= limiar:
+            est = " (estimado)" if s.get("estimado") else ""
             candidatos.append((f"saldo:{s['provedor']}",
-                               f"Saldo BAIXO em <b>{s['provedor']}</b>: US$ {s['saldo_usd']:.2f} "
-                               f"(&lt; limiar US$ {limiar:.2f})."))
+                               f"Saldo BAIXO{est} em <b>{s['provedor']}</b>: US$ {s['saldo_usd']:.2f} "
+                               f"(≤ limiar US$ {limiar:.2f}). Recarregue e rode "
+                               f"<code>scripts/registrar_recarga.py &lt;valor&gt;</code>."))
 
     # (b) pico: gasto 7d > fator × média histórica (semanas -2..-5)
     total7 = _total(gasto_por_etapa(agora - timedelta(days=7), agora))

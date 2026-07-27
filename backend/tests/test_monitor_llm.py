@@ -56,6 +56,50 @@ def test_monitor_emails_dedup_e_compat(monkeypatch):
     assert monitor_llm._destinatarios() == ["so@x.com"]
 
 
+# --- Saldo estimado (recargas − gasto) + alerta ≤ limiar ---
+def _recarga(Session, valor):
+    s = Session()
+    s.add(CustoLLM(contexto="recarga_credito", modelo="anthropic",
+                   tokens_entrada=0, tokens_saida=0, custo_usd=valor))
+    s.commit(); s.close()
+
+
+def test_saldo_estimado_recargas_menos_gasto(db):
+    Session, _ = db
+    _recarga(Session, 20.0)
+    _reg(Session, "conv:montagem", 5.0, 1)   # gasto conta
+    _reg(Session, "gate", 3.0, 1)
+    s = monitor_llm.saldo_anthropic()
+    assert s["estimado"] is True
+    assert s["saldo_usd"] == 12.0            # 20 − (5+3); recarga não conta como gasto
+
+
+def test_alerta_saldo_2_dispara_190_nao_dispara_210(db, monkeypatch):
+    Session, enviados = db
+    monkeypatch.setenv("MONITOR_LIMIAR_SALDO", "2")
+    monkeypatch.setattr(monitor_llm, "saldo_openrouter",
+                        lambda: {"provedor": "openrouter", "saldo_usd": None, "detalhe": "n/d"})
+    # saldo estimado 1,90 (recarga 21,90 − gasto 20) ≤ 2 → dispara
+    _recarga(Session, 21.90)
+    _reg(Session, "conv:montagem", 20.0, 1)
+    assert monitor_llm.saldo_anthropic()["saldo_usd"] == 1.90
+    d = monitor_llm.checar_limiares()
+    assert d["enviado"] is True
+    assert any("Saldo BAIXO" in a and "registrar_recarga" in a for a in d["alertas"])
+
+
+def test_alerta_saldo_210_nao_dispara(db, monkeypatch):
+    Session, enviados = db
+    monkeypatch.setenv("MONITOR_LIMIAR_SALDO", "2")
+    monkeypatch.setattr(monitor_llm, "saldo_openrouter",
+                        lambda: {"provedor": "openrouter", "saldo_usd": None, "detalhe": "n/d"})
+    _recarga(Session, 22.10)
+    _reg(Session, "conv:montagem", 20.0, 1)   # saldo 2,10 > 2
+    assert monitor_llm.saldo_anthropic()["saldo_usd"] == 2.10
+    d = monitor_llm.checar_limiares()
+    assert not any("Saldo BAIXO" in a for a in d["alertas"])
+
+
 # --- Digest ---
 def test_digest_por_etapa_e_total(db, monkeypatch):
     Session, _ = db

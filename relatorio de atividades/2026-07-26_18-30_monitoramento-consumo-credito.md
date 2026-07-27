@@ -373,3 +373,57 @@ vida do processo. Com `--workers 2`, só o 1º worker adquire; os demais logam
 `FREIOS_STATE_FILE=/var/lib/diademissa/freios_gasto.json`.
 
 **Commit:** `feat(freios): orcamento diario + teto tentativas/missa + disjuntor 402 + scheduler 1-worker (flock)`.
+
+---
+
+## ADENDO — Alerta de saldo ≤ US$ 2 (Anthropic) + SALDO ESTIMADO
+
+### 1. Limiar
+`MONITOR_LIMIAR_SALDO=2` no `.env` (novo nome; `MONITOR_SALDO_LIMIAR_USD` mantido por
+compat). Comparação passou a ser **≤** (dispara em US$ 2,00 exatos).
+
+### 2a. Admin API da Anthropic expõe saldo? NÃO.
+A Admin API (`/v1/organizations/cost_report`, `.../usage_report`) expõe **custo e uso**,
+não o **saldo de créditos pré-pagos** — não há endpoint de "balance". OpenRouter tem
+(`GET /api/v1/credits`), Anthropic não. Portanto, item 2b.
+
+> Passo a passo p/ gerar a `ANTHROPIC_ADMIN_KEY` (dá custo/uso, útil no digest, mas NÃO
+> saldo): Console → Settings → **Admin keys** (org owner) → **Create Admin Key** →
+> copiar `sk-ant-admin...` → colar em `.env` como `ANTHROPIC_ADMIN_KEY=...`. Não é
+> necessária para o alerta de saldo (que usa o saldo estimado abaixo).
+
+### 2b. SALDO ESTIMADO (implementado)
+`saldo estimado = Σ recargas registradas − gasto acumulado (custo_llm)`.
+- Recargas gravadas em `custo_llm` com `contexto='recarga_credito'` (excluídas do gasto,
+  junto com `erro_credito`).
+- `scripts/registrar_recarga.py <valor> [YYYY-MM-DD] [--nota "..."]` registra a recarga
+  e imprime o novo saldo estimado.
+- `saldo_anthropic()` retorna `{saldo_usd, estimado: True, detalhe}` quando há recargas;
+  senão `n/d` com instrução. Digest e alerta mostram **"saldo estimado ~US$ X"**.
+
+### 3. Alerta
+No job diário (cooldown 24h já existente): se saldo ≤ limiar, e-mail com o link direto
+de recarga **e** a frase "Recarregue e rode `scripts/registrar_recarga.py <valor>`".
+
+### 4. Testes (3 novos)
+- `test_saldo_estimado_recargas_menos_gasto` — 20 − (5+3) = **12,00**; recarga não conta
+  como gasto.
+- `test_alerta_saldo_2_dispara_190_nao_dispara_210` — saldo **1,90 ≤ 2 → dispara** e a
+  mensagem contém `registrar_recarga`.
+- `test_alerta_saldo_210_nao_dispara` — saldo **2,10 > 2 → não dispara**.
+- Suíte completa: **125 passed** (mesmas 4 falhas pré-existentes).
+
+### 5. Recargas registradas + RESSALVA importante
+Registrei em produção: **US$ 20,00 em 26/07** ("recarga pós crédito-zero 22/07").
+Resultado atual: `recargas US$ 20,00 − gasto US$ 27,17 = saldo estimado -US$ 7,17`.
+- O valor **negativo é esperado e provisório**: (a) só **uma** recarga está registrada —
+  o crédito-zero de 22/07 implica recarga(s) anterior(es) que preciso que você registre;
+  (b) US$ ~15 do gasto rastreado de 26/07 foi **desperdício dos meus reprocessos de dev**
+  (documentado no adendo anterior), não consumo operacional real.
+- **AÇÃO PARA VOCÊ:** rode `scripts/registrar_recarga.py <valor> <data>` para cada recarga
+  anterior que houve; aí o saldo estimado passa a refletir a realidade. Enquanto isso, o
+  alerta mostrará "(estimado)" e pode disparar por causa do valor provisório.
+
+`.env`: `MONITOR_LIMIAR_SALDO=2`.
+
+**Commit:** `feat(monitor): saldo estimado Anthropic (recargas − gasto) + limiar ≤ US$2 + registrar_recarga.py`.
