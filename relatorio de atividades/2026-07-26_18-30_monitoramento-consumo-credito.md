@@ -197,3 +197,47 @@ Uma task de background anterior ("reprocesso convergente de 07-19 e 06-14") caiu
 e as guardas impedem escrita parcial/degradada). **NÃO reprocessadas — custo zero.**
 As tasks mortas já haviam saído (exit 0), nada a matar. Evidência (JSONs dos GETs)
 capturada em `/tmp/missa_2026-07-19.json` e `/tmp/missa_2026-06-14.json`.
+
+---
+
+## ADENDO (20:xx) — Entregabilidade dos e-mails + destinatário em lista (MONITOR_EMAILS)
+
+**Sintoma:** o digest e o alerta de pico enviados a `bruno@agenciacampana.com.br` não
+apareceram na inbox nem no spam.
+
+**Diagnóstico:**
+1. **Envio ACEITO pelo servidor SMTP.** Teste com debug retornou `recusados={}` (250 do
+   Gmail) para os dois endereços; log do `email_sender`: `Email enviado para
+   bruno@agenciacampana.com.br` e `... granato1402@gmail.com`, ambos OK (sem exceção).
+   O envio não é o problema.
+2. **Remetente/SPF/DKIM não é a causa provável.** Remetente = `Dia de Missa
+   <contato.diademissa@gmail.com>` — o **mesmo** dos e-mails de recuperação de senha,
+   que entregam normalmente. Mesma conta, mesma autenticação Gmail → não se troca o
+   remetente. Suspeita recai em **filtragem/quarentena no domínio corporativo
+   `agenciacampana.com.br`** (todos os envios anteriores foram só para lá).
+3. **Correção prática:** adicionar um destino Gmail confiável (`granato1402@gmail.com`)
+   ao lado do corporativo, para o monitoramento sempre alcançar uma caixa.
+
+**Mudança — `MONITOR_EMAILS` (lista):**
+- `_destinatarios()` agora lê `MONITOR_EMAILS` (lista separada por vírgula, com dedup
+  case-insensitive preservando ordem); `MONITOR_EMAIL` (singular) mantido por
+  compatibilidade; sem nenhum dos dois → admins do banco.
+- `.env` (prod) e `.env.example`: `MONITOR_EMAILS=bruno@agenciacampana.com.br,granato1402@gmail.com`.
+- Testes: `test_monitor_emails_lista` + `test_monitor_emails_dedup_e_compat`.
+  Suíte do módulo: **7 passed**.
+
+**Deploy + reenvio (evidência):**
+```
+DESTINATARIOS: ['bruno@agenciacampana.com.br', 'granato1402@gmail.com']
+INFO app.services.email_sender: Email enviado para bruno@agenciacampana.com.br
+INFO app.services.email_sender: Email enviado para granato1402@gmail.com
+ENVIO -> bruno@agenciacampana.com.br : OK
+ENVIO -> granato1402@gmail.com : OK
+```
+Serviço reiniciado para os jobs automáticos (digest/limiar/emergência) lerem `MONITOR_EMAILS`.
+
+> **Pendente de confirmação do usuário:** recebimento em `granato1402@gmail.com`
+> (canal gmail→gmail confiável) e em `bruno@agenciacampana.com.br`. Se chegar no Gmail
+> e não no corporativo, confirma-se a filtragem no lado de `agenciacampana.com.br`.
+
+**Commit:** `feat(monitor): MONITOR_EMAILS (lista de destinos) + granato1402 como 2o destino`.

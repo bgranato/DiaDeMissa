@@ -37,6 +37,23 @@ def _reg(Session, contexto, custo, dias_atras=0):
     s.commit(); s.close()
 
 
+# --- Destinatários (MONITOR_EMAILS lista) ---
+def test_monitor_emails_lista(monkeypatch):
+    monkeypatch.setenv("MONITOR_EMAILS", "bruno@agenciacampana.com.br, granato1402@gmail.com")
+    monkeypatch.delenv("MONITOR_EMAIL", raising=False)
+    assert monitor_llm._destinatarios() == ["bruno@agenciacampana.com.br", "granato1402@gmail.com"]
+
+
+def test_monitor_emails_dedup_e_compat(monkeypatch):
+    # dedup case-insensitive preservando ordem
+    monkeypatch.setenv("MONITOR_EMAILS", "a@x.com, A@x.com , b@x.com")
+    assert monitor_llm._destinatarios() == ["a@x.com", "b@x.com"]
+    # sem MONITOR_EMAILS, cai no singular MONITOR_EMAIL (compat)
+    monkeypatch.delenv("MONITOR_EMAILS", raising=False)
+    monkeypatch.setenv("MONITOR_EMAIL", "so@x.com")
+    assert monitor_llm._destinatarios() == ["so@x.com"]
+
+
 # --- Digest ---
 def test_digest_por_etapa_e_total(db, monkeypatch):
     Session, _ = db
