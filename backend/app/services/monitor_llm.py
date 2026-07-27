@@ -381,3 +381,22 @@ def alerta_emergencia_credito(provedor: str, etapa: str, data_missa: str, detalh
         f"<p>Detalhe: {detalhe[:300]}</p>" + _links_recarga_html()
     )
     return _enviar(f"[Dia de Missa] 🚨 SEM CRÉDITO — missa {data_missa} retida", html)
+
+
+# ------------------------------------------------------------- ALERTA de orçamento
+def alerta_orcamento_diario(gasto: float, teto: float) -> bool:
+    """E-mail quando o orçamento diário é estourado e as montagens são pausadas.
+    Cooldown de 24h (a condição persiste o dia todo)."""
+    if not _on("MONITOR_ALERTA_LIMIAR"):
+        return False
+    if not _pode_enviar("orcamento_diario", _JANELA_24H):
+        return False
+    html = (
+        f"<h2>⛔ Orçamento diário de LLM estourado — montagens pausadas</h2>"
+        f"<p>Gasto de hoje: <b>US$ {gasto:.2f}</b> ≥ teto <b>US$ {teto:.2f}</b> "
+        f"(MONITOR_TETO_DIARIO).</p>"
+        f"<p>Montagens automáticas foram <b>pausadas</b> — novas missas ficam "
+        f"<b>pendente_revisao</b> até amanhã (o contador zera por dia) ou até ajustar o teto.</p>"
+        + _links_recarga_html()
+    )
+    return _enviar("[Dia de Missa] ⛔ Orçamento diário de LLM estourado", html)

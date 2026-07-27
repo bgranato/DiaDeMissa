@@ -1,7 +1,10 @@
 """APScheduler com job diário às 5h da manhã."""
 from __future__ import annotations
 
+import fcntl
 import logging
+import os
+from pathlib import Path
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -15,12 +18,43 @@ from app.services.alerta_folheto_faltando import alertar_folheto_faltando
 logger = logging.getLogger(__name__)
 
 _scheduler: BackgroundScheduler | None = None
+# Mantém o fd do lock aberto durante toda a vida do processo (fechar libera o flock).
+_lock_fp = None
 
 
-def iniciar_scheduler() -> BackgroundScheduler:
-    global _scheduler
+def tentar_lock_scheduler(path: str | None = None):
+    """Tenta um lock exclusivo não-bloqueante. Retorna o file object se conseguiu,
+    ou None se outro processo (outro worker uvicorn) já o segura. Com `--workers 2`,
+    só o primeiro worker adquire o lock e inicia o scheduler."""
+    # Default fora de /tmp: o systemd usa PrivateTmp=true (isolaria o lock por worker
+    # de forma invisível). Em data/ o lock é compartilhado e verificável.
+    _default = str(Path(__file__).resolve().parents[2] / "data" / "scheduler.lock")
+    caminho = path or os.getenv("SCHEDULER_LOCK_FILE", _default)
+    # O_RDWR|O_CREAT sem truncate: o worker perdedor não apaga o PID do vencedor.
+    fd = os.open(caminho, os.O_CREAT | os.O_RDWR, 0o644)
+    fp = os.fdopen(fd, "r+")
+    try:
+        fcntl.flock(fp.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        fp.close()
+        return None
+    try:
+        fp.seek(0); fp.truncate(); fp.write(str(os.getpid())); fp.flush()
+    except Exception:
+        pass
+    return fp
+
+
+def iniciar_scheduler() -> BackgroundScheduler | None:
+    global _scheduler, _lock_fp
     if _scheduler is not None:
         return _scheduler
+
+    # Lock de worker único: evita 2 schedulers (jobs/e-mails em dobro) com --workers 2.
+    _lock_fp = tentar_lock_scheduler()
+    if _lock_fp is None:
+        logger.info("Scheduler NÃO iniciado neste worker (lock já detido por outro). OK.")
+        return None
 
     sched = BackgroundScheduler(timezone="America/Sao_Paulo")
 
@@ -122,7 +156,13 @@ def iniciar_scheduler() -> BackgroundScheduler:
 
 
 def parar_scheduler() -> None:
-    global _scheduler
+    global _scheduler, _lock_fp
     if _scheduler is not None:
         _scheduler.shutdown(wait=False)
         _scheduler = None
+    if _lock_fp is not None:
+        try:
+            _lock_fp.close()  # libera o flock
+        except Exception:
+            pass
+        _lock_fp = None

@@ -49,6 +49,24 @@ def montar_e_publicar(db: Session, data_iso: str, pdf_bytes: bytes,
         and "[pipeline] fallback=" not in (existente.observacoes or "")
     )
 
+    # FREIOS DE GASTO — nenhum processo automático gasta ilimitado. Consulta antes de
+    # qualquer chamada LLM: disjuntor de crédito (402), orçamento diário, teto/missa.
+    from app.services import freios_gasto
+    pode, motivo = freios_gasto.pode_montar(data_iso)
+    if not pode:
+        logger.warning("montagem BLOQUEADA por freio (%s) para %s", motivo, data_iso)
+        # orçamento estourado dispara e-mail (com cooldown); demais motivos já foram
+        # sinalizados no seu próprio canal (emergência/alerta).
+        if "orçamento" in motivo:
+            from app.services import monitor_llm
+            monitor_llm.alerta_orcamento_diario(freios_gasto.gasto_do_dia(), freios_gasto.teto_diario())
+        if not boa_existe and existente is not None:
+            existente.status_processamento = "pendente_revisao"
+            db.add(existente); db.commit()
+        return {"data": data_iso, "resultado": "bloqueado_por_freio", "conferida": False,
+                "iteracoes": 0, "custo_usd": 0.0, "motivo": motivo}
+    freios_gasto.registrar_tentativa(data_iso)
+
     # Passo 4 pode levantar (multimodal falhou) — NÃO cai para texto: agenda retry/alerta.
     try:
         missa_pyd, meta = montar_com_conferencia(pdf_bytes, texto_limpo, data_hint=data_iso)
@@ -60,6 +78,8 @@ def montar_e_publicar(db: Session, data_iso: str, pdf_bytes: bytes,
         if monitor_llm.eh_erro_credito(e):
             provedor = "openrouter" if "openrouter" in str(e).lower() else "anthropic"
             monitor_llm.alerta_emergencia_credito(provedor, "montagem", data_iso, str(e))
+            # Disjuntor: trava novas montagens até liberar_credito (sucesso pago ou manual).
+            freios_gasto.bloquear_credito(f"402 {provedor} em {data_iso}: {str(e)[:120]}")
             resultado = "sem_credito"
         else:
             _alerta(data_iso, f"Montagem multimodal falhou: {str(e)[:200]}. Retry agendado.")
@@ -70,6 +90,9 @@ def montar_e_publicar(db: Session, data_iso: str, pdf_bytes: bytes,
             db.add(existente); db.commit()
         return {"data": data_iso, "resultado": resultado, "conferida": False,
                 "iteracoes": 0, "custo_usd": _custo_no_intervalo(db, inicio), "motivo": str(e)[:200]}
+
+    # Sucesso de uma montagem paga prova que há crédito → libera o disjuntor.
+    freios_gasto.liberar_credito()
 
     custo = _custo_no_intervalo(db, inicio)
     conf = {"conferida": meta["conferida"], "iteracoes": meta["iteracoes"],
