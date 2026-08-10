@@ -39,6 +39,10 @@ from app.services import monitor_llm  # noqa: E402
 
 
 def main(argv: list[str]) -> int:
+    # --saldo-atual: ancora o SALDO REAL do console (Anthropic) na data de hoje;
+    # o monitor passa a descontar só o gasto a partir daí.
+    ancora = "--saldo-atual" in argv
+    argv = [a for a in argv if a != "--saldo-atual"]
     args = [a for a in argv if a != "--nota"]
     nota = ""
     if "--nota" in argv:
@@ -48,6 +52,7 @@ def main(argv: list[str]) -> int:
             args = [a for a in args if a != nota]
     if len(args) < 1:
         print("Uso: registrar_recarga.py <valor> [YYYY-MM-DD] [--nota \"texto\"]")
+        print("     registrar_recarga.py --saldo-atual <valor>  (ancora o saldo real do console)")
         return 2
     try:
         valor = float(args[0].replace(",", "."))
@@ -58,20 +63,17 @@ def main(argv: list[str]) -> int:
         print("Valor da recarga deve ser > 0.")
         return 2
     data = args[1] if len(args) > 1 else None
-    ref = data or nota or "recarga"
+    ref = data or nota or ("saldo-ancora" if ancora else "recarga")
+    ctx = monitor_llm._CTX_ANCORA if ancora else monitor_llm._CTX_RECARGA
 
-    # Recarga = linha em custo_llm com contexto 'recarga_credito' (excluída do gasto).
-    registrar_custo_llm("anthropic", 0, 0, valor,
-                        contexto=monitor_llm._CTX_RECARGA, referencia=ref)
-    recargas = monitor_llm.total_recargas()
-    gasto = monitor_llm.gasto_acumulado()
-    print(f"Recarga registrada: US$ {valor:.2f}" + (f" ({data})" if data else "")
-          + (f" — {nota}" if nota else ""))
-    print(f"Total de recargas registradas: US$ {recargas:.2f}")
-    print(f"Gasto acumulado (custo_llm): US$ {gasto:.2f}")
-    print(f"SALDO ESTIMADO: US$ {recargas - gasto:.2f}")
-    print("Obs.: o saldo estimado só é preciso se TODAS as recargas foram registradas "
-          "e cobre o gasto já rastreado em custo_llm.")
+    registrar_custo_llm("anthropic", 0, 0, valor, contexto=ctx, referencia=ref)
+    if ancora:
+        print(f"Saldo do console ANCORADO: US$ {valor:.2f} (a partir de agora)")
+    else:
+        print(f"Recarga registrada: US$ {valor:.2f}" + (f" ({data})" if data else "")
+              + (f" — {nota}" if nota else ""))
+    s = monitor_llm.saldo_anthropic()
+    print(f"SALDO ESTIMADO ATUAL (anthropic): US$ {s['saldo_usd']:.2f}  [{s['detalhe']}]")
     return 0
 
 

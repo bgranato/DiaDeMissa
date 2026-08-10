@@ -140,7 +140,8 @@ def _enviar(assunto: str, html: str) -> bool:
 # Contextos que NÃO são gasto de montagem: erro de crédito (custo 0) e recargas
 # (crédito adicionado, contabilizado à parte no saldo estimado).
 _CTX_RECARGA = "recarga_credito"
-_NAO_GASTO = ("erro_credito", _CTX_RECARGA)
+_CTX_ANCORA = "saldo_ancora"  # saldo real informado do console numa data (ponto de partida)
+_NAO_GASTO = ("erro_credito", _CTX_RECARGA, _CTX_ANCORA)
 
 
 # ---------------------------------------------------------------- custo (custo_llm)
@@ -211,32 +212,74 @@ def total_recargas() -> float:
         db.close()
 
 
-def gasto_acumulado() -> float:
-    """Gasto total histórico (exclui erro_credito e recargas)."""
+def gasto_acumulado(desde: datetime | None = None) -> float:
+    """Gasto (exclui erro_credito, recargas e âncora). Se `desde`, só a partir da data."""
     from app.core.database import SessionLocal
     from app.models.custo_llm import CustoLLM
     db = SessionLocal()
     try:
-        rows = db.query(CustoLLM).filter(CustoLLM.contexto.notin_(_NAO_GASTO)).all()
+        q = db.query(CustoLLM).filter(CustoLLM.contexto.notin_(_NAO_GASTO))
+        if desde is not None:
+            q = q.filter(CustoLLM.data_criacao >= desde)
+        return round(sum(float(r.custo_usd or 0.0) for r in q.all()), 2)
+    finally:
+        db.close()
+
+
+def saldo_ancora() -> tuple[float, datetime] | None:
+    """Último saldo real informado do console (contexto='saldo_ancora'): (valor, data)."""
+    from app.core.database import SessionLocal
+    from app.models.custo_llm import CustoLLM
+    db = SessionLocal()
+    try:
+        r = (db.query(CustoLLM).filter(CustoLLM.contexto == _CTX_ANCORA)
+             .order_by(CustoLLM.data_criacao.desc()).first())
+        if not r:
+            return None
+        d = r.data_criacao
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=timezone.utc)
+        return (float(r.custo_usd or 0.0), d)
+    finally:
+        db.close()
+
+
+def recargas_desde(desde: datetime) -> float:
+    from app.core.database import SessionLocal
+    from app.models.custo_llm import CustoLLM
+    db = SessionLocal()
+    try:
+        rows = db.query(CustoLLM).filter(
+            CustoLLM.contexto == _CTX_RECARGA, CustoLLM.data_criacao >= desde).all()
         return round(sum(float(r.custo_usd or 0.0) for r in rows), 2)
     finally:
         db.close()
 
 
 def saldo_anthropic() -> dict:
-    """A Admin API da Anthropic expõe CUSTO/USO, não o saldo de créditos pré-pagos —
-    não há endpoint de saldo. Usamos SALDO ESTIMADO = recargas registradas − gasto
-    acumulado (custo_llm). Preciso apenas se todas as recargas forem registradas via
-    scripts/registrar_recarga.py."""
+    """A Anthropic NÃO expõe saldo por API (a Admin API dá só custo/uso). Duas formas de
+    estimar, nesta ordem de preferência:
+      1) ÂNCORA: saldo real informado do console numa data D (registrar_recarga.py
+         --saldo-atual X) → saldo = X + recargas(desde D) − gasto(desde D). Robusto:
+         não depende do histórico anterior nem carrega gasto antigo.
+      2) Recargas − gasto acumulado (fallback, menos preciso)."""
+    anc = saldo_ancora()
+    if anc is not None:
+        base, dt = anc
+        saldo = round(base + recargas_desde(dt) - gasto_acumulado(desde=dt), 2)
+        return {"provedor": "anthropic", "saldo_usd": saldo, "estimado": True,
+                "detalhe": f"estimado a partir do saldo do console em {dt.strftime('%d/%m')} "
+                           f"(US$ {base:.2f}) − gasto desde então"}
     recargas = total_recargas()
     if recargas > 0:
         gasto = gasto_acumulado()
         saldo = round(recargas - gasto, 2)
         return {"provedor": "anthropic", "saldo_usd": saldo, "estimado": True,
                 "detalhe": f"estimado: recargas US$ {recargas:.2f} − gasto US$ {gasto:.2f} "
-                           f"(registre recargas com scripts/registrar_recarga.py)"}
+                           f"(dica: registre o saldo do console com --saldo-atual)"}
     return {"provedor": "anthropic", "saldo_usd": None,
-            "detalhe": "n/d — registre recargas com scripts/registrar_recarga.py <valor> "
+            "detalhe": "n/d — informe o saldo do console com "
+                       "scripts/registrar_recarga.py --saldo-atual <valor> "
                        "(Anthropic não expõe saldo por API)"}
 
 
