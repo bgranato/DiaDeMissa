@@ -20,3 +20,21 @@ backend/data/
 .env
 !.env.example
 coverage/
+
+# Produto web: app mobile e seus artefatos não fazem parte do release.
+apps/mobile/
+
+# Evidências locais, insumos e históricos não são código-fonte de produção.
+relatorio de atividades/
+reports/
+folhetos-missa/
+v2/
+data/pdfs/
+.claude/
+
+# Nunca versionar credenciais ou variantes locais de ambiente.
+*.key
+*-api-key-*.txt
+.env.*
+!.env.example
+!.env.*.example

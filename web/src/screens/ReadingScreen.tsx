@@ -20,8 +20,17 @@ interface SectionInfo {
   primeiraOcorrencia: boolean
 }
 
+interface BlocoLeitura {
+  ordem?: number | null
+  tipo?: string
+  descricao?: string | null
+  titulo?: string | null
+  secao?: string | null
+  [campo: string]: any
+}
+
 export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Props) => {
-  const [todosBlocos, setTodosBlocos] = useState<any[]>([])
+  const [todosBlocos, setTodosBlocos] = useState<BlocoLeitura[]>([])
   const [missaData, setMissaData] = useState<string | null>(null)
   const [missaTitulo, setMissaTitulo] = useState<string | null>(null)
   const [missaCategoria, setMissaCategoria] = useState<string | null>(null)
@@ -50,7 +59,7 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
       : getMissaAtual()
     fetcher
       .then((missa: any) => {
-        setTodosBlocos(missa.blocos || [])
+        setTodosBlocos((missa.blocos || []) as BlocoLeitura[])
         const data = missa.data || null
         setMissaData(data)
         setMissaTitulo(missa.titulo_celebracao || null)
@@ -84,7 +93,7 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
 
   // Reconstrói a lista de blocos navegáveis + o mapa de seções (mesma lógica de antes).
   const { blocos, secaoPorIndice } = (() => {
-    const list: any[] = []
+    const list: BlocoLeitura[] = []
     const sec: Record<number, SectionInfo> = {}
     const descSec = new Map<string, string>()
     const secaoJaUsada = new Set<string>()
@@ -92,7 +101,7 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
     // ORDEM ESTRITA da API: o renderer respeita o campo `ordem` do folheto e NÃO
     // reordena localmente (ex.: não puxa a Antífona da Comunhão para antes/depois
     // do "Momento de silêncio"). Cada bloco aparece exatamente na sua posição.
-    const ordenados = ordenarBlocos(todosBlocos)
+    const ordenados = ordenarBlocos<BlocoLeitura>(todosBlocos)
 
     for (const b of ordenados) {
       if (b.tipo === 'secao' && b.descricao) descSec.set(b.titulo, b.descricao)

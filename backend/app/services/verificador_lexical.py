@@ -43,7 +43,12 @@ def _key(w: str) -> str:
 
 
 def _palavras(texto: str):
-    return _WORD_RE.findall(unicodedata.normalize("NFC", texto or ""))
+    # O extrator do PDF pode quebrar uma palavra hifenizada no fim da linha como
+    # ``dai-\n-nos``. Antes de tokenizar, recompomos somente esse padrão de
+    # continuação alfabética; hifens internos normais continuam preservados.
+    texto = unicodedata.normalize("NFC", texto or "")
+    texto = re.sub(r"(?<=[a-zà-ÿ])-\s*\n\s*-?(?=[a-zà-ÿ])", "", texto, flags=re.IGNORECASE)
+    return _WORD_RE.findall(texto)
 
 
 def vocabulario_fonte(texto_limpo: str) -> set[str]:

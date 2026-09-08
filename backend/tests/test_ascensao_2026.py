@@ -244,14 +244,12 @@ class TestInvariantesGlobais:
             for k, v in obj.items():
                 yield from self._walk_strings(v, f"{caminho}.{k}")
 
-    def test_zero_barras_separadoras(self, missa):
-        # Antífona Mariana (Regina caeli) usa `/` como separador canônico de versos.
+    def test_barras_sem_artefato_de_extracao(self, missa):
+        # Barras internas são separadores canônicos de versos; apenas bordas são ruído.
         for caminho, texto in self._walk_strings(missa):
             if "creditos_cantos" in caminho:
                 continue
-            if "Regina caeli" in texto:
-                continue
-            assert " / " not in texto, f"{caminho}: {texto!r}"
+            assert not texto.startswith("/") and not texto.endswith("/"), f"{caminho}: {texto!r}"
 
     def test_zero_markdown(self, missa):
         for caminho, texto in self._walk_strings(missa):

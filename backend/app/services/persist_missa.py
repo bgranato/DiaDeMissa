@@ -22,6 +22,31 @@ def _parse_data(data_str: str) -> _date:
     return _date.fromisoformat(data_str)
 
 
+def conferencia_publicavel(revisao_json: Optional[dict]) -> bool:
+    """Só a evidência completa do Gauntlet pode tornar uma missa pública.
+
+    O status ``concluido`` é o que as rotas públicas usam para exibir uma missa.
+    Por isso a regra fica na própria fronteira de persistência, e não apenas no
+    orquestrador: chamadas legadas não podem pular o PDF, o crítico independente
+    ou o contrato registrado.
+    """
+    conferencia = (revisao_json or {}).get("conferencia")
+    contrato = conferencia.get("contrato") if isinstance(conferencia, dict) else None
+    return bool(
+        isinstance(conferencia, dict)
+        and conferencia.get("conferida") is True
+        and isinstance(contrato, dict)
+        and "PDF oficial" in str(contrato.get("referencia", ""))
+        and "zero diverg" in str(contrato.get("metrica", "")).lower()
+        and isinstance(contrato.get("limite_iteracoes"), int)
+        and 1 <= contrato["limite_iteracoes"] <= 3
+        and isinstance(contrato.get("papeis"), dict)
+        and {"construtor", "critico", "referencia"}.issubset(contrato["papeis"])
+        and isinstance(contrato.get("fora_do_escopo"), list)
+        and conferencia.get("divergencias_restantes") == []
+    )
+
+
 def persistir_missa(
     db: Session,
     missa_pydantic: MissaSchema,
@@ -29,8 +54,9 @@ def persistir_missa(
     pdf_hash: Optional[str] = None,
     fonte_url: Optional[str] = None,
     pdf_bytes: Optional[bytes] = None,
+    revisao_json: Optional[dict] = None,
 ) -> MissaModel:
-    """Upsert a missa estruturada no BD. Substitui blocos existentes."""
+    """Upsert da missa estruturada, publicando somente com Gauntlet aprovado."""
     data = _parse_data(missa_pydantic.data)
     existente = db.query(MissaModel).filter(MissaModel.data == data).first()
 
@@ -43,6 +69,7 @@ def persistir_missa(
         "[pipeline] fallback=" in _obs_nova
         and existente is not None
         and existente.status_processamento == "concluido"
+        and conferencia_publicavel(existente.revisao_json)
         and "[pipeline] fallback=" not in (existente.observacoes or "")
     ):
         import logging
@@ -53,6 +80,7 @@ def persistir_missa(
         )
         return existente
 
+    aprovada = conferencia_publicavel(revisao_json)
     payload = dict(
         data=data,
         celebracao=missa_pydantic.titulo_celebracao,
@@ -67,7 +95,11 @@ def persistir_missa(
         fonte_pdf_url=fonte_url or settings.PDF_URL,
         pdf_hash=pdf_hash,
         pipeline_version=pipeline_version(),
-        status_processamento="concluido",
+        # Sem a conferência registrada, a montagem fica retida por padrão. Isso
+        # fecha os caminhos legados que antes podiam publicar só por terem
+        # estruturado um PDF ou um texto de outra fonte.
+        status_processamento="concluido" if aprovada else "pendente_revisao",
+        revisao_json=revisao_json,
     )
 
     if existente:
@@ -158,39 +190,6 @@ def persistir_missa(
         import logging
         logging.getLogger(__name__).exception(
             "Falha ao auditar missa %s (não bloqueante)", missa.data
-        )
-
-    # GATE PDF (pilar 2): um 2º modelo (Sonnet) confere a montagem contra o PDF
-    # OFICIAL. Divergência CRÍTICA (ref/rubrica/texto) → pendente_revisao. Precisa
-    # dos bytes do PDF + USAR_GATE_PDF=1. Fail-open dentro do auditar_contra_pdf.
-    try:
-        from app.services.auditor_folheto import usar_gate_pdf, auditar_contra_pdf
-        if pdf_bytes and usar_gate_pdf() and missa.status_processamento == "concluido":
-            import logging
-            rel_pdf = auditar_contra_pdf(missa, pdf_bytes)
-            # Guarda o resultado do gate para o admin revisar (diff PDF×montagem).
-            missa.revisao_json = {
-                "ok": rel_pdf.get("ok"),
-                "criticas": rel_pdf.get("criticas", []),
-                "todas": rel_pdf.get("todas", []),
-            }
-            db.add(missa)
-            db.commit()
-            db.refresh(missa)
-            if not rel_pdf["ok"]:
-                missa.status_processamento = "pendente_revisao"
-                db.add(missa)
-                db.commit()
-                db.refresh(missa)
-                logging.getLogger(__name__).warning(
-                    "GATE PDF: missa %s -> pendente_revisao (%d crítica(s)): %s",
-                    missa.data, len(rel_pdf["criticas"]),
-                    "; ".join(str(c.get("detalhe") or c.get("esperado_pdf")) for c in rel_pdf["criticas"])[:500],
-                )
-    except Exception:
-        import logging
-        logging.getLogger(__name__).exception(
-            "Gate PDF falhou (não bloqueante) %s", missa.data
         )
 
     # Alerta por e-mail "missa disponível" — 1x por missa, só se publicada (concluido).

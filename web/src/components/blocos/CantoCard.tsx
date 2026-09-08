@@ -12,7 +12,7 @@ const RefraoBox = ({ refrao }: { refrao: string[] }) => (
   </div>
 )
 
-const Estrofe = ({ versos, numero }: { versos: string[]; numero: number }) => (
+const Estrofe = ({ versos, numero }: { key?: string; versos: string[]; numero: number }) => (
   <div className="flex gap-2.5 items-start">
     <span className="flex-shrink-0 w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold flex items-center justify-center mt-0.5">
       {numero}

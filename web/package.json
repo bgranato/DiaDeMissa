@@ -8,8 +8,9 @@
     "build": "vite build && node scripts/verify-build.mjs",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "test": "vitest run",
+    "test": "vitest run --environment jsdom --globals",
     "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
     "verify:build": "node scripts/verify-build.mjs"
   },
   "dependencies": {

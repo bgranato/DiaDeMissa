@@ -1,20 +1,28 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Dia de Missa
 
-# Run and deploy your AI Studio app
+Aplicação web para acompanhar a liturgia católica a partir dos folhetos oficiais
+arquivados da Arquidiocese.
 
-This contains everything you need to run your app locally.
+## Estrutura ativa
 
-View your app in AI Studio: https://ai.studio/apps/0588c84c-d184-44cf-9201-4b9970f64f38
+- `web/`: interface Vite/React publicada em `https://diademissa.com.br`.
+- `backend/`: API FastAPI, pipeline de montagem e persistência.
+- `docs/GAUNTLET_LOOP.md`: contrato de fidelidade litúrgica para a montagem das missas.
 
-## Run Locally
+## Desenvolvimento
 
-**Prerequisites:**  Node.js
+Backend:
 
+```bash
+backend/.venv/bin/python -m pytest backend/tests -q
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Frontend:
+
+```bash
+npm --prefix web run build
+```
+
+O pipeline de montagem usa o PDF oficial como referência e só publica conteúdo
+aprovado pelo Gauntlet Loop. Artefatos locais, PDFs de cache, relatórios e
+credenciais não fazem parte do repositório nem do release.

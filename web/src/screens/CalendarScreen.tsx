@@ -104,7 +104,7 @@ export const CalendarScreen = ({ setScreen }: Props) => {
     }
   }
 
-  function CardMissa({ m, proxima }: { m: MissaAgenda; proxima?: boolean }) {
+  function CardMissa({ m, proxima }: { key?: string; m: MissaAgenda; proxima?: boolean }) {
     const { dia, mes, diaSemana } = partesData(m.data)
     const status = statusLocal(m.data)
     const temLembrete = !!(m.id && lembretes[m.id])

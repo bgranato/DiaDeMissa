@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, String, func
 
@@ -13,12 +13,14 @@ from app.core.security import (
     criar_access_token,
     gerar_hash_senha,
     obter_usuario_atual,
+    obter_usuario_opcional,
     obter_usuario_admin,
     verificar_senha,
 )
 from app.models.usuario import Usuario, PreferenciaUsuario, HistoricoUsuario, Lembrete
 from app.models.missa import Missa, BlocoLiturgico
 from app.models.igreja import Igreja, UsuarioIgreja
+from app.models.uso_geocoding import UsoGeocodingMensal
 from app.schemas.usuario import (
     UsuarioCreate, UsuarioResponse, UsuarioUpdate,
     LoginRequest, LoginGoogleRequest, LoginGoogleTokenRequest, LoginResponse,
@@ -32,9 +34,11 @@ from app.models.custo_llm import CustoLLM
 from app.schemas.missa import (
     BlocoResponse, MissaResponse, MissaCompletaResponse,
 )
-from app.schemas.igreja import IgrejaCreate, IgrejaUpdate, IgrejaResponse
-from app.services.mass_processor import processar_missa
+from app.schemas.igreja import IgrejaCreate, IgrejaUpdate, IgrejaResponse, LocalizacaoEnderecoRequest
 from app.pipeline import processar_pdf
+from app.services.catalogo_catolico import eh_local_catolico_oficial
+from app.services.google_places import GeocodingIndisponivelError, geocodificar_query_google, geocoding_configurado
+from app.services.cota_geocoding import ControleGeocodingIndisponivelError, reservar_consulta
 
 router = APIRouter()
 
@@ -45,10 +49,24 @@ def health_check():
 
 
 from pathlib import Path
-from app.services.persist_missa import reconstruir_missa
+from app.services.persist_missa import conferencia_publicavel, reconstruir_missa
 PDF_FIXTURE = Path(__file__).resolve().parent.parent.parent / "tests" / "fixtures" / "amissa_ascensao_2026.pdf"
 
 _fixture_cache = None
+
+
+def missa_publicavel(missa: Missa | None, *, exigir_blocos: bool = True) -> bool:
+    """Defesa em profundidade da exposição pública de uma missa.
+
+    Mesmo se um dado inconsistente chegar ao banco, `concluido` sozinho jamais
+    basta para entregá-lo ao fiel: a conferência Gauntlet completa é obrigatória.
+    """
+    return bool(
+        missa
+        and missa.status_processamento == "concluido"
+        and conferencia_publicavel(missa.revisao_json)
+        and (not exigir_blocos or bool(missa.blocos))
+    )
 
 def _carregar_fixture():
     global _fixture_cache
@@ -149,7 +167,7 @@ def buscar_missas(
                 Missa.celebracao.ilike(f"%{q}%"),
                 Missa.observacoes.ilike(f"%{q}%"),
             ))
-    missas = query.order_by(Missa.data.desc()).limit(50).all()
+    missas = [m for m in query.order_by(Missa.data.desc()).all() if missa_publicavel(m)][:50]
     return [
         {
             "id": m.id,
@@ -194,7 +212,7 @@ def missa_por_data_estruturada(data_iso: str, db: Session = Depends(get_db)):
     except ValueError:
         raise HTTPException(status_code=400, detail="Data inválida (use YYYY-MM-DD)")
     missa_db = db.query(Missa).filter(Missa.data == data_obj).first()
-    if missa_db and missa_db.status_processamento == "concluido" and missa_db.blocos:
+    if missa_publicavel(missa_db):
         return reconstruir_missa(missa_db)
     # Regra "só folheto": sem folheto processado pra essa data → não há missa.
     # Não fabricamos mais via CNBB/Missal Padrão.
@@ -232,7 +250,7 @@ def missa_atual(db: Session = Depends(get_db)):
     candidatas = [alvo] if alvo == hoje_real else [alvo, hoje_real]
     for data in candidatas:
         missa_db = db.query(Missa).filter(Missa.data == data).first()
-        if missa_db and missa_db.status_processamento == "concluido" and missa_db.blocos:
+        if missa_publicavel(missa_db):
             return reconstruir_missa(missa_db)
 
     # Regra "só folheto": sem folheto processado pra hoje → não há missa.
@@ -258,7 +276,7 @@ def missa_proxima(db: Session = Depends(get_db)):
         .all()
     )
     for m in candidatas:
-        if m.blocos:
+        if missa_publicavel(m):
             return {
                 "data": m.data.isoformat(),
                 "celebracao": m.celebracao,
@@ -286,7 +304,7 @@ def missa_agenda(db: Session = Depends(get_db)):
     for m in (db.query(Missa)
               .filter(Missa.data < hoje, Missa.status_processamento == "concluido")
               .order_by(Missa.data.desc()).all()):
-        if m.blocos:
+        if missa_publicavel(m):
             anteriores.append(_dump(m))
         if len(anteriores) >= 3:
             break
@@ -295,7 +313,7 @@ def missa_agenda(db: Session = Depends(get_db)):
     for m in (db.query(Missa)
               .filter(Missa.data >= hoje, Missa.status_processamento == "concluido")
               .order_by(Missa.data.asc()).all()):
-        if m.blocos:
+        if missa_publicavel(m):
             proxima = {**_dump(m), "montada": True}
             break
     if proxima is None:
@@ -314,7 +332,7 @@ def get_missa_hoje(db: Session = Depends(get_db)):
     missa = db.query(Missa).filter(Missa.data == alvo).first()
     if not missa and alvo != hoje_real:
         missa = db.query(Missa).filter(Missa.data == hoje_real).first()
-    if not missa:
+    if not missa_publicavel(missa, exigir_blocos=False):
         raise HTTPException(status_code=404, detail="Missa para hoje ainda não disponível")
     return MissaResponse(
         id=missa.id,
@@ -331,7 +349,7 @@ def get_missa_hoje(db: Session = Depends(get_db)):
 @router.get("/missas/{data}", response_model=MissaResponse)
 def get_missa_por_data(data: date, db: Session = Depends(get_db)):
     missa = db.query(Missa).filter(Missa.data == data).first()
-    if not missa:
+    if not missa_publicavel(missa, exigir_blocos=False):
         raise HTTPException(status_code=404, detail="Missa não encontrada para esta data")
     return MissaResponse(
         id=missa.id,
@@ -348,7 +366,7 @@ def get_missa_por_data(data: date, db: Session = Depends(get_db)):
 @router.get("/missas/{id}/blocos", response_model=list[BlocoResponse])
 def get_blocos_missa(id: int, db: Session = Depends(get_db)):
     missa = db.query(Missa).filter(Missa.id == id).first()
-    if not missa:
+    if not missa_publicavel(missa):
         raise HTTPException(status_code=404, detail="Missa não encontrada")
     blocos = (
         db.query(BlocoLiturgico)
@@ -362,18 +380,20 @@ def get_blocos_missa(id: int, db: Session = Depends(get_db)):
 @router.get("/missas/{id}/completa", response_model=MissaCompletaResponse)
 def get_missa_completa(id: int, db: Session = Depends(get_db)):
     missa = db.query(Missa).filter(Missa.id == id).first()
-    if not missa:
+    if not missa_publicavel(missa):
         raise HTTPException(status_code=404, detail="Missa não encontrada")
     return MissaCompletaResponse.model_validate(missa)
 
 
 @router.post("/missas/processar-pdf")
-def processar_pdf(db: Session = Depends(get_db)):
-    try:
-        missa = processar_missa(db)
-        return {"message": "Processamento concluído", "missa_id": missa.id}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro no processamento: {str(e)}")
+def processar_pdf_legado(admin: Usuario = Depends(obter_usuario_admin)):
+    """Compatibilidade para a rota antiga, agora protegida pelo mesmo gate.
+
+    A rota antes acionava o processador legado sem revisão independente. Mantemos
+    a URL para clientes administrativos, mas delegamos ao pipeline produtivo.
+    """
+    from app.services.daily_pipeline import executar_pipeline_diario
+    return executar_pipeline_diario()
 
 
 @router.post("/admin/pipeline/executar")
@@ -413,8 +433,10 @@ def atualizar_liturgia_manual(
     Esse endpoint existe pra ops/desenvolvimento; o cron diário às 5h05 chama
     a mesma função automaticamente.
     """
-    from app.services.liturgia_diaria_job import executar_liturgia_diaria
-    return executar_liturgia_diaria(lookahead_dias=dias)
+    raise HTTPException(
+        status_code=409,
+        detail="Fluxo CNBB/Missal bloqueado: publique somente pelo PDF oficial e Gauntlet Loop.",
+    )
 
 
 @router.post("/admin/lembretes/disparar-nao-acompanhada")
@@ -451,14 +473,19 @@ def admin_listar_revisao(
 
     def dump(m: Missa) -> dict:
         rev = m.revisao_json or {}
+        conferencia = rev.get("conferencia") or {}
+        divergencias = conferencia.get("divergencias_restantes", rev.get("todas", []))
+        criticas = [d for d in divergencias
+                     if str(d.get("severidade", "")).lower() == "critica"]
         return {
             "data": m.data.isoformat() if m.data else None,
             "titulo_celebracao": m.celebracao,
             "status": m.status_processamento,
             "pdf_url": f"/api/v1/missas/{m.data.isoformat()}/pdf-arqrio" if m.data else None,
-            "gate_ok": rev.get("ok"),
-            "criticas": rev.get("criticas", []),
-            "divergencias": rev.get("todas", []),
+            "gate_ok": conferencia.get("conferida", rev.get("ok")),
+            "criticas": criticas or rev.get("criticas", []),
+            "divergencias": divergencias,
+            "iteracoes": conferencia.get("iteracoes"),
         }
 
     return {"total": len(missas), "missas": [dump(m) for m in missas]}
@@ -470,12 +497,21 @@ def admin_aprovar_missa(
     admin: Usuario = Depends(obter_usuario_admin),
     db: Session = Depends(get_db),
 ):
-    """Aprova manualmente uma missa em pendente_revisao → volta a `concluido`
-    (fica visível ao fiel). Use após conferir o diff PDF×montagem."""
+    """Publica somente uma revisão que já tenha passado pelo Gauntlet Loop."""
     from datetime import date as _date
     m = db.query(Missa).filter(Missa.data == _date.fromisoformat(data_iso)).first()
     if not m:
         raise HTTPException(status_code=404, detail=f"Missa {data_iso} não encontrada")
+    from app.services.persist_missa import conferencia_publicavel
+
+    conferencia = (m.revisao_json or {}).get("conferencia") or {}
+    divergencias = conferencia.get("divergencias_restantes", (m.revisao_json or {}).get("todas", []))
+    tem_critica = any(str(d.get("severidade", "")).lower() == "critica" for d in divergencias)
+    if not conferencia_publicavel(m.revisao_json) or tem_critica:
+        raise HTTPException(
+            status_code=409,
+            detail="Publicação bloqueada: corrija e reexecute a conferência independente contra o PDF.",
+        )
     m.status_processamento = "concluido"
     db.add(m)
     db.commit()
@@ -1292,21 +1328,35 @@ def _serializar_igreja(igreja: Igreja, favorita_ids: set[int], lat: Optional[flo
 @router.get("/igrejas")
 def listar_igrejas(
     q: Optional[str] = None,
-    lat: Optional[float] = None,
-    lng: Optional[float] = None,
-    raio_km: Optional[float] = None,
-    limite: int = 50,
-    usuario: Usuario = Depends(obter_usuario_atual),
+    lat: Optional[float] = Query(default=None, ge=-90, le=90),
+    lng: Optional[float] = Query(default=None, ge=-180, le=180),
+    raio_km: Optional[float] = Query(default=None, gt=0, le=10),
+    limite: int = Query(default=50, ge=1, le=50),
+    usuario: Optional[Usuario] = Depends(obter_usuario_opcional),
     db: Session = Depends(get_db),
 ):
     """Lista igrejas com filtros opcionais.
 
     - `q`: substring case-insensitive em nome, endereço ou cidade
     - `lat`+`lng`: ordena por proximidade; `raio_km` opcional para filtrar
-    - `favorita` é calculado por usuário autenticado
+    - o catálogo é público; `favorita` só é calculado quando há usuário autenticado
     """
-    from app.services.geocoding import geocodificar_bairro
-    from app.services.google_places import buscar_igrejas_google_places, geocodificar_query_google
+    from math import isfinite
+
+    # Proximidade só é uma afirmação válida com um par completo de coordenadas.
+    # Nunca ignoramos silenciosamente metade do par ou um raio sem ponto de origem.
+    if (lat is None) != (lng is None):
+        raise HTTPException(status_code=422, detail="Informe latitude e longitude juntas.")
+    if lat is not None and (
+        not isfinite(lat) or not isfinite(lng)
+        or not -90 <= lat <= 90 or not -180 <= lng <= 180
+    ):
+        raise HTTPException(status_code=422, detail="Latitude e longitude devem ser números finitos.")
+    if raio_km is not None:
+        if lat is None:
+            raise HTTPException(status_code=422, detail="Informe latitude e longitude para usar um raio.")
+        if raio_km not in (1, 3, 5, 10):
+            raise HTTPException(status_code=422, detail="O raio deve ser 1, 3, 5 ou 10 km.")
 
     IGNORAR = {"de", "da", "do", "das", "dos", "e", "a", "o", "em", "na", "no"}
     tokens = []
@@ -1315,11 +1365,17 @@ def listar_igrejas(
             if len(t) >= 2 and t not in IGNORAR:
                 tokens.append(t)
 
-    todas = db.query(Igreja).all()
+    # O catálogo é a fonte local atualizada pelo job da Arquidiocese. A busca de
+    # visitantes não consulta Google/OSM, evitando custo e resultados instáveis.
+    todas = [
+        igreja for igreja in db.query(Igreja).all()
+        if eh_local_catolico_oficial(igreja)
+    ]
 
     # Score por relevância:
+    # +4 token no bairro extraído — quer dizer que a igreja FICA naquele lugar
     # +3 token no nome da igreja (matriz/capela)
-    # +2 token no bairro extraído OU na cidade — quer dizer que a igreja FICA naquele lugar
+    # +2 token na cidade ou nos aliases cadastrados
     # +1 token em qualquer outro lugar do endereço (rua) — match fraco, evita confundir
     #    rua chamada "Estrada da Gávea" com bairro Gávea.
     def _score_nome(i: Igreja) -> int:
@@ -1334,48 +1390,29 @@ def listar_igrejas(
         obs_n = _normalizar(i.observacoes or "")
         score = 0
         for t in tokens:
-            if t in nome_n:
+            if t in bairro_n:
+                score += 4
+            elif t in nome_n:
                 score += 3
-            elif t in bairro_n or t in cidade_n:
+            elif t in cidade_n:
                 score += 2
             elif t in obs_n:
-                score += 2  # apelido conta como bairro (forte) — usuário sabe o nome popular
+                score += 2  # apelido é útil, mas não supera o bairro real
             elif t in endereco_n:
                 score += 1
         return score
 
     matches_nome = [(i, _score_nome(i)) for i in todas if _score_nome(i) > 0] if tokens else []
 
-    # Tenta geocodificar o termo (com viés pela geolocalização do usuário) — usado
-    # principalmente pra desempate por distância e pra modo "região pura" se nada bate.
-    centro_bairro: Optional[tuple[float, float]] = None
-    if q and len(q.strip()) >= 3:
-        # Tenta Google Geocoding primeiro (entende "Igreja da PUC", "Maracanã", etc.)
-        # Se não houver API key, retorna None silenciosamente → cai no Nominatim.
-        try:
-            centro_bairro = geocodificar_query_google(q.strip(), bias_lat=lat, bias_lng=lng)
-        except Exception:
-            centro_bairro = None
-        # Fallback: Nominatim
-        if centro_bairro is None:
-            try:
-                centro_bairro = geocodificar_bairro(q.strip(), bias_lat=lat, bias_lng=lng)
-            except Exception:
-                centro_bairro = None
-
-    def _dist_ao_centro(i: Igreja) -> float:
-        if centro_bairro is None or i.lat is None or i.lng is None:
-            return 9999.0
-        return _calc_distancia_km(centro_bairro[0], centro_bairro[1], i.lat, i.lng)
-
     igrejas: list[Igreja] = []
 
     if matches_nome:
-        # Ordena por score desc; desempate por distância ao centro geocodado (se houver).
+        # Ordena por relevância do catálogo local; proximidade é aplicada abaixo
+        # quando o próprio navegador fornece latitude/longitude.
         # Como score em bairro/cidade (+2) é maior que em rua (+1), igrejas que FICAM no
         # bairro buscado ranqueiam acima de igrejas em rua com nome do bairro mas localizadas
         # em outro bairro (ex.: "Estrada da Gávea, Jardim Botânico").
-        matches_nome.sort(key=lambda x: (-x[1], _dist_ao_centro(x[0])))
+        matches_nome.sort(key=lambda x: -x[1])
 
         # Mantém TODAS as igrejas com score alto (≥2 = match bairro/cidade ou nome).
         # Matches de score 1 (só rua) entram após e em quantidade limitada — evita ruído.
@@ -1383,64 +1420,93 @@ def listar_igrejas(
         fracos = [i for i, s in matches_nome if s == 1]
         igrejas = fortes + fracos[:10]
 
-    elif centro_bairro:
-        # Modo região pura: nenhum nome bateu, mas geocodou → o termo é provavelmente um
-        # bairro/cidade. Lista igrejas próximas ordenadas por distância.
-        perto = []
-        for i in todas:
-            if i.lat is None or i.lng is None:
-                continue
-            d = _dist_ao_centro(i)
-            perto.append((d, i))
-        perto.sort(key=lambda x: x[0])
-        # Raio adaptativo pra cobrir desde bairro pequeno até cidade
-        for raio in (3.0, 10.0, 30.0):
-            dentro = [(d, i) for d, i in perto if d <= raio]
-            if len(dentro) >= 5:
-                perto = dentro
-                break
-
-        # Fallback Google Places (no-op sem API key)
-        if len(perto) < 3:
-            descobertas = buscar_igrejas_google_places(centro_bairro[0], centro_bairro[1], raio_m=5000)
-            if descobertas:
-                existentes_cache = list(todas)
-                novas = 0
-                for d in descobertas:
-                    if any(_eh_mesma_igreja(e, d["nome"], d.get("lat"), d.get("lng")) for e in existentes_cache):
-                        continue
-                    nova = Igreja(**d)
-                    db.add(nova)
-                    existentes_cache.append(nova)
-                    novas += 1
-                if novas:
-                    db.commit()
-                    todas = db.query(Igreja).all()
-                    perto = sorted(
-                        [(_dist_ao_centro(i), i) for i in todas if i.lat and i.lng and _dist_ao_centro(i) <= 30.0],
-                        key=lambda x: x[0],
-                    )
-
-        igrejas = [i for _, i in perto[:25]]
-
-        if lat is None and lng is None:
-            lat, lng = centro_bairro
-    else:
+    elif not tokens:
         igrejas = todas
 
-    fav_ids = set(
-        r[0] for r in db.query(UsuarioIgreja.igreja_id)
-        .filter(UsuarioIgreja.usuario_id == usuario.id).all()
-    )
+    fav_ids = set()
+    if usuario is not None:
+        fav_ids = set(
+            r[0] for r in db.query(UsuarioIgreja.igreja_id)
+            .filter(UsuarioIgreja.usuario_id == usuario.id).all()
+        )
 
-    items = [_serializar_igreja(i, fav_ids, lat, lng) for i in igrejas]
+    # Mantém a distância bruta para ordenar e limitar. O valor arredondado é
+    # exclusivamente de apresentação: 1,004 km não pode entrar no raio de 1 km.
+    items_com_distancia: list[tuple[dict, Optional[float]]] = []
+    for igreja in igrejas:
+        distancia_bruta = None
+        if lat is not None and lng is not None and igreja.lat is not None and igreja.lng is not None:
+            distancia_bruta = _calc_distancia_km(lat, lng, igreja.lat, igreja.lng)
+        items_com_distancia.append((
+            _serializar_igreja(igreja, fav_ids, lat, lng),
+            distancia_bruta,
+        ))
 
     if lat is not None and lng is not None:
-        items.sort(key=lambda x: x["distancia_km"] if x["distancia_km"] is not None else 1e9)
+        items_com_distancia.sort(
+            key=lambda item: (
+                item[1] is None,
+                item[1] if item[1] is not None else float("inf"),
+                item[0]["id"],
+            )
+        )
         if raio_km is not None:
-            items = [x for x in items if x["distancia_km"] is not None and x["distancia_km"] <= raio_km]
+            items_com_distancia = [
+                item for item in items_com_distancia
+                if item[1] is not None and item[1] <= raio_km
+            ]
 
-    return items[:limite]
+    return [item for item, _ in items_com_distancia[:limite]]
+
+
+@router.post("/igrejas/localizar-endereco")
+def localizar_endereco_igrejas(
+    payload: LocalizacaoEnderecoRequest,
+    db: Session = Depends(get_db),
+):
+    """Resolve um endereço informado em coordenadas, sem salvar o texto recebido.
+
+    A chave de Geocoding fica exclusivamente no servidor. O frontend recebe somente
+    latitude/longitude e usa o catálogo católico local para a consulta seguinte.
+    """
+    from math import isfinite
+
+    endereco = payload.endereco.strip()
+    if len(endereco) < 5:
+        raise HTTPException(status_code=422, detail="Informe um endereço ou bairro mais completo.")
+
+    if not geocoding_configurado():
+        raise HTTPException(
+            status_code=503,
+            detail="O serviço de localização está indisponível no momento. Tente novamente mais tarde.",
+        )
+
+    try:
+        dentro_da_cota = reservar_consulta(db)
+    except ControleGeocodingIndisponivelError:
+        raise HTTPException(
+            status_code=503,
+            detail="O controle de uso da localização está indisponível no momento. Tente novamente mais tarde.",
+        )
+    if not dentro_da_cota:
+        raise HTTPException(
+            status_code=429,
+            detail="O limite mensal de buscas por endereço foi atingido. Use a sua localização atual ou tente no próximo mês.",
+        )
+
+    try:
+        ponto = geocodificar_query_google(endereco)
+    except GeocodingIndisponivelError:
+        raise HTTPException(
+            status_code=503,
+            detail="O serviço de localização está indisponível no momento. Tente novamente mais tarde.",
+        )
+    if ponto is None:
+        raise HTTPException(status_code=422, detail="Não foi possível localizar este endereço. Confira e tente novamente.")
+    lat, lng = ponto
+    if not isfinite(lat) or not isfinite(lng) or not -90 <= lat <= 90 or not -180 <= lng <= 180:
+        raise HTTPException(status_code=502, detail="O serviço de localização retornou uma coordenada inválida.")
+    return {"lat": lat, "lng": lng}
 
 
 @router.get("/igrejas/minhas")
@@ -1451,7 +1517,10 @@ def listar_minhas_igrejas(
     rows = (
         db.query(Igreja)
         .join(UsuarioIgreja, UsuarioIgreja.igreja_id == Igreja.id)
-        .filter(UsuarioIgreja.usuario_id == usuario.id)
+        .filter(
+            UsuarioIgreja.usuario_id == usuario.id,
+            Igreja.arqrio_local_id.isnot(None),
+        )
         .order_by(UsuarioIgreja.data_salva.desc())
         .all()
     )
@@ -1465,7 +1534,10 @@ def detalhar_igreja(
     usuario: Usuario = Depends(obter_usuario_atual),
     db: Session = Depends(get_db),
 ):
-    igreja = db.query(Igreja).filter(Igreja.id == igreja_id).first()
+    igreja = db.query(Igreja).filter(
+        Igreja.id == igreja_id,
+        Igreja.arqrio_local_id.isnot(None),
+    ).first()
     if not igreja:
         raise HTTPException(status_code=404, detail="Igreja não encontrada")
     fav = db.query(UsuarioIgreja).filter(
@@ -1481,7 +1553,10 @@ def favoritar_igreja(
     usuario: Usuario = Depends(obter_usuario_atual),
     db: Session = Depends(get_db),
 ):
-    igreja = db.query(Igreja).filter(Igreja.id == igreja_id).first()
+    igreja = db.query(Igreja).filter(
+        Igreja.id == igreja_id,
+        Igreja.arqrio_local_id.isnot(None),
+    ).first()
     if not igreja:
         raise HTTPException(status_code=404, detail="Igreja não encontrada")
     existente = db.query(UsuarioIgreja).filter(

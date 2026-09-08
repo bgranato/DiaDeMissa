@@ -12,6 +12,7 @@ from app.models.usuario import Usuario
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
+security_optional = HTTPBearer(auto_error=False)
 
 
 def _truncar_senha(senha: str) -> bytes:
@@ -55,6 +56,30 @@ def obter_usuario_atual(
     # Bloqueio/cancelamento pelo painel admin derruba o acesso (mesmo com token válido).
     if getattr(usuario, "status", "ativo") in ("bloqueado", "cancelado"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cadastro bloqueado ou cancelado")
+    return usuario
+
+
+def obter_usuario_opcional(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_optional),
+    db: Session = Depends(get_db),
+) -> Usuario | None:
+    """Resolve o usuário quando há token válido, sem bloquear rotas públicas.
+
+    Catálogos públicos podem usar esta dependência para personalizar campos como
+    `favorita`. Token ausente, expirado ou inválido equivale a visitante anônimo;
+    ações que alteram dados continuam usando `obter_usuario_atual`.
+    """
+    if credentials is None:
+        return None
+    try:
+        payload = jwt.decode(credentials.credentials, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        usuario_id = int(payload.get("sub"))
+    except (JWTError, TypeError, ValueError):
+        return None
+
+    usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
+    if usuario is None or getattr(usuario, "status", "ativo") in ("bloqueado", "cancelado"):
+        return None
     return usuario
 
 

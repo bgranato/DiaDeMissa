@@ -8,9 +8,13 @@ class TestSchema:
                   refrao=["O Senhor foi preparar"], estrofes=[["Aleluia!"]])
         assert c.tipo == "canto"
 
-    def test_rejeita_barra_no_texto(self):
-        with pytest.raises(ValueError, match="barra separadora"):
-            Canto(ordem=1, titulo="Canto / de Entrada")
+    def test_permite_barra_interna_como_separador_de_verso(self):
+        canto = Canto(ordem=1, titulo="Canto / de Entrada")
+        assert canto.titulo == "Canto / de Entrada"
+
+    def test_rejeita_barra_como_artefato_no_inicio_ou_fim(self):
+        with pytest.raises(ValueError, match="barra no início/fim"):
+            Canto(ordem=1, titulo="/ Canto de Entrada")
 
     def test_rejeita_postura_como_texto(self):
         with pytest.raises(ValueError, match="postura como texto"):

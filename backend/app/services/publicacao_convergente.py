@@ -10,6 +10,7 @@ restantes. `pipeline_version` é gravada pelo próprio `persistir_missa`.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from datetime import date as _date, datetime, timezone
 
 from sqlalchemy.orm import Session
@@ -38,17 +39,26 @@ def montar_e_publicar(db: Session, data_iso: str, pdf_bytes: bytes,
     resultado ∈ publicada | pendente_revisao | reprovada_mantida | erro_montagem.
     """
     from app.pipeline.montagem_convergente import montar_com_conferencia
-    from app.pipeline.download import hash_pdf
-    from app.services.persist_missa import persistir_missa
+    from app.pipeline.download import CACHE_DIR, hash_pdf
+    from app.services.persist_missa import conferencia_publicavel, persistir_missa
 
     inicio = datetime.now(timezone.utc)
     data = _date.fromisoformat(data_iso)
     existente = db.query(MissaModel).filter(MissaModel.data == data).first()
-    boa_existe = bool(
-        existente and existente.status_processamento == "concluido"
-        and "[pipeline] fallback=" not in (existente.observacoes or "")
-    )
+    boa_existe = bool(existente and conferencia_publicavel(existente.revisao_json))
 
+    # Retém legado antes de qualquer retorno por arquivo ausente/inválido.
+    if existente and existente.status_processamento == "concluido" and not boa_existe:
+        existente.status_processamento = "pendente_revisao"
+        db.add(existente)
+        db.commit()
+        db.refresh(existente)
+
+    pdf_arquivado = Path(CACHE_DIR) / "archive" / f"{data_iso}.pdf"
+    if not pdf_arquivado.exists() or hash_pdf(pdf_arquivado.read_bytes()) != hash_pdf(pdf_bytes):
+        logger.error("montagem bloqueada para %s: PDF oficial não está arquivado e íntegro", data_iso)
+        return {"data": data_iso, "resultado": "bloqueado_sem_pdf_arquivado", "conferida": False,
+                "iteracoes": 0, "custo_usd": 0.0}
     # FREIOS DE GASTO — nenhum processo automático gasta ilimitado. Consulta antes de
     # qualquer chamada LLM: disjuntor de crédito (402), orçamento diário, teto/missa.
     from app.services import freios_gasto
@@ -96,16 +106,18 @@ def montar_e_publicar(db: Session, data_iso: str, pdf_bytes: bytes,
 
     custo = _custo_no_intervalo(db, inicio)
     conf = {"conferida": meta["conferida"], "iteracoes": meta["iteracoes"],
-            "custo_usd": custo, "divergencias_restantes": meta["divergencias_restantes"]}
+            "custo_usd": custo, "divergencias_restantes": meta["divergencias_restantes"],
+            "contrato": meta.get("contrato", {})}
 
     if meta["conferida"]:
-        # Publica (gate antigo pulado — a conferência já é o gate). Guarda anti-fallback
-        # do persistir_missa continua ativa.
+        # A evidência entra na mesma persistência que torna a missa visível. Assim
+        # não há janela em que blocos novos fiquem ``concluido`` sem o veredito
+        # independente anexado (nem notificação antecipada ao fiel).
         m = persistir_missa(db, missa_pyd, pdf_hash=hash_pdf(pdf_bytes),
-                            fonte_url=settings.PDF_URL, pdf_bytes=None)
-        m.status_processamento = "concluido"
-        m.revisao_json = {**(m.revisao_json or {}), "conferencia": conf}
-        db.add(m); db.commit(); db.refresh(m)
+                            fonte_url=settings.PDF_URL, pdf_bytes=None,
+                            revisao_json={"conferencia": conf})
+        if m.status_processamento != "concluido":
+            raise RuntimeError("conferência aprovada não satisfez o gate de persistência")
         logger.info("PUBLICADA %s (conferida, %d iter, US$ %.4f)", data_iso, meta["iteracoes"], custo)
         return {"data": data_iso, "resultado": "publicada", **conf}
 
@@ -118,10 +130,10 @@ def montar_e_publicar(db: Session, data_iso: str, pdf_bytes: bytes,
 
     # Sem montagem boa: persiste como pendente_revisao para revisão humana.
     m = persistir_missa(db, missa_pyd, pdf_hash=hash_pdf(pdf_bytes),
-                        fonte_url=settings.PDF_URL, pdf_bytes=None)
-    m.status_processamento = "pendente_revisao"
-    m.revisao_json = {**(m.revisao_json or {}), "conferencia": conf}
-    db.add(m); db.commit(); db.refresh(m)
+                        fonte_url=settings.PDF_URL, pdf_bytes=None,
+                        revisao_json={"conferencia": conf})
+    if m.status_processamento != "pendente_revisao":
+        raise RuntimeError("montagem reprovada não foi retida pelo gate de persistência")
     _alerta(data_iso, f"Montagem NÃO convergiu ({meta['iteracoes']} iter) e não havia montagem boa. "
                       f"pendente_revisao. Divergências: {meta['divergencias_restantes']}")
     logger.warning("PENDENTE_REVISAO %s (não convergiu)", data_iso)

@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { AppHeader, Card } from '../components/UI'
 import { Church, Search, MapPin, Heart, Phone, Globe, Navigation, ExternalLink, Clock } from 'lucide-react'
-import { buscarIgrejas, minhasIgrejas, favoritarIgreja, desfavoritarIgreja } from '../services/igrejas'
+import { buscarIgrejas, localizarEndereco, minhasIgrejas, favoritarIgreja, desfavoritarIgreja } from '../services/igrejas'
 import type { Igreja } from '../types/igreja'
 
 interface Props {
@@ -10,6 +10,12 @@ interface Props {
 }
 
 type Aba = 'salvas' | 'buscar' | 'proximas'
+type OrigemProximidade = 'atual' | 'endereco'
+
+function pontoValido(ponto: { lat: number; lng: number }) {
+  return Number.isFinite(ponto.lat) && Number.isFinite(ponto.lng)
+    && ponto.lat >= -90 && ponto.lat <= 90 && ponto.lng >= -180 && ponto.lng <= 180
+}
 
 // Remove igrejas duplicadas (mesma paróquia vinda de fontes diferentes — ex.: catálogo
 // da Arquidiocese + Google/OSM). Agrupa por TELEFONE (sinal forte) ou, na falta,
@@ -48,66 +54,220 @@ export const IgrejasScreen = ({ setScreen }: Props) => {
   const [igrejas, setIgrejas] = useState<Igreja[]>([])
   const [loading, setLoading] = useState(false)
   const [geoErro, setGeoErro] = useState('')
-  // Localização do usuário (auto-detecta uma vez; usada pra ordenar busca por proximidade)
+  const [erroBusca, setErroBusca] = useState('')
+  // Localização confirmada pela pessoa; evita solicitar permissão sem uma ação explícita.
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [raioKm, setRaioKm] = useState(5)
+  const [origemProximidade, setOrigemProximidade] = useState<OrigemProximidade>('atual')
+  const [enderecoProximidade, setEnderecoProximidade] = useState('')
+  const consultaAtual = useRef(0)
+  const abortadorBusca = useRef<AbortController | null>(null)
 
-  // Tenta capturar localização ao montar (silencioso — se negar, busca segue sem coords)
-  useEffect(() => {
-    if (!navigator.geolocation) return
-    navigator.geolocation.getCurrentPosition(
-      pos => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => {},
-      { enableHighAccuracy: false, timeout: 6000 },
-    )
-  }, [])
+  function invalidarBuscaEmAndamento() {
+    consultaAtual.current += 1
+    abortadorBusca.current?.abort()
+    abortadorBusca.current = null
+  }
 
-  // Carrega ao trocar de aba — exceto em "buscar", que só carrega ao clicar no botão
+  function cancelarBuscaProximidade() {
+    invalidarBuscaEmAndamento()
+    setLoading(false)
+    setCoords(null)
+    setIgrejas([])
+    setGeoErro('')
+    setErroBusca('Busca cancelada.')
+  }
+
+  // "Próximas" solicita localização somente pelo botão, em gesto explícito do usuário.
   useEffect(() => {
     if (aba === 'buscar') {
       setIgrejas([])
+      setGeoErro('')
+      setErroBusca('')
+      return
+    }
+    if (aba === 'proximas' && !coords) {
+      setIgrejas([])
+      setGeoErro('')
+      setErroBusca('')
       return
     }
     carregar()
   }, [aba])
 
-  async function carregar() {
+  async function carregar(raioSelecionado = raioKm) {
+    invalidarBuscaEmAndamento()
+    const idConsulta = consultaAtual.current
+    const abortador = new AbortController()
+    abortadorBusca.current = abortador
     setLoading(true)
     setGeoErro('')
+    setErroBusca('')
     try {
       if (aba === 'salvas') {
-        setIgrejas(await minhasIgrejas())
+        const resultado = await minhasIgrejas()
+        if (idConsulta !== consultaAtual.current) return
+        setIgrejas(resultado)
       } else if (aba === 'buscar') {
         const termo = busca.trim()
         if (!termo) {
           // Sem termo digitado: mostra top 5 mais próximas (se tem geo), senão lista vazia
           if (coords) {
-            setIgrejas(dedupIgrejas(await buscarIgrejas({ lat: coords.lat, lng: coords.lng })).slice(0, 5))
+            const resultado = await buscarIgrejas({ lat: coords.lat, lng: coords.lng }, abortador.signal)
+            if (idConsulta !== consultaAtual.current) return
+            setIgrejas(dedupIgrejas(resultado).slice(0, 5))
           } else {
             setIgrejas([])
           }
         } else {
           // Com termo: busca por relevância + distância (se geo disponível)
-          setIgrejas(dedupIgrejas(await buscarIgrejas({ q: termo, lat: coords?.lat, lng: coords?.lng })))
+          const resultado = await buscarIgrejas({ q: termo, lat: coords?.lat, lng: coords?.lng }, abortador.signal)
+          if (idConsulta !== consultaAtual.current) return
+          setIgrejas(dedupIgrejas(resultado))
         }
       } else if (aba === 'proximas') {
         if (!coords) {
-          // Tenta de novo explicitamente — usuário precisa permitir
+          if (origemProximidade === 'endereco') {
+            setGeoErro('Informe um endereço ou bairro para encontrar paróquias próximas desse ponto.')
+            setIgrejas([])
+            return
+          }
+          let erroGeo: GeolocationPositionError | null = null
           const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
             if (!navigator.geolocation) { reject(new Error('Geolocalização não disponível neste navegador')); return }
-            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: false, timeout: 8000 })
-          }).catch(e => { setGeoErro(e.message || 'Não foi possível obter localização'); return null })
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              // "Próximas" não pode aceitar uma estimativa ampla por rede/IP: ela
+              // faria aparecer igrejas de bairros distantes como se fossem próximas.
+              enableHighAccuracy: true,
+              timeout: 30000,
+              maximumAge: 60000,
+            })
+          }).catch((erro: GeolocationPositionError) => {
+            erroGeo = erro
+            return null
+          })
+          if (idConsulta !== consultaAtual.current) return
           if (pos) {
-            setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-            setIgrejas(dedupIgrejas(await buscarIgrejas({ lat: pos.coords.latitude, lng: pos.coords.longitude, raio_km: 50 })))
+            const ponto = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+            if (!pontoValido(ponto)) {
+              setGeoErro('O navegador retornou uma localização inválida. Tente novamente.')
+              setIgrejas([])
+              return
+            }
+            setCoords(ponto)
+            const resultado = await buscarIgrejas({ lat: ponto.lat, lng: ponto.lng, raio_km: raioSelecionado }, abortador.signal)
+            if (idConsulta !== consultaAtual.current) return
+            setIgrejas(dedupIgrejas(resultado))
           } else {
+            const mensagem = erroGeo?.code === 1
+              ? 'Permita a localização no navegador para ver as igrejas próximas.'
+              : erroGeo?.code === 3
+                ? 'A localização precisa não respondeu em 30 segundos. Confirme a permissão de localização do navegador e tente novamente.'
+                : 'Não foi possível obter sua localização. Habilite a localização do navegador e tente novamente.'
+            setGeoErro(mensagem)
             setIgrejas([])
           }
         } else {
-          setIgrejas(dedupIgrejas(await buscarIgrejas({ lat: coords.lat, lng: coords.lng, raio_km: 50 })))
+          const ponto = coords
+          if (!pontoValido(ponto)) {
+            setGeoErro('A localização usada na busca é inválida. Tente novamente.')
+            setIgrejas([])
+            return
+          }
+          const resultado = await buscarIgrejas({ lat: ponto.lat, lng: ponto.lng, raio_km: raioSelecionado }, abortador.signal)
+          if (idConsulta !== consultaAtual.current) return
+          setIgrejas(dedupIgrejas(resultado))
         }
       }
-    } catch { setIgrejas([]) }
-    finally { setLoading(false) }
+    } catch {
+      if (idConsulta !== consultaAtual.current) return
+      setIgrejas([])
+      setErroBusca('Não foi possível consultar o catálogo de igrejas. Tente novamente.')
+    }
+    finally {
+      if (idConsulta === consultaAtual.current) {
+        abortadorBusca.current = null
+        setLoading(false)
+      }
+    }
+  }
+
+  async function usarEndereco(raioSelecionado = raioKm) {
+    const endereco = enderecoProximidade.trim()
+    if (endereco.length < 5) {
+      setErroBusca('Informe um endereço ou bairro mais completo.')
+      return
+    }
+    invalidarBuscaEmAndamento()
+    const idConsulta = consultaAtual.current
+    const abortador = new AbortController()
+    abortadorBusca.current = abortador
+    setLoading(true)
+    setGeoErro('')
+    setErroBusca('')
+    try {
+      const ponto = await localizarEndereco(endereco, abortador.signal)
+      if (idConsulta !== consultaAtual.current) return
+      if (!pontoValido(ponto)) {
+        setErroBusca('O serviço de localização retornou um ponto inválido. Tente novamente.')
+        return
+      }
+      setCoords(ponto)
+      const resultado = await buscarIgrejas({ lat: ponto.lat, lng: ponto.lng, raio_km: raioSelecionado }, abortador.signal)
+      if (idConsulta !== consultaAtual.current) return
+      setIgrejas(dedupIgrejas(resultado))
+    } catch (erro: unknown) {
+      if (idConsulta !== consultaAtual.current) return
+      setCoords(null)
+      setIgrejas([])
+      const status = typeof erro === 'object' && erro !== null && 'response' in erro
+        ? (erro as { response?: { status?: number } }).response?.status
+        : undefined
+      setErroBusca(status === 429
+        ? 'O limite mensal de buscas por endereço foi atingido. Use a sua localização atual ou tente no próximo mês.'
+        : status === 503
+          ? 'O serviço de localização está indisponível no momento. Tente novamente mais tarde.'
+          : 'Não foi possível localizar este endereço. Confira e tente novamente.')
+    }
+    finally {
+      if (idConsulta === consultaAtual.current) {
+        abortadorBusca.current = null
+        setLoading(false)
+      }
+    }
+  }
+
+  function selecionarOrigemProximidade(origem: OrigemProximidade) {
+    invalidarBuscaEmAndamento()
+    setLoading(false)
+    setOrigemProximidade(origem)
+    setCoords(null)
+    setIgrejas([])
+    setGeoErro('')
+    setErroBusca('')
+  }
+
+  function selecionarAba(novaAba: Aba) {
+    invalidarBuscaEmAndamento()
+    setLoading(false)
+    setAba(novaAba)
+  }
+
+  function selecionarRaio(km: number) {
+    setRaioKm(km)
+    invalidarBuscaEmAndamento()
+    if (coords) {
+      carregar(km)
+      return
+    }
+    if (!loading) return
+    if (origemProximidade === 'endereco' && enderecoProximidade.trim().length >= 5) {
+      usarEndereco(km)
+    } else if (origemProximidade === 'atual') {
+      carregar(km)
+    } else {
+      setLoading(false)
+    }
   }
 
   async function alternarFavorito(igreja: Igreja) {
@@ -132,7 +292,7 @@ export const IgrejasScreen = ({ setScreen }: Props) => {
             { id: 'proximas', label: 'Próximas' },
           ] as { id: Aba; label: string }[]).map(t => (
             <button key={t.id}
-              onClick={() => setAba(t.id)}
+              onClick={() => selecionarAba(t.id)}
               className={`flex-1 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider transition-all ${
                 aba === t.id
                   ? 'bg-brand-blue text-white dark:bg-brand-gold dark:text-brand-blue shadow-soft'
@@ -142,6 +302,51 @@ export const IgrejasScreen = ({ setScreen }: Props) => {
             </button>
           ))}
         </div>
+
+        {aba === 'proximas' && (
+          <>
+            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-brand-gray-dark/5 p-1 dark:bg-slate-800" role="group" aria-label="Origem da proximidade">
+              {([
+                { id: 'atual', label: 'Minha localização' },
+                { id: 'endereco', label: 'Informar endereço' },
+              ] as { id: OrigemProximidade; label: string }[]).map(opcao => (
+                <button
+                  key={opcao.id}
+                  type="button"
+                  aria-pressed={origemProximidade === opcao.id}
+                  onClick={() => selecionarOrigemProximidade(opcao.id)}
+                  className={`rounded-xl px-3 py-2.5 text-xs font-black transition-colors ${
+                    origemProximidade === opcao.id
+                      ? 'bg-brand-blue text-white shadow-soft dark:bg-brand-gold dark:text-brand-blue'
+                      : 'text-brand-gray-dark/60 dark:text-brand-white/60'
+                  }`}
+                >
+                  {opcao.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-2xl bg-brand-white px-4 py-3 shadow-soft dark:bg-slate-800">
+              <span className="text-xs font-black uppercase tracking-wider text-brand-gray-dark/60 dark:text-brand-white/60">Até</span>
+              <div className="flex flex-1 justify-end gap-1.5" role="group" aria-label="Raio de busca">
+                {[1, 3, 5, 10].map(km => (
+                  <button
+                    key={km}
+                    type="button"
+                    aria-pressed={raioKm === km}
+                    onClick={() => selecionarRaio(km)}
+                    className={`min-w-12 rounded-xl px-2 py-2 text-xs font-black transition-colors ${
+                      raioKm === km
+                        ? 'bg-brand-blue text-white dark:bg-brand-gold dark:text-brand-blue'
+                        : 'bg-brand-gray-dark/5 text-brand-gray-dark/60 dark:bg-brand-white/10 dark:text-brand-white/70'
+                    }`}
+                  >
+                    {km} km
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Campo de busca (só na aba Buscar) */}
         {aba === 'buscar' && (
@@ -154,7 +359,7 @@ export const IgrejasScreen = ({ setScreen }: Props) => {
               className="bg-transparent w-full text-base font-medium outline-none placeholder:text-gray-400 dark:text-white"
             />
             <button
-              onClick={carregar}
+              onClick={() => carregar()}
               disabled={loading}
               title="Buscar"
               className="flex-shrink-0 w-11 h-11 rounded-xl bg-brand-blue text-white dark:bg-brand-gold dark:text-brand-blue flex items-center justify-center active:scale-95 transition-transform disabled:opacity-60"
@@ -164,11 +369,55 @@ export const IgrejasScreen = ({ setScreen }: Props) => {
           </div>
         )}
 
-        {/* Aviso de geo */}
-        {aba === 'proximas' && geoErro && (
+        {aba === 'proximas' && origemProximidade === 'endereco' && !loading && (
+          <Card className="p-5">
+            <MapPin size={28} className="mx-auto mb-2 text-brand-gold" />
+            <p className="text-center text-sm font-bold text-brand-text dark:text-brand-white">Informe um endereço ou bairro</p>
+            <p className="mt-1 text-center text-xs text-brand-gray-dark/60 dark:text-brand-white/60">O endereço é enviado para localizar este ponto e não é salvo pelo Dia de Missa.</p>
+            <div className="mt-4 flex gap-2">
+              <input
+                value={enderecoProximidade}
+                onChange={e => setEnderecoProximidade(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && usarEndereco()}
+                placeholder="Ex.: Rua ou bairro, cidade"
+                className="min-w-0 flex-1 rounded-xl border border-black/10 bg-brand-white px-3 py-2.5 text-sm font-medium outline-none placeholder:text-gray-400 dark:border-white/10 dark:bg-slate-900 dark:text-white"
+              />
+              <button
+                type="button"
+                onClick={() => usarEndereco()}
+                className="rounded-xl bg-brand-blue px-3 py-2.5 text-sm font-bold text-white dark:bg-brand-gold dark:text-brand-blue"
+              >
+                Usar
+              </button>
+            </div>
+          </Card>
+        )}
+
+        {aba === 'proximas' && origemProximidade === 'atual' && !coords && !loading && (
+          <Card className="p-5 text-center">
+            <MapPin size={28} className="mx-auto mb-2 text-brand-gold" />
+            <p className="text-sm font-bold text-brand-text dark:text-brand-white">{geoErro || 'Encontre igrejas perto de você'}</p>
+            <p className="mt-1 text-xs text-brand-gray-dark/60 dark:text-brand-white/60">A lista mostra paróquias em até {raioKm} km, apenas quando o navegador fornece sua localização real.</p>
+            <button
+              onClick={() => carregar()}
+              className="mt-4 rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-bold text-white dark:bg-brand-gold dark:text-brand-blue"
+            >
+              Usar minha localização
+            </button>
+          </Card>
+        )}
+
+        {aba === 'proximas' && coords && (
+          <p className="px-1 text-center text-xs font-medium text-brand-gray-dark/60 dark:text-brand-white/60">
+            {origemProximidade === 'atual'
+              ? 'Mostrando paróquias próximas da sua localização atual.'
+              : 'Mostrando paróquias próximas do endereço informado.'}
+          </p>
+        )}
+
+        {erroBusca && (
           <Card className="p-4 bg-amber-50 border-amber-200">
-            <p className="text-sm text-amber-700 font-bold">{geoErro}</p>
-            <p className="text-xs text-amber-600 mt-1">Permita acesso à localização ou use a aba Buscar.</p>
+            <p className="text-sm text-amber-700 font-bold">{erroBusca}</p>
           </Card>
         )}
 
@@ -176,8 +425,17 @@ export const IgrejasScreen = ({ setScreen }: Props) => {
         {loading ? (
           <div className="text-center py-10">
             <div className="w-8 h-8 border-4 border-brand-gold border-t-transparent rounded-full animate-spin mx-auto" />
+            {aba === 'proximas' && (
+              <button
+                type="button"
+                onClick={cancelarBuscaProximidade}
+                className="mt-4 rounded-xl border border-brand-blue px-4 py-2 text-sm font-bold text-brand-blue dark:border-brand-gold dark:text-brand-gold"
+              >
+                Cancelar busca
+              </button>
+            )}
           </div>
-        ) : igrejas.length === 0 ? (
+        ) : igrejas.length === 0 && !(aba === 'proximas' && !coords) ? (
           <Card className="p-8 text-center">
             <Church size={40} className="mx-auto text-brand-gold/40 mb-3" />
             <p className="text-brand-gray-dark/60 dark:text-brand-white/60 text-sm">
@@ -188,7 +446,7 @@ export const IgrejasScreen = ({ setScreen }: Props) => {
                   : 'Nenhuma igreja próxima encontrada.'}
             </p>
           </Card>
-        ) : (
+        ) : igrejas.length > 0 ? (
           igrejas.map(ig => (
             <Card key={ig.id} className="p-5">
               <div className="flex items-start gap-3">
@@ -246,7 +504,7 @@ export const IgrejasScreen = ({ setScreen }: Props) => {
               </div>
             </Card>
           ))
-        )}
+        ) : null}
       </div>
     </motion.div>
   )

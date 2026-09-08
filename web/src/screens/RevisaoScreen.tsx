@@ -20,6 +20,7 @@ interface MissaRevisao {
   gate_ok: boolean | null
   criticas: Divergencia[]
   divergencias: Divergencia[]
+  iteracoes?: number | null
 }
 
 const API_ORIGIN = (import.meta as any).env?.VITE_API_URL || ''
@@ -99,6 +100,10 @@ export const RevisaoScreen = ({ setScreen }: { setScreen: (s: string) => void })
               <p className="ds-body-sm text-green-700 dark:text-green-400">Sem divergência crítica registrada.</p>
             )}
 
+            {m.iteracoes != null && (
+              <p className="ds-caption text-brand-slate">Conferência: {m.iteracoes}/3 tentativa(s).</p>
+            )}
+
             <div className="flex items-center gap-2 mt-1">
               {m.pdf_url && (
                 <a href={`${API_ORIGIN}${m.pdf_url}`} target="_blank" rel="noreferrer"
@@ -106,7 +111,8 @@ export const RevisaoScreen = ({ setScreen }: { setScreen: (s: string) => void })
                   <FileText size={16} /> Abrir PDF
                 </a>
               )}
-              <button onClick={() => aprovar(m.data)} disabled={aprovando === m.data}
+              <button onClick={() => aprovar(m.data)} disabled={aprovando === m.data || m.criticas.length > 0 || !m.gate_ok}
+                title={m.criticas.length > 0 || !m.gate_ok ? 'Corrija e reexecute a conferência independente antes de publicar.' : undefined}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-gold text-white font-bold text-sm disabled:opacity-50">
                 <Check size={16} /> {aprovando === m.data ? 'Aprovando…' : 'Aprovar e publicar'}
               </button>

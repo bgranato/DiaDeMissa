@@ -37,10 +37,10 @@ os.environ.setdefault("USAR_LLM", "1")
 
 from pathlib import Path  # noqa: E402
 from app.core.database import SessionLocal  # noqa: E402
-from app.core.config import settings  # noqa: E402
-from app.pipeline import processar_pdf  # noqa: E402
-from app.pipeline.download import hash_pdf, CACHE_DIR  # noqa: E402
-from app.services.persist_missa import persistir_missa  # noqa: E402
+from app.pipeline.download import CACHE_DIR  # noqa: E402
+from app.pipeline.extract import extrair_texto_estruturado  # noqa: E402
+from app.pipeline.clean import limpar  # noqa: E402
+from app.services.publicacao_convergente import montar_e_publicar  # noqa: E402
 
 
 def reprocessar(ds: str) -> None:
@@ -49,13 +49,12 @@ def reprocessar(ds: str) -> None:
         print(f"{ds}: PDF não arquivado ({pdf})")
         return
     conteudo = pdf.read_bytes()
-    missa = processar_pdf(pdf)
+    texto_limpo = limpar(extrair_texto_estruturado(pdf))
     db = SessionLocal()
     try:
-        m = persistir_missa(db, missa, pdf_hash=hash_pdf(conteudo),
-                            fonte_url=settings.PDF_URL, pdf_bytes=conteudo)
-        db.refresh(m)
-        print(f"{ds} -> {m.status_processamento} | blocos={len(m.blocos)} | obs={(m.observacoes or '')[:80]!r}")
+        resultado = montar_e_publicar(db, ds, conteudo, texto_limpo)
+        print(f"{ds} -> {resultado['resultado']} | conferida={resultado.get('conferida')} "
+              f"| iterações={resultado.get('iteracoes')}")
     finally:
         db.close()
 

@@ -43,6 +43,13 @@ def test_ignora_numeros_e_siglas():
     assert verificar_lexico("qualquer texto fonte aqui", montagem, None) == []
 
 
+def test_recompoe_palavra_quebrada_por_hifen_de_linha_no_pdf():
+    fonte = "pedimos: aceitai-nos também com vosso Filho e dai-\n-nos o seu Espírito"
+    montagem = [{"titulo": "Oração", "turnos": [{"texto": "dai-nos o seu Espírito"}]}]
+
+    assert verificar_lexico(fonte, montagem, None) == []
+
+
 # --- Aspas do discurso direto (regra L) ---
 
 def test_aspas_dropadas_geram_deficit():

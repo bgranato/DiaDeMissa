@@ -18,6 +18,7 @@ status_processamento='pendente_revisao' pra revisão manual.
 from __future__ import annotations
 
 import logging
+import os
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -29,7 +30,13 @@ from app.models.missa import Missa, BlocoLiturgico
 
 logger = logging.getLogger(__name__)
 
-REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports" / "auditoria"
+# Em produção, use AUDITORIA_REPORTS_DIR=/var/lib/diademissa/reports/auditoria:
+# o serviço tem ProtectSystem=strict e só esse volume é gravável. O fallback
+# preserva o caminho de relatórios usado por desenvolvimento e testes locais.
+REPORTS_DIR = Path(os.getenv(
+    "AUDITORIA_REPORTS_DIR",
+    str(Path(__file__).resolve().parent.parent.parent / "reports" / "auditoria"),
+))
 
 # Severidades
 SEV_CRITICA = "CRÍTICA"

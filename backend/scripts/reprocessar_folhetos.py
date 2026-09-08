@@ -46,12 +46,11 @@ import json  # noqa: E402
 import sqlite3  # noqa: E402
 import types  # noqa: E402
 
-from app.pipeline import processar_pdf  # noqa: E402
-from app.pipeline.download import hash_pdf, CACHE_DIR  # noqa: E402
+from app.pipeline.download import CACHE_DIR  # noqa: E402
 from app.pipeline.extract import extrair_texto_estruturado  # noqa: E402
 from app.pipeline.clean import limpar  # noqa: E402
 from app.pipeline.structure_llm import _corrigir_posicao_refrao  # noqa: E402
-from app.services.persist_missa import persistir_missa  # noqa: E402
+from app.services.publicacao_convergente import montar_e_publicar  # noqa: E402
 from app.core.database import SessionLocal  # noqa: E402
 from app.core.config import settings  # noqa: E402
 
@@ -71,6 +70,11 @@ def modo_so_refrao(pdfs, dry_run: bool) -> int:
     roda _corrigir_posicao_refrao (determinístico) e persiste APENAS o campo
     posicao_refrao_apos (dentro de conteudo_estruturado) dos cantos que mudaram.
     """
+    raise RuntimeError(
+        "Modo só-refrão bloqueado: alterações de conteúdo exigem remontagem e "
+        "conferência Gauntlet completas."
+    )
+
     con = sqlite3.connect(_db_path())
     con.row_factory = sqlite3.Row
     total_alt = 0
@@ -147,14 +151,12 @@ def main() -> int:
         print(f"PDFs: {len(pdfs)} · modo=SÓ REFRÃO (sem LLM){' · DRY-RUN' if args.dry_run else ''}")
         return modo_so_refrao(pdfs, args.dry_run)
 
-    usar_llm = os.getenv("USAR_LLM", "0").lower() in ("1", "true", "yes", "on")
     print(f"Pasta: {base}")
-    print(f"PDFs: {len(pdfs)} · USAR_LLM={usar_llm} · modelo={os.getenv('ANTHROPIC_MODEL', '(default)')}")
+    print(f"PDFs: {len(pdfs)} · Gauntlet Loop · modelo={os.getenv('ANTHROPIC_MODEL_MM', '(default)')}")
 
     if args.dry_run:
-        custo = len(pdfs) * CUSTO_POR_FOLHETO if usar_llm else 0.0
-        print(f"[dry-run] processaria {len(pdfs)} folhetos. "
-              f"Custo estimado{' (LLM)' if usar_llm else ' (regex, sem custo)'}: ~US$ {custo:.2f}")
+        custo = len(pdfs) * CUSTO_POR_FOLHETO
+        print(f"[dry-run] processaria {len(pdfs)} folhetos pelo Gauntlet Loop. Custo estimado: ~US$ {custo:.2f}")
         for p in pdfs[:15]:
             print("  -", p.name)
         if len(pdfs) > 15:
@@ -165,21 +167,20 @@ def main() -> int:
     for i, p in enumerate(pdfs, 1):
         try:
             conteudo = p.read_bytes()
-            h = hash_pdf(conteudo)
-            missa_pyd = processar_pdf(p)
+            texto_limpo = limpar(extrair_texto_estruturado(p))
             db = SessionLocal()
             try:
-                m = persistir_missa(db, missa_pyd, pdf_hash=h, fonte_url=settings.PDF_URL)
-                status = m.status_processamento
+                resultado = montar_e_publicar(db, p.stem, conteudo, texto_limpo)
+                status = resultado["resultado"]
             finally:
                 db.close()
-            if status == "pendente_revisao":
+            if status != "publicada":
                 pendentes += 1
                 flag = "⚠ pendente_revisao"
             else:
                 ok += 1
                 flag = "ok"
-            print(f"[{i}/{len(pdfs)}] {p.name} · {missa_pyd.data} · {len(missa_pyd.blocos)} blocos · {flag}")
+            print(f"[{i}/{len(pdfs)}] {p.name} · {p.stem} · {status} · {flag}")
         except Exception as e:
             erros += 1
             print(f"[{i}/{len(pdfs)}] {p.name} · ERRO: {str(e)[:160]}")

@@ -20,19 +20,44 @@ logger = logging.getLogger(__name__)
 
 
 def selecionar_para_reprocesso(db, hoje: date) -> list[MissaModel]:
-    """Missas com data >= hoje cuja pipeline_version difere da atual (ou é null).
+    """Missas futuras sem evidência Gauntlet ou com versão antiga.
 
     São as missas montadas por uma versão ANTIGA das regras — candidatas a
     reprocesso automático. Só entram as que estão no ar (concluido): não mexe
     em pendente_revisao (já sob revisão humana)."""
+    from app.services.persist_missa import conferencia_publicavel
+
     alvo = pipeline_version()
     candidatas = (
         db.query(MissaModel)
-        .filter(MissaModel.data >= hoje, MissaModel.status_processamento == "concluido")
+        .filter(MissaModel.data >= hoje)
+        # Pendente é fila humana; só a migração explícita por PDF arquivado pode
+        # reprocessá-la. A seleção automática não deve clobberar uma revisão.
+        .filter(MissaModel.status_processamento == "concluido")
         .order_by(MissaModel.data.asc())
         .all()
     )
-    return [m for m in candidatas if (m.pipeline_version or "") != alvo]
+    return [
+        m for m in candidatas
+        if not conferencia_publicavel(m.revisao_json) or (m.pipeline_version or "") != alvo
+    ]
+
+
+def reter_montagens_sem_gauntlet(db) -> list[str]:
+    """Retira da exposição qualquer edição concluída sem prova Gauntlet completa."""
+    from app.services.persist_missa import conferencia_publicavel
+
+    retidas: list[str] = []
+    for missa in db.query(MissaModel).filter(MissaModel.status_processamento == "concluido").all():
+        if conferencia_publicavel(missa.revisao_json):
+            continue
+        missa.status_processamento = "pendente_revisao"
+        db.add(missa)
+        retidas.append(missa.data.isoformat())
+    if retidas:
+        db.commit()
+        logger.warning("Gauntlet: %d montagem(ns) legada(s) retida(s): %s", len(retidas), ", ".join(retidas))
+    return retidas
 
 
 def auto_atualizar_montagens(db, hoje: Optional[date] = None) -> dict:
@@ -102,6 +127,14 @@ def executar_pipeline_diario(forcar: bool = False) -> dict:
     """
     logger.info("Iniciando pipeline diário (forcar=%s)", forcar)
 
+    # A retenção não depende de rede ou do PDF de hoje. Ela precisa ocorrer até
+    # quando o download falha, para que legado sem prova nunca continue público.
+    db_retenção = SessionLocal()
+    try:
+        reter_montagens_sem_gauntlet(db_retenção)
+    finally:
+        db_retenção.close()
+
     try:
         conteudo = obter_pdf()
     except Exception as e:
@@ -109,20 +142,22 @@ def executar_pipeline_diario(forcar: bool = False) -> dict:
         return {"status": "erro_download", "motivo": str(e)}
 
     h = hash_pdf(conteudo)
+    # O PDF arquivado é a referência auditável do Gauntlet. Sem conseguir
+    # preservá-lo, não existe fonte contra a qual a montagem possa ser conferida
+    # ou reprocessada, portanto a publicação é bloqueada antes de tocar no BD.
+    data_publicacao = date.today().isoformat()
     try:
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
         pdf_path = CACHE_DIR / f"{h}.pdf"
         if not pdf_path.exists():
             pdf_path.write_bytes(conteudo)
+        archive_dir = CACHE_DIR / "archive"
+        archive_dir.mkdir(parents=True, exist_ok=True)
+        archive_path = archive_dir / f"{data_publicacao}.pdf"
+        archive_path.write_bytes(conteudo)
     except (OSError, PermissionError) as e:
-        logger.warning(
-            "Cache em %s indisponível (%s) — fallback pra tempfile, missa será processada igual",
-            CACHE_DIR, e,
-        )
-        tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-        tmp.write(conteudo)
-        tmp.close()
-        pdf_path = Path(tmp.name)
+        logger.error("PDF não pôde ser arquivado em %s (%s) — publicação bloqueada", CACHE_DIR, e)
+        return {"status": "erro_arquivamento", "motivo": str(e), "hash": h}
 
     db = SessionLocal()
     try:
@@ -141,24 +176,30 @@ def executar_pipeline_diario(forcar: bool = False) -> dict:
                     "auto_atualizacao": auto,
                 }
 
-        missa_pyd = processar_pdf(pdf_path)
-        missa_db = persistir_missa(
-            db, missa_pyd, pdf_hash=h, fonte_url=settings.PDF_URL, pdf_bytes=conteudo,
-        )
+        # Gauntlet Loop: a montagem só pode seguir para publicação depois de uma
+        # conferência independente contra este mesmo PDF.  ``processar_pdf``
+        # continua disponível para testes determinísticos do parser, mas não é
+        # uma rota de publicação de produção.
+        from app.pipeline.extract import extrair_texto_estruturado
+        from app.pipeline.clean import limpar
+        from app.services.publicacao_convergente import montar_e_publicar
+
+        texto_limpo = limpar(extrair_texto_estruturado(pdf_path))
+        resultado = montar_e_publicar(db, data_publicacao, conteudo, texto_limpo)
+        if resultado.get("resultado") != "publicada":
+            return {
+                "status": resultado.get("resultado", "pendente_revisao"),
+                "data": resultado.get("data"),
+                "hash": h,
+                "conferencia": resultado,
+            }
+        missa_db = db.query(MissaModel).filter(MissaModel.data == resultado["data"]).first()
+        if missa_db is None:
+            raise RuntimeError("conferência aprovada sem missa persistida")
         logger.info(
             "Missa persistida id=%s data=%s blocos=%d",
             missa_db.id, missa_db.data, len(missa_db.blocos),
         )
-        # Arquivo permanente nomeado por data — fácil de localizar/auditar/reprocessar
-        # depois. CACHE_DIR/archive/YYYY-MM-DD.pdf. Substitui se já existir (PDF
-        # atualizado durante o dia, ex: errata Arquidiocese).
-        try:
-            archive_dir = CACHE_DIR / "archive"
-            archive_dir.mkdir(parents=True, exist_ok=True)
-            archive_path = archive_dir / f"{missa_db.data.isoformat()}.pdf"
-            archive_path.write_bytes(conteudo)
-        except (OSError, PermissionError) as e:
-            logger.warning("Falha ao arquivar PDF por data (%s) — segue sem bloqueio", e)
         # Após processar o folheto do dia, atualiza missas futuras montadas por
         # versão antiga do pipeline (elimina o "vão" entre reprocesso do histórico
         # e regras novas). Não-regressivo: só substitui se sair concluido.

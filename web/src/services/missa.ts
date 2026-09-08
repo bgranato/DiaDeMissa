@@ -46,10 +46,27 @@ export interface ProximaMissa {
   categoria: string | null
 }
 
+export interface MissaDisponivel {
+  id: number
+  data: string
+  celebracao: string | null
+  categoria: string | null
+}
+
+interface AgendaMissas {
+  anteriores: MissaDisponivel[]
+}
+
 // Próxima missa com folheto disponível (usada quando não há missa no dia).
 export async function getProximaMissa(): Promise<ProximaMissa> {
   const res = await api.get<ProximaMissa>('/missa/proxima')
   return res.data
+}
+
+// Última missa concluída, para que dias sem folheto ainda deem acesso ao conteúdo recente.
+export async function getUltimaMissaDisponivel(): Promise<MissaDisponivel | null> {
+  const res = await api.get<AgendaMissas>('/missa/agenda')
+  return res.data.anteriores?.[0] ?? null
 }
 
 export async function getMissaAtual(): Promise<{ blocos: any[] }> {

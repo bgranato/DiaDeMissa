@@ -80,6 +80,10 @@ def reprocessar_com_seguranca(
       - "revertido": reprocesso caiu em pendente_revisao → backup restaurado;
       - "erro": exceção no reprocesso → backup restaurado.
     """
+    raise RuntimeError(
+        "Reprocesso legado bloqueado: use montar_e_publicar com PDF arquivado e Gauntlet."
+    )
+
     from app.pipeline import processar_pdf
     from app.pipeline.download import hash_pdf
     from app.services.persist_missa import persistir_missa

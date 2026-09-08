@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type MouseEvent } from 'react'
 import { motion } from 'motion/react'
 import { CheckCircle2, Clock, CircleDashed, MapPin, X } from 'lucide-react'
 import { AppHeader, Card } from '../components/UI'
@@ -63,7 +63,7 @@ export const HistoryScreen = ({ setScreen }: Props) => {
             const meta = STATUS_META[h.status] ?? STATUS_META.nao_acompanhada
             const { Icon } = meta
 
-            async function desfazer(e: React.MouseEvent) {
+            async function desfazer(e: MouseEvent) {
               e.stopPropagation()
               if (!confirm('Desmarcar esta missa como concluída?')) return
               // Tenta no backend (idempotente, não falha se não tinha registro)

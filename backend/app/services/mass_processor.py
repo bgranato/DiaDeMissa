@@ -13,6 +13,10 @@ from app.core.config import settings
 
 
 def processar_missa(db: Session, data: Optional[date] = None) -> Missa:
+    raise RuntimeError(
+        "Processador legado bloqueado: use montar_e_publicar com PDF oficial e Gauntlet."
+    )
+
     if data is None:
         data = date.today()
 
@@ -64,7 +68,7 @@ def processar_missa(db: Session, data: Optional[date] = None) -> Missa:
     if missa_existente:
         missa = missa_existente
         missa.pdf_hash = hash_pdf
-        missa.status_processamento = "concluido"
+        missa.status_processamento = "pendente_revisao"
         missa.celebracao = celebracao
         missa.subtitulo = subtitulo
         missa.descricao = descricao
@@ -79,7 +83,7 @@ def processar_missa(db: Session, data: Optional[date] = None) -> Missa:
             tempo_liturgico=tempo_liturgico,
             fonte_pdf_url=settings.PDF_URL,
             pdf_hash=hash_pdf,
-            status_processamento="concluido",
+            status_processamento="pendente_revisao",
         )
         db.add(missa)
         db.flush()

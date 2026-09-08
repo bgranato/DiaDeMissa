@@ -5,7 +5,7 @@ import { Play, Bell, ArrowRight, CheckCircle2, Calendar, ScrollText, Settings2, 
 import type { Missa } from '../types/missa'
 import type { Igreja } from '../types/igreja'
 import { minhasIgrejas, buscarIgrejas } from '../services/igrejas'
-import { getProximaMissa, type ProximaMissa } from '../services/missa'
+import { getProximaMissa, getUltimaMissaDisponivel, type MissaDisponivel, type ProximaMissa } from '../services/missa'
 import api from '../services/api'
 
 interface Props {
@@ -32,6 +32,7 @@ export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
   const [lembretesNaoLidos, setLembretesNaoLidos] = useState(0)
   const [showAcessibilidade, setShowAcessibilidade] = useState(false)
   const [proxima, setProxima] = useState<ProximaMissa | null>(null)
+  const [ultimaMissa, setUltimaMissa] = useState<MissaDisponivel | null>(null)
 
   // Seletor de igreja
   const [igrejaSelecionada, setIgrejaSelecionada] = useState<{ id: number; nome: string } | null>(null)
@@ -47,10 +48,15 @@ export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
       .catch(() => setLembretesNaoLidos(0))
   }, [])
 
-  // Sem missa hoje → busca a próxima missa disponível (estado de espera).
+  // Sem missa hoje → oferece a próxima e também a última missa publicada.
   useEffect(() => {
-    if (missa) { setProxima(null); return }
+    if (missa) {
+      setProxima(null)
+      setUltimaMissa(null)
+      return
+    }
     getProximaMissa().then(setProxima).catch(() => setProxima(null))
+    getUltimaMissaDisponivel().then(setUltimaMissa).catch(() => setUltimaMissa(null))
   }, [missa])
 
   // Sincroniza concluída do localStorage com o backend — UMA VEZ por sessão por missa.
@@ -126,6 +132,16 @@ export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
       }).catch(() => {})
     }
   }
+
+  function abrirUltimaMissa() {
+    if (!ultimaMissa) return
+    localStorage.setItem('@missa_data_alvo', ultimaMissa.data)
+    setScreen('reading')
+  }
+
+  const dataUltimaMissaFormatada = ultimaMissa?.data
+    ? new Date(ultimaMissa.data + 'T12:00:00').toLocaleDateString('pt-BR')
+    : ''
   const dataFormatada = missa?.data
     ? new Date(missa.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()
     : ''
@@ -312,6 +328,16 @@ export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
               <p className="ds-body-sm italic text-brand-slate mt-1">
                 Assim que o próximo folheto for publicado, a missa aparece aqui.
               </p>
+            )}
+            {ultimaMissa && (
+              <button
+                type="button"
+                onClick={abrirUltimaMissa}
+                className="mt-3 inline-flex max-w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-brand-blue underline decoration-brand-gold decoration-2 underline-offset-4 transition-colors hover:text-brand-gold dark:text-brand-white dark:hover:text-brand-gold active:opacity-70"
+              >
+                <span className="truncate">Ver última missa, {dataUltimaMissaFormatada}</span>
+                <ArrowRight size={17} className="flex-shrink-0" aria-hidden="true" />
+              </button>
             )}
           </div>
           <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-brand-blue opacity-5 rounded-full blur-3xl" />
