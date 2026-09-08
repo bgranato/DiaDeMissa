@@ -333,7 +333,7 @@ export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
               <button
                 type="button"
                 onClick={abrirUltimaMissa}
-                className="mt-3 inline-flex max-w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-brand-blue underline decoration-brand-gold decoration-2 underline-offset-4 transition-colors hover:text-brand-gold dark:text-brand-white dark:hover:text-brand-gold active:opacity-70"
+                className="mt-3 inline-flex max-w-full items-center justify-center gap-2 rounded-2xl bg-brand-gold px-4 py-3 text-sm font-black text-white shadow-soft transition-all hover:brightness-95 active:scale-95"
               >
                 <span className="truncate">Ver última missa, {dataUltimaMissaFormatada}</span>
                 <ArrowRight size={17} className="flex-shrink-0" aria-hidden="true" />
