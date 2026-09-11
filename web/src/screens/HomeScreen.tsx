@@ -52,14 +52,15 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
       .catch(() => setLembretesNaoLidos(0))
   }, [estaAutenticado])
 
-  // Sem missa disponível → oferece a última missa publicada.
+  // Conteúdo anterior é exclusivo da conta. Visitantes nunca recebem uma missa
+  // passada como substituta da missa do dia.
   useEffect(() => {
-    if (missa) {
+    if (missa || !estaAutenticado) {
       setUltimaMissa(null)
       return
     }
     getUltimaMissaDisponivel().then(setUltimaMissa).catch(() => setUltimaMissa(null))
-  }, [missa])
+  }, [missa, estaAutenticado])
 
   // Sincroniza concluída do localStorage com o backend — UMA VEZ por sessão por missa.
   // sessionStorage evita re-sync a cada re-mount da Home.
@@ -180,8 +181,8 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
         )}
       </AnimatePresence>
       <header className="flex justify-between items-start gap-3">
-        <button onClick={() => setScreen('profile')}
-          title="Abrir perfil"
+        <button onClick={() => setScreen(estaAutenticado ? 'profile' : 'login')}
+          title={estaAutenticado ? 'Abrir minha conta' : 'Cadastrar ou entrar'}
           className="flex items-center gap-3 min-w-0 flex-1 text-left active:opacity-70 transition-opacity">
           <span className="w-11 h-11 flex-shrink-0 rounded-full bg-brand-gold flex items-center justify-center shadow-soft">
             <User size={22} className="text-white" />
@@ -189,6 +190,11 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
           <span className="min-w-0">
             <span className="block ds-title text-brand-gray-dark dark:text-brand-white truncate">Olá, {nome}!</span>
             <span className="block ds-body-sm italic text-brand-blue/70 dark:text-brand-gold/70">A paz esteja convosco.</span>
+            {!estaAutenticado && (
+              <span className="mt-1 inline-flex rounded-full border border-brand-gold/40 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-brand-gold">
+                Cadastrar
+              </span>
+            )}
           </span>
         </button>
         <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -271,8 +277,8 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
                 {missaEhDoDia ? 'Acompanhar Missa' : 'Ver missa'}
               </LargeButton>
 
-              {/* Rodapé: local (esquerda, clicável pra alterar) | check (direita, se concluída) */}
-              <div className="flex items-center justify-between gap-3 pt-1">
+              {/* Recursos de igreja e histórico são pessoais e exigem conta. */}
+              {estaAutenticado && <div className="flex items-center justify-between gap-3 pt-1">
                 <button onClick={abrirSeletor}
                   className="flex items-center gap-2 min-w-0 flex-1 text-left active:opacity-70 transition-opacity">
                   <MapPin size={18} className="text-brand-gold flex-shrink-0" />
@@ -315,7 +321,7 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
                     </button>
                   </div>
                 )}
-              </div>
+              </div>}
             </div>
           </div>
           <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-brand-blue opacity-5 rounded-full blur-3xl" />
@@ -352,12 +358,15 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
       <section className="flex flex-col gap-3">
         <h4 className="ds-section-label opacity-60 ml-1">Explorar</h4>
         <div className="grid grid-cols-2 gap-3">
-          {[
-            ...(estaAutenticado ? [{ id: 'igrejas-salvas', icon: Church, label: 'Minhas Igrejas', onClick: () => { localStorage.setItem('@igrejas_aba_inicial', 'salvas'); setScreen('igrejas') } }] : []),
+          {(estaAutenticado ? [
+            { id: 'igrejas-salvas', icon: Church, label: 'Minhas Igrejas', onClick: () => { localStorage.setItem('@igrejas_aba_inicial', 'salvas'); setScreen('igrejas') } },
             { id: 'igrejas-buscar', icon: Search, label: 'Buscar Igreja', onClick: () => { localStorage.setItem('@igrejas_aba_inicial', 'buscar'); setScreen('igrejas') } },
             { id: 'calendar', icon: Calendar, label: 'Agenda de Missas', onClick: () => setScreen('calendar') },
-            ...(estaAutenticado ? [{ id: 'history', icon: ScrollText, label: 'Minha Jornada', onClick: () => setScreen('history') }] : []),
-          ].map(({ id, icon: Icon, label, onClick }) => (
+            { id: 'history', icon: ScrollText, label: 'Minha Jornada', onClick: () => setScreen('history') },
+            { id: 'profile', icon: User, label: 'Minha conta', onClick: () => setScreen('profile') },
+          ] : [
+            { id: 'cadastro', icon: User, label: 'Cadastrar', onClick: () => setScreen('login') },
+          ]).map(({ id, icon: Icon, label, onClick }) => (
             <button key={id} onClick={onClick}
               className="ds-card flex flex-col items-center gap-3 active:scale-[0.97] transition-transform min-w-0">
               <span className="p-3 bg-brand-gold text-white rounded-2xl flex-shrink-0">

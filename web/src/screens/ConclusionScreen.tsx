@@ -5,7 +5,6 @@ import { CheckCircle2, House, Bookmark, Share2, MapPin, Church, X, ArrowRight, S
 import { minhasIgrejas, buscarIgrejas } from '../services/igrejas';
 import type { Igreja } from '../types/igreja';
 import api from '../services/api';
-import { ApoioVoluntarioModal } from '../components/ApoioVoluntarioModal';
 
 interface Props {
   setScreen: (s: string) => void;
@@ -92,8 +91,8 @@ export const ConclusionScreen = ({ setScreen, missaId, missaData, estaAutenticad
           </div>
         </Card>
 
-        {/* Atribuir local da missa */}
-        <button onClick={abrirSeletor}
+        {/* Atribuir local é um recurso de conta, pois depende da busca de igrejas. */}
+        {estaAutenticado && <button onClick={abrirSeletor}
           className={`flex items-center gap-3 px-4 py-4 rounded-2xl active:scale-[0.99] transition-transform ${
             igrejaSelecionada
               ? 'bg-brand-gold/10 border-2 border-brand-gold/40'
@@ -116,7 +115,7 @@ export const ConclusionScreen = ({ setScreen, missaId, missaData, estaAutenticad
             )}
           </div>
           <ArrowRight size={18} className="text-brand-gold flex-shrink-0" />
-        </button>
+        </button>}
 
         <LargeButton
           variant="primary"
@@ -238,7 +237,6 @@ export const ConclusionScreen = ({ setScreen, missaId, missaData, estaAutenticad
           </motion.div>
         )}
       </AnimatePresence>
-      <ApoioVoluntarioModal missaId={missaId} />
     </motion.div>
   );
 };

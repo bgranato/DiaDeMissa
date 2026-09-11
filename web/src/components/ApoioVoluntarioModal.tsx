@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { Heart, LoaderCircle, X } from 'lucide-react'
 
 import api from '../services/api'
-import { conviteApoioEmPausa } from '../services/apoioExibicao'
+import { conviteApoioEmPausa, pausarConviteApoioAposRecusa } from '../services/apoioExibicao'
 
 type ConfiguracaoApoios = {
   ativo: boolean
@@ -19,7 +19,7 @@ function formatoBRL(valorCentavos: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorCentavos / 100)
 }
 
-/** Oferta discreta, exibida apenas após a conclusão e só se o servidor estiver configurado. */
+/** Oferta discreta, exibida no passo litúrgico 23 e só se o servidor estiver configurado. */
 export function ApoioVoluntarioModal({ missaId }: Props) {
   const [configuracao, setConfiguracao] = useState<ConfiguracaoApoios | null>(null)
   const [aberto, setAberto] = useState(false)
@@ -44,6 +44,8 @@ export function ApoioVoluntarioModal({ missaId }: Props) {
   }, [])
 
   function fechar() {
+    // X, "Agora não" e clique fora são a mesma decisão: pausa de uma hora.
+    pausarConviteApoioAposRecusa()
     setAberto(false)
   }
 

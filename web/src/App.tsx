@@ -22,6 +22,7 @@ import { IgrejasScreen } from './screens/IgrejasScreen'
 import { OracoesScreen } from './screens/OracoesScreen'
 import { BottomNav } from './components/UI'
 import { registrarNavegador } from './services/navigation'
+import { rotaExigeConta } from './lib/acesso'
 import type { Missa } from './types/missa'
 
 export default function App() {
@@ -31,15 +32,20 @@ export default function App() {
   const [missa, setMissa] = useState<Missa | null>(null)
   const [loginAberto, setLoginAberto] = useState(false)
   const inicioConcluido = useRef(false)
+  const requisicaoMissaRef = useRef(0)
 
   const usuarioNome = usuario?.nome || 'Visitante'
 
   useEffect(() => {
-    if (estaCarregando || inicioConcluido.current) return
-    inicioConcluido.current = true
-    setScreen('home')
-    carregarMissa()
-  }, [estaCarregando])
+    if (estaCarregando) return
+    if (!inicioConcluido.current) {
+      inicioConcluido.current = true
+      setScreen('home')
+    }
+    // Ao entrar ou sair da conta, refaz a seleção: visitante recebe somente
+    // a missa de hoje; a conta pode acessar a próxima missa já montada.
+    void carregarMissa(estaAutenticado)
+  }, [estaCarregando, estaAutenticado])
 
   // O Mercado Pago retorna ao início após checkout. A pausa do convite só é
   // aplicada quando o webhook já confirmou o apoio como aprovado no servidor.
@@ -92,27 +98,38 @@ export default function App() {
     document.body.scrollTop = 0
   }, [screen])
 
-  async function carregarMissa() {
+  async function carregarMissa(podeAcessarOutrasMissas: boolean) {
+    const requisicao = ++requisicaoMissaRef.current
     try {
-      setMissa(await getMissaHoje())
+      const hoje = await getMissaHoje()
+      if (requisicao === requisicaoMissaRef.current) setMissa(hoje)
     } catch (e) {
       logError('carregarMissaHoje', e)
+      // Conteúdo anterior e futuro pertencem à área autenticada. O visitante
+      // vê somente a celebração da data corrente, quando ela existir.
+      if (!podeAcessarOutrasMissas) {
+        if (requisicao === requisicaoMissaRef.current) setMissa(null)
+        return
+      }
       try {
         const proxima = await getProximaMissa()
-        setMissa(proxima.montada && proxima.data ? await getMissaPorData(proxima.data) : null)
+        const proximaMissa = proxima.montada && proxima.data ? await getMissaPorData(proxima.data) : null
+        if (requisicao === requisicaoMissaRef.current) setMissa(proximaMissa)
       } catch (erroProxima) {
         logError('carregarProximaMissaDisponivel', erroProxima)
-        setMissa(null)
+        if (requisicao === requisicaoMissaRef.current) setMissa(null)
       }
     }
   }
 
   const navigateTo = useCallback((s: string) => {
-    // A celebração, o calendário, as orações e a busca de igrejas são públicos.
-    // Login continua sendo exigido apenas quando a pessoa escolhe um recurso que
-    // guarda dados pessoais (histórico, lembretes, perfil ou revisão).
-    const exigeConta = ['history', 'reminders', 'profile', 'meus-dados', 'alterar-senha', 'revisao'].includes(s)
-    if (s === 'login' || (exigeConta && !estaAutenticado)) {
+    const partesHoje = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).formatToParts(new Date())
+    const parte = (tipo: Intl.DateTimeFormatPartTypes) => partesHoje.find(p => p.type === tipo)?.value ?? ''
+    const missaPublica = missa?.data === `${parte('year')}-${parte('month')}-${parte('day')}`
+    // Sem login a única rota de conteúdo é a missa da data de hoje.
+    if (rotaExigeConta(s, estaAutenticado, missaPublica)) {
       setLoginAberto(true)
       return
     }
@@ -120,7 +137,7 @@ export default function App() {
     logNav(screen, destino)
     setLastScreen(screen)
     setScreen(destino)
-  }, [screen, estaAutenticado])
+  }, [screen, estaAutenticado, missa?.data])
 
   const logoutEVoltarAoInicio = useCallback(async () => {
     await logout()

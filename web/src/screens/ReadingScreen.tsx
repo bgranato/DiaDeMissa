@@ -49,6 +49,28 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo, regist
   const blocoRefs = useRef<(HTMLDivElement | null)[]>([])
   const restauradoRef = useRef(false)
   const indiceSalvoRef = useRef(0)
+  const indiceAtualRef = useRef(0)
+  const missaDataRef = useRef<string | null>(null)
+
+  useEffect(() => { indiceAtualRef.current = currentIndex }, [currentIndex])
+  useEffect(() => { missaDataRef.current = missaData }, [missaData])
+
+  // Não depende de a renderização seguinte terminar: ao sair pela seta, trocar
+  // de aba ou fechar o navegador, o ponto atual continua disponível ao retorno.
+  const persistirPontoDeLeitura = () => {
+    const data = missaDataRef.current
+    if (!data) return
+    const indice = indiceAtualRef.current
+    localStorage.setItem(`@missa_bloco_${data}`, String(indice))
+    if (indice > 0 && localStorage.getItem(`@missa_concluida_${data}`) !== 'true') {
+      localStorage.setItem(`@missa_iniciada_${data}`, 'true')
+    }
+  }
+
+  useEffect(() => {
+    window.addEventListener('pagehide', persistirPontoDeLeitura)
+    return () => window.removeEventListener('pagehide', persistirPontoDeLeitura)
+  }, [])
 
   useEffect(() => {
     // Prioridade: prop missaDataAlvo → localStorage @missa_data_alvo → missa de hoje.
@@ -207,10 +229,9 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo, regist
     else break
   }
 
-  // O passo 23 é o encerramento numerado do folheto atual. Também oferecemos
-  // apoio no último bloco, pois algumas edições trazem rubricas após ele.
+  // O convite existe exclusivamente no passo 23, que é o encerramento numerado
+  // do folheto. Rubricas posteriores e a tela de conclusão nunca o acionam.
   const oferecerApoioNaLeitura = blocos[currentIndex]?.numero_folheto === 23
-    || currentIndex === blocos.length - 1
 
   if (loading) return (
     <div className="min-h-screen bg-brand-bg dark:bg-slate-900 flex items-center justify-center">
@@ -228,7 +249,10 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo, regist
     <div className="reading-wide min-h-[100svh] bg-brand-bg dark:bg-slate-900 pb-28">
       <AppHeader
         title=""
-        onBack={onBack}
+        onBack={() => {
+          persistirPontoDeLeitura()
+          onBack()
+        }}
         showNotifications={false}
         rightElement={
           <div className="flex items-center gap-1">

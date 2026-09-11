@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { conviteApoioEmPausa, pausarConviteApoioAposPagamento } from './apoioExibicao'
+import { conviteApoioEmPausa, pausarConviteApoioAposPagamento, pausarConviteApoioAposRecusa } from './apoioExibicao'
 
 describe('pausa do convite de apoio', () => {
   afterEach(() => {
@@ -25,5 +25,16 @@ describe('pausa do convite de apoio', () => {
 
     expect(conviteApoioEmPausa()).toBe(false)
     expect(localStorage.getItem('@dia_de_missa_apoio_reexibir_em')).toBeNull()
+  })
+
+  it('dura uma hora quando a pessoa fecha o convite sem doar', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-11T12:00:00Z'))
+
+    pausarConviteApoioAposRecusa()
+    expect(conviteApoioEmPausa()).toBe(true)
+
+    vi.advanceTimersByTime(60 * 60 * 1000)
+    expect(conviteApoioEmPausa()).toBe(false)
   })
 })

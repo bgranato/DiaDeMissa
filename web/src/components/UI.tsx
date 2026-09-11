@@ -350,25 +350,33 @@ export const BottomNav = ({
 }) => {
   const [showMais, setShowMais] = useState(false);
 
-  // Itens fixos da barra (4 + botão "Mais")
-  const navItems = [
+  // Visitante tem apenas a missa do dia e a porta de cadastro. As demais
+  // seções pertencem à conta, onde há histórico e preferências pessoais.
+  const navItems = estaAutenticado ? [
     { id: 'home', label: 'Missa', icon: PadreIcon as any },
     { id: 'igrejas', label: 'Igrejas', icon: Church },
     { id: 'calendar', label: 'Agenda', icon: Calendar },
     { id: 'oracoes', label: 'Orações', icon: PrayingHandsIcon as any },
+  ] : [
+    { id: 'home', label: 'Missa', icon: PadreIcon as any },
+    { id: 'login', label: 'Cadastro', icon: User },
   ];
 
   // Menu completo aberto via "Mais"
   const menuCompleto = [
     { id: 'home', label: 'Missa', icon: PadreIcon as any },
-    { id: 'igrejas', label: 'Igrejas', icon: Church },
-    { id: 'calendar', label: 'Agenda', icon: Calendar },
-    { id: 'oracoes', label: 'Orações', icon: PrayingHandsIcon as any },
+    ...(estaAutenticado ? [
+      { id: 'igrejas', label: 'Igrejas', icon: Church },
+      { id: 'calendar', label: 'Agenda', icon: Calendar },
+      { id: 'oracoes', label: 'Orações', icon: PrayingHandsIcon as any },
+    ] : []),
     ...(estaAutenticado ? [
       { id: 'reminders', label: 'Lembretes', icon: Bell },
       { id: 'history', label: 'Minha Jornada', icon: ScrollText },
-      { id: 'profile', label: 'Perfil', icon: User },
-    ] : []),
+      { id: 'profile', label: 'Minha conta', icon: User },
+    ] : [
+      { id: 'login', label: 'Cadastro', icon: User },
+    ]),
   ];
 
   function ir(screen: string) {
@@ -447,4 +455,3 @@ export const BottomNav = ({
     </>
   );
 };
-
