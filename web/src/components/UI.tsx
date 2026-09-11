@@ -1,6 +1,6 @@
 import { ReactNode, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, ChevronRight, House, Calendar, Bookmark, User, Settings2, ZoomIn, ZoomOut, Contrast, Moon, Sun, List, Church, ScrollText, RotateCcw, MoreHorizontal, Hand, X, Bell } from 'lucide-react';
+import { ChevronLeft, ChevronRight, House, Calendar, Bookmark, User, Settings2, ZoomIn, ZoomOut, Contrast, Moon, Sun, List, Church, ScrollText, RotateCcw, MoreHorizontal, Hand, X, Bell, MessageCircleHeart } from 'lucide-react';
 import { useAccessibility } from '../hooks/useAccessibility';
 import api from '../services/api';
 import { navegarPara } from '../services/navigation';
@@ -367,6 +367,7 @@ export const BottomNav = ({
     { id: 'oracoes', label: 'Orações', icon: PrayingHandsIcon as any },
     { id: 'reminders', label: 'Lembretes', icon: Bell },
     { id: 'history', label: 'Minha Jornada', icon: ScrollText },
+    { id: 'feedback', label: 'Dicas e sugestões', icon: MessageCircleHeart },
     ...(estaAutenticado ? [
       { id: 'profile', label: 'Minha conta', icon: User },
     ] : [
@@ -401,7 +402,7 @@ export const BottomNav = ({
           <button
             onClick={() => setShowMais(true)}
             className={`flex-1 min-w-0 flex flex-col items-center gap-1 px-1 py-2 transition-all duration-300 ${
-              showMais || ['history', 'profile'].includes(currentScreen)
+              showMais || ['history', 'profile', 'feedback'].includes(currentScreen)
                 ? 'opacity-100 text-brand-gold scale-105'
                 : 'opacity-40 text-white'
             }`}

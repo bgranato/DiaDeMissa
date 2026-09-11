@@ -20,6 +20,7 @@ import { MeusDadosScreen } from './screens/MeusDadosScreen'
 import { AlterarSenhaScreen } from './screens/AlterarSenhaScreen'
 import { IgrejasScreen } from './screens/IgrejasScreen'
 import { OracoesScreen } from './screens/OracoesScreen'
+import { FeedbackScreen } from './screens/FeedbackScreen'
 import { BottomNav } from './components/UI'
 import { registrarNavegador } from './services/navigation'
 import { rotaExigeConta } from './lib/acesso'
@@ -173,6 +174,7 @@ export default function App() {
           )}
           {screen === 'igrejas' && <IgrejasScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
           {screen === 'oracoes' && <OracoesScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
+          {screen === 'feedback' && <FeedbackScreen onBack={() => navigateTo('home')} telaOrigem={lastScreen} />}
           {screen === 'calendar' && <CalendarScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
           {screen === 'history' && <JornadaScreen setScreen={navigateTo} />}
           {screen === 'reminders' && (

@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
 class UsuarioCreate(BaseModel):
@@ -161,3 +161,19 @@ class LembreteBroadcast(BaseModel):
     usuario_id: Optional[int] = None  # None = todos os usuários do segmento
     igreja: Optional[str] = None  # filtra por igreja; None = qualquer
     remetente: Optional[str] = None  # override do remetente exibido (default "Missa do Dia")
+
+
+class FeedbackCreate(BaseModel):
+    tipo: Literal["problema", "sugestao"]
+    mensagem: str = Field(min_length=10, max_length=2000)
+    email_contato: Optional[EmailStr] = None
+    tela: Optional[str] = Field(default=None, max_length=100)
+
+
+class FeedbackResponse(BaseModel):
+    id: int
+    tipo: str
+    status: str
+
+    class Config:
+        from_attributes = True

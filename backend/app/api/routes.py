@@ -19,7 +19,7 @@ from app.core.security import (
     obter_usuario_admin,
     verificar_senha,
 )
-from app.models.usuario import Usuario, PreferenciaUsuario, HistoricoUsuario, Lembrete
+from app.models.usuario import Usuario, PreferenciaUsuario, HistoricoUsuario, Lembrete, FeedbackUsuario
 from app.models.missa import Missa, BlocoLiturgico
 from app.models.igreja import Igreja, UsuarioIgreja
 from app.models.uso_geocoding import UsoGeocodingMensal
@@ -30,7 +30,7 @@ from app.schemas.usuario import (
     PreferenciasResponse, PreferenciasUpdate,
     HistoricoResponse, HistoricoCreate,
     LembreteCreate, LembreteResponse, LembreteUpdate, LembreteBroadcast,
-    MetaMensalUpdate, AdminUsuarioUpdate,
+    MetaMensalUpdate, AdminUsuarioUpdate, FeedbackCreate, FeedbackResponse,
 )
 from app.models.custo_llm import CustoLLM
 from app.models.apoio import Apoio
@@ -63,6 +63,32 @@ router = APIRouter()
 @router.get("/health")
 def health_check():
     return {"status": "ok", "version": settings.APP_VERSION, "app": settings.APP_NAME}
+
+
+@router.post("/feedback", response_model=FeedbackResponse, status_code=status.HTTP_201_CREATED)
+def enviar_feedback(
+    dados: FeedbackCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario | None = Depends(obter_usuario_opcional),
+):
+    """Recebe relato de problema ou sugestão, inclusive de visitantes."""
+    mensagem = dados.mensagem.strip()
+    if len(mensagem) < 10:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Escreva pelo menos 10 caracteres para conseguirmos entender.",
+        )
+    feedback = FeedbackUsuario(
+        usuario_id=usuario.id if usuario else None,
+        tipo=dados.tipo,
+        mensagem=mensagem,
+        email_contato=str(dados.email_contato) if dados.email_contato else None,
+        tela=dados.tela.strip() if dados.tela else None,
+    )
+    db.add(feedback)
+    db.commit()
+    db.refresh(feedback)
+    return feedback
 
 
 @router.get("/apoios/configuracao", response_model=ApoiosConfiguracaoResponse)
@@ -728,6 +754,32 @@ def admin_aprovar_missa(
 
 
 # ======================= PAINEL MASTER (admin) — Fase 1 =======================
+
+@router.get("/admin/feedback")
+def admin_listar_feedback(
+    status_feedback: str | None = Query(default=None, alias="status"),
+    limite: int = 100,
+    admin: Usuario = Depends(obter_usuario_admin),
+    db: Session = Depends(get_db),
+):
+    """Fila de problemas e sugestões enviada pelo aplicativo."""
+    query = db.query(FeedbackUsuario)
+    if status_feedback:
+        query = query.filter(FeedbackUsuario.status == status_feedback)
+    itens = query.order_by(desc(FeedbackUsuario.data_criacao)).limit(max(1, min(limite, 500))).all()
+    return {
+        "total": len(itens),
+        "feedback": [{
+            "id": item.id,
+            "usuario_id": item.usuario_id,
+            "tipo": item.tipo,
+            "mensagem": item.mensagem,
+            "email_contato": item.email_contato,
+            "tela": item.tela,
+            "status": item.status,
+            "data_criacao": item.data_criacao.isoformat() if item.data_criacao else None,
+        } for item in itens],
+    }
 
 @router.get("/admin/usuarios")
 def admin_listar_usuarios(

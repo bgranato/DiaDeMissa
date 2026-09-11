@@ -93,3 +93,20 @@ class Lembrete(Base):
     lido = Column(Boolean, default=False, nullable=False)
 
     usuario = relationship("Usuario", back_populates="lembretes")
+
+
+class FeedbackUsuario(Base):
+    """Mensagem enviada pelo canal de dicas e sugestões do aplicativo."""
+
+    __tablename__ = "feedback_usuario"
+
+    id = Column(Integer, primary_key=True, index=True)
+    # Visitantes também podem colaborar. Quando há sessão, o vínculo torna o
+    # relato mais fácil de investigar sem exigir que a pessoa preencha dados.
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True, index=True)
+    tipo = Column(String(20), nullable=False, index=True)  # problema | sugestao
+    mensagem = Column(Text, nullable=False)
+    email_contato = Column(String(255), nullable=True)
+    tela = Column(String(100), nullable=True)
+    status = Column(String(20), default="novo", nullable=False, index=True)
+    data_criacao = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
