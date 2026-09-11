@@ -32,6 +32,22 @@ export const AuthScreens = ({ setScreen, onClose }: Props) => {
   const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // Nos diálogos sobre uma tela pública, a autenticação é uma decisão ativa:
+  // enquanto a janela estiver aberta, nada atrás dela deve rolar, receber foco
+  // ou responder a cliques. Telas de acesso abertas como rota própria não têm
+  // conteúdo subjacente e, por isso, não precisam desse bloqueio.
+  useEffect(() => {
+    if (!onClose) return
+    const bodyOverflow = document.body.style.overflow
+    const htmlOverflow = document.documentElement.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = bodyOverflow
+      document.documentElement.style.overflow = htmlOverflow
+    }
+  }, [onClose])
+
   function concluirAutenticacao() {
     if (onClose) onClose()
     else setScreen('home')
@@ -165,12 +181,11 @@ export const AuthScreens = ({ setScreen, onClose }: Props) => {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className={onClose
-        ? 'fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-brand-blue/45 px-3 py-4 sm:p-6 backdrop-blur-[2px]'
+        ? 'fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto overscroll-contain bg-brand-blue/65 px-3 py-4 sm:p-6 backdrop-blur-[2px]'
         : 'min-h-screen flex items-center justify-center p-6'}
       role={onClose ? 'dialog' : undefined}
       aria-modal={onClose || undefined}
       aria-labelledby={onClose ? 'acesso-titulo' : undefined}
-      onClick={onClose}
     >
       <div className="relative w-full max-w-md pb-4" onClick={event => event.stopPropagation()}>
         {onClose && (
