@@ -11,6 +11,7 @@ import { List as ListIcon, X, Check, RotateCcw } from 'lucide-react'
 interface Props {
   onBack: () => void
   onFinish: () => void
+  onRestricted?: () => void
   missaId?: number
   missaDataAlvo?: string  // YYYY-MM-DD — usado quando acessa via Agenda
   registrarProgresso?: boolean
@@ -31,7 +32,7 @@ interface BlocoLeitura {
   [campo: string]: any
 }
 
-export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo, registrarProgresso = true }: Props) => {
+export const ReadingScreen = ({ onBack, onFinish, onRestricted, missaId, missaDataAlvo, registrarProgresso = true }: Props) => {
   const [todosBlocos, setTodosBlocos] = useState<BlocoLeitura[]>([])
   const [missaData, setMissaData] = useState<string | null>(null)
   const [missaTitulo, setMissaTitulo] = useState<string | null>(null)
@@ -104,10 +105,11 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo, regist
       })
       .catch(err => {
         console.error('Erro ao carregar missa:', err)
+        if (err?.response?.status === 403) onRestricted?.()
         setTodosBlocos([])
       })
       .finally(() => setLoading(false))
-  }, [missaDataAlvo])
+  }, [missaDataAlvo, onRestricted])
 
   // Marca "iniciada" quando o usuário passa do primeiro bloco (só abrir não conta).
   const marcarIniciada = () => {

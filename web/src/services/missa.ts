@@ -66,8 +66,8 @@ interface AgendaMissas {
 // ainda é apenas prevista. Assim a interface nunca anuncia leitura disponível
 // antes de existir conteúdo público.
 export async function getProximaMissa(): Promise<ProximaMissa> {
-  const res = await api.get<AgendaMissas>('/missa/agenda')
-  return res.data.proxima
+  const res = await api.get<ProximaMissa>('/missa/proxima')
+  return res.data
 }
 
 // Última missa concluída, para que dias sem folheto ainda deem acesso ao conteúdo recente.

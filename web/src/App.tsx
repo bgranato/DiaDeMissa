@@ -31,6 +31,7 @@ export default function App() {
   const [lastScreen, setLastScreen] = useState('home')
   const [missa, setMissa] = useState<Missa | null>(null)
   const [loginAberto, setLoginAberto] = useState(false)
+  const [conteudoRestrito, setConteudoRestrito] = useState(false)
   const inicioConcluido = useRef(false)
   const requisicaoMissaRef = useRef(0)
 
@@ -118,10 +119,17 @@ export default function App() {
   }
 
   const navigateTo = useCallback((s: string) => {
+    // Abrir acesso por vontade própria não deve afirmar que há uma área bloqueada.
+    if (s === 'login') {
+      setConteudoRestrito(false)
+      setLoginAberto(true)
+      return
+    }
     const missaPublica = Boolean(missa?.id)
     // Sem login a missa disponível (hoje ou a próxima já montada) é pública;
     // as demais seções abrem o cadastro.
     if (rotaExigeConta(s, estaAutenticado, missaPublica)) {
+      setConteudoRestrito(true)
       setLoginAberto(true)
       return
     }
@@ -150,7 +158,19 @@ export default function App() {
         <AnimatePresence mode="wait">
           {screen === 'splash' && <SplashScreen onFinish={() => {}} />}
           {screen === 'home' && <HomeScreen setScreen={navigateTo} missa={missa} nome={usuarioNome} estaAutenticado={estaAutenticado} onLogout={logoutEVoltarAoInicio} />}
-          {screen === 'reading' && <ReadingScreen onBack={() => navigateTo('home')} onFinish={() => navigateTo('conclusion')} missaId={missa?.id} registrarProgresso={estaAutenticado} />}
+          {screen === 'reading' && (
+            <ReadingScreen
+              onBack={() => navigateTo('home')}
+              onFinish={() => navigateTo('conclusion')}
+              onRestricted={() => {
+                setScreen('home')
+                setConteudoRestrito(true)
+                setLoginAberto(true)
+              }}
+              missaId={missa?.id}
+              registrarProgresso={estaAutenticado}
+            />
+          )}
           {screen === 'igrejas' && <IgrejasScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
           {screen === 'oracoes' && <OracoesScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
           {screen === 'calendar' && <CalendarScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
@@ -170,7 +190,11 @@ export default function App() {
           {loginAberto && (
             <AuthScreens
               setScreen={navigateTo}
-              onClose={() => setLoginAberto(false)}
+              conteudoRestrito={conteudoRestrito}
+              onClose={() => {
+                setLoginAberto(false)
+                setConteudoRestrito(false)
+              }}
             />
           )}
         </AnimatePresence>

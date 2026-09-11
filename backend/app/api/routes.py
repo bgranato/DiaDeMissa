@@ -205,6 +205,47 @@ def missa_publicavel(missa: Missa | None, *, exigir_blocos: bool = True) -> bool
         and (not exigir_blocos or bool(missa.blocos))
     )
 
+
+MENSAGEM_CONTEUDO_RESTRITO = (
+    "Conteúdo restrito à usuários cadastrados. Cadastre-se gratuitamente ou faça login para acessar."
+)
+
+
+def _exigir_conta_para_acervo(usuario: Usuario | None) -> Usuario:
+    """Impede que URLs de agenda, busca ou PDF contornem a tela de acesso."""
+    if usuario is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=MENSAGEM_CONTEUDO_RESTRITO)
+    return usuario
+
+
+def _missa_publica_para_visitante(missa: Missa | None, db: Session) -> bool:
+    """A exceção pública é a missa vigente e somente a primeira próxima montada.
+
+    Missas passadas nunca entram nessa exceção; um lote futuro também não pode
+    expor antecipadamente todo o acervo.
+    """
+    if not missa_publicavel(missa):
+        return False
+
+    hoje = _agora_brasilia().date()
+    data_liturgica = data_liturgica_do_dia()
+    if missa.data in {hoje, data_liturgica}:
+        return True
+
+    futuras = (
+        db.query(Missa)
+        .filter(Missa.data > hoje, Missa.status_processamento == "concluido")
+        .order_by(Missa.data.asc())
+        .all()
+    )
+    primeira_publicavel = next((item for item in futuras if missa_publicavel(item)), None)
+    return bool(primeira_publicavel and primeira_publicavel.id == missa.id)
+
+
+def _exigir_missa_publica_ou_conta(missa: Missa | None, db: Session, usuario: Usuario | None) -> None:
+    if usuario is None and not _missa_publica_para_visitante(missa, db):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=MENSAGEM_CONTEUDO_RESTRITO)
+
 def _carregar_fixture():
     global _fixture_cache
     try:
@@ -222,6 +263,7 @@ def buscar_missas(
     dias: int = 365,
     apenas_arqrio: bool = False,
     db: Session = Depends(get_db),
+    usuario: Usuario | None = Depends(obter_usuario_opcional),
 ):
     """Busca missas passadas. Útil para a Jornada do usuário acessar conteúdo
     de missas antigas (ex: Solenidades passadas).
@@ -231,6 +273,7 @@ def buscar_missas(
         dias: quantos dias retroativos considerar (default 365)
         apenas_arqrio: filtra só missas vindas do folheto Arquidiocese (mais ricas)
     """
+    _exigir_conta_para_acervo(usuario)
     from datetime import date as date_cls, timedelta
     hoje = date_cls.today()
     inicio = hoje - timedelta(days=dias)
@@ -321,12 +364,16 @@ def buscar_missas(
 
 
 @router.get("/missas/{data_iso}/pdf-arqrio")
-def baixar_pdf_arqrio(data_iso: str):
+def baixar_pdf_arqrio(
+    data_iso: str,
+    usuario: Usuario | None = Depends(obter_usuario_opcional),
+):
     """Serve o PDF original do folheto Arquidiocese arquivado pra essa data.
 
     Útil pra o usuário/admin conferir se a missa foi montada corretamente
     comparando com o folheto fonte. Path: /var/lib/diademissa/pdfs/archive/YYYY-MM-DD.pdf
     """
+    _exigir_conta_para_acervo(usuario)
     from fastapi.responses import FileResponse
     from app.pipeline.download import CACHE_DIR
     pdf_path = CACHE_DIR / "archive" / f"{data_iso}.pdf"
@@ -340,7 +387,11 @@ def baixar_pdf_arqrio(data_iso: str):
 
 
 @router.get("/missa/por-data/{data_iso}")
-def missa_por_data_estruturada(data_iso: str, db: Session = Depends(get_db)):
+def missa_por_data_estruturada(
+    data_iso: str,
+    db: Session = Depends(get_db),
+    usuario: Usuario | None = Depends(obter_usuario_opcional),
+):
     """Retorna missa estruturada (com blocos) para uma data específica.
     Usado quando o usuário acessa uma missa de outro dia pela Agenda."""
     from datetime import date as date_cls
@@ -350,6 +401,7 @@ def missa_por_data_estruturada(data_iso: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Data inválida (use YYYY-MM-DD)")
     missa_db = db.query(Missa).filter(Missa.data == data_obj).first()
     if missa_publicavel(missa_db):
+        _exigir_missa_publica_ou_conta(missa_db, db, usuario)
         return reconstruir_missa(missa_db)
     # Regra "só folheto": sem folheto processado pra essa data → não há missa.
     # Não fabricamos mais via CNBB/Missal Padrão.
@@ -418,18 +470,23 @@ def missa_proxima(db: Session = Depends(get_db)):
                 "data": m.data.isoformat(),
                 "celebracao": m.celebracao,
                 "categoria": getattr(m, "categoria", None),
+                "montada": True,
             }
-    return {"data": None, "celebracao": None, "categoria": None}
+    return {"data": None, "celebracao": None, "categoria": None, "montada": False}
 
 
 @router.get("/missa/agenda")
-def missa_agenda(db: Session = Depends(get_db)):
+def missa_agenda(
+    db: Session = Depends(get_db),
+    usuario: Usuario | None = Depends(obter_usuario_opcional),
+):
     """Agenda enxuta: as 3 últimas missas anteriores (com conteúdo) + a próxima.
 
     A próxima vem com `montada`: True se o folheto já foi montado (tem card completo),
     False se ainda não — nesse caso retorna só a data prevista (próximo domingo), para
     o app mostrar um card "em breve" que se atualiza sozinho quando a missa for montada.
     """
+    _exigir_conta_para_acervo(usuario)
     from datetime import timedelta
     hoje = _agora_brasilia().date()
 
@@ -484,10 +541,15 @@ def get_missa_hoje(db: Session = Depends(get_db)):
 
 
 @router.get("/missas/{data}", response_model=MissaResponse)
-def get_missa_por_data(data: date, db: Session = Depends(get_db)):
+def get_missa_por_data(
+    data: date,
+    db: Session = Depends(get_db),
+    usuario: Usuario | None = Depends(obter_usuario_opcional),
+):
     missa = db.query(Missa).filter(Missa.data == data).first()
     if not missa_publicavel(missa, exigir_blocos=False):
         raise HTTPException(status_code=404, detail="Missa não encontrada para esta data")
+    _exigir_missa_publica_ou_conta(missa, db, usuario)
     return MissaResponse(
         id=missa.id,
         data=missa.data,
@@ -501,10 +563,15 @@ def get_missa_por_data(data: date, db: Session = Depends(get_db)):
 
 
 @router.get("/missas/{id}/blocos", response_model=list[BlocoResponse])
-def get_blocos_missa(id: int, db: Session = Depends(get_db)):
+def get_blocos_missa(
+    id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario | None = Depends(obter_usuario_opcional),
+):
     missa = db.query(Missa).filter(Missa.id == id).first()
     if not missa_publicavel(missa):
         raise HTTPException(status_code=404, detail="Missa não encontrada")
+    _exigir_missa_publica_ou_conta(missa, db, usuario)
     blocos = (
         db.query(BlocoLiturgico)
         .filter(BlocoLiturgico.missa_id == id, BlocoLiturgico.visivel == True)
@@ -515,10 +582,15 @@ def get_blocos_missa(id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/missas/{id}/completa", response_model=MissaCompletaResponse)
-def get_missa_completa(id: int, db: Session = Depends(get_db)):
+def get_missa_completa(
+    id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario | None = Depends(obter_usuario_opcional),
+):
     missa = db.query(Missa).filter(Missa.id == id).first()
     if not missa_publicavel(missa):
         raise HTTPException(status_code=404, detail="Missa não encontrada")
+    _exigir_missa_publica_ou_conta(missa, db, usuario)
     return MissaCompletaResponse.model_validate(missa)
 
 

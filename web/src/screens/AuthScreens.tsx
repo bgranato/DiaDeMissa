@@ -12,11 +12,12 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undef
 interface Props {
   setScreen: (s: string) => void
   onClose?: () => void
+  conteudoRestrito?: boolean
 }
 
 type Modo = 'login' | 'cadastro' | 'esqueci' | 'redefinir'
 
-export const AuthScreens = ({ setScreen, onClose }: Props) => {
+export const AuthScreens = ({ setScreen, onClose, conteudoRestrito = false }: Props) => {
   const { setUsuario } = useAuth()
   // Detecta se a URL tem ?token=... pra ir direto pra redefinição
   const tokenUrl = new URLSearchParams(window.location.search).get('token')
@@ -221,6 +222,13 @@ export const AuthScreens = ({ setScreen, onClose }: Props) => {
           )}
 
           <h2 className="text-2xl font-serif font-black text-brand-blue dark:text-brand-gold mb-4">{titulo}</h2>
+
+          {conteudoRestrito && (
+            <div className="mb-4 rounded-2xl border border-brand-gold/35 bg-brand-gold/10 px-4 py-3 text-center text-sm leading-relaxed text-brand-blue dark:bg-brand-gold/15 dark:text-brand-white">
+              <p className="font-bold">Conteúdo restrito à usuários cadastrados.</p>
+              <p>Cadastre-se gratuitamente ou faça login para acessar.</p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit}>
             {erro && <p className="text-red-500 text-sm font-bold mb-4 text-center">{erro}</p>}
