@@ -148,8 +148,17 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
     setScreen('reading')
   }
 
+  function abrirProximaMissa() {
+    if (!proxima?.data || !proxima.montada) return
+    localStorage.setItem('@missa_data_alvo', proxima.data)
+    setScreen('reading')
+  }
+
   const dataUltimaMissaFormatada = ultimaMissa?.data
     ? new Date(ultimaMissa.data + 'T12:00:00').toLocaleDateString('pt-BR')
+    : ''
+  const dataProximaMissaFormatada = proxima?.data
+    ? new Date(proxima.data + 'T12:00:00').toLocaleDateString('pt-BR')
     : ''
   const dataFormatada = missa?.data
     ? new Date(missa.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()
@@ -331,7 +340,29 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
                     {proxima.celebracao}
                   </h3>
                 )}
-                <p className="ds-body-sm italic text-brand-slate mt-1">Volte no dia para acompanhar.</p>
+                {proxima.montada ? (
+                  <button
+                    type="button"
+                    onClick={abrirProximaMissa}
+                    className="mt-3 inline-flex max-w-full items-center justify-center gap-2 rounded-2xl bg-brand-gold px-4 py-3 text-sm font-black text-white shadow-soft transition-all hover:brightness-95 active:scale-95"
+                  >
+                    <span>Ver missa</span>
+                    <ArrowRight size={17} aria-hidden="true" />
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      disabled
+                      aria-describedby="proxima-missa-pendente"
+                      className="mt-3 inline-flex max-w-full items-center justify-center gap-2 rounded-2xl bg-brand-gold/45 px-4 py-3 text-sm font-black text-white shadow-soft"
+                    >
+                      <span>Ver missa do dia {dataProximaMissaFormatada}</span>
+                      <ArrowRight size={17} aria-hidden="true" />
+                    </button>
+                    <p id="proxima-missa-pendente" className="ds-body-sm italic text-brand-slate mt-2">Assim que o folheto for publicado, a missa fica disponível aqui.</p>
+                  </>
+                )}
               </div>
             ) : (
               <p className="ds-body-sm italic text-brand-slate mt-1">

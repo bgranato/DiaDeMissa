@@ -44,6 +44,7 @@ export interface ProximaMissa {
   data: string | null
   celebracao: string | null
   categoria: string | null
+  montada: boolean
 }
 
 export interface MissaDisponivel {
@@ -55,12 +56,15 @@ export interface MissaDisponivel {
 
 interface AgendaMissas {
   anteriores: MissaDisponivel[]
+  proxima: ProximaMissa
 }
 
-// Próxima missa com folheto disponível (usada quando não há missa no dia).
+// Próxima missa: o calendário informa se o folheto já está pronto ou se a data
+// ainda é apenas prevista. Assim a interface nunca anuncia leitura disponível
+// antes de existir conteúdo público.
 export async function getProximaMissa(): Promise<ProximaMissa> {
-  const res = await api.get<ProximaMissa>('/missa/proxima')
-  return res.data
+  const res = await api.get<AgendaMissas>('/missa/agenda')
+  return res.data.proxima
 }
 
 // Última missa concluída, para que dias sem folheto ainda deem acesso ao conteúdo recente.
