@@ -42,9 +42,10 @@ export default function App() {
       inicioConcluido.current = true
       setScreen('home')
     }
-    // Ao entrar ou sair da conta, refaz a seleção: visitante recebe somente
-    // a missa de hoje; a conta pode acessar a próxima missa já montada.
-    void carregarMissa(estaAutenticado)
+    // Ao entrar ou sair da conta, refaz a seleção. A próxima celebração já
+    // montada continua pública; o que exige conta são as demais seções e o
+    // acervo de missas passadas.
+    void carregarMissa()
   }, [estaCarregando, estaAutenticado])
 
   // O Mercado Pago retorna ao início após checkout. A pausa do convite só é
@@ -98,19 +99,13 @@ export default function App() {
     document.body.scrollTop = 0
   }, [screen])
 
-  async function carregarMissa(podeAcessarOutrasMissas: boolean) {
+  async function carregarMissa() {
     const requisicao = ++requisicaoMissaRef.current
     try {
       const hoje = await getMissaHoje()
       if (requisicao === requisicaoMissaRef.current) setMissa(hoje)
     } catch (e) {
       logError('carregarMissaHoje', e)
-      // Conteúdo anterior e futuro pertencem à área autenticada. O visitante
-      // vê somente a celebração da data corrente, quando ela existir.
-      if (!podeAcessarOutrasMissas) {
-        if (requisicao === requisicaoMissaRef.current) setMissa(null)
-        return
-      }
       try {
         const proxima = await getProximaMissa()
         const proximaMissa = proxima.montada && proxima.data ? await getMissaPorData(proxima.data) : null
@@ -123,12 +118,9 @@ export default function App() {
   }
 
   const navigateTo = useCallback((s: string) => {
-    const partesHoje = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
-    }).formatToParts(new Date())
-    const parte = (tipo: Intl.DateTimeFormatPartTypes) => partesHoje.find(p => p.type === tipo)?.value ?? ''
-    const missaPublica = missa?.data === `${parte('year')}-${parte('month')}-${parte('day')}`
-    // Sem login a única rota de conteúdo é a missa da data de hoje.
+    const missaPublica = Boolean(missa?.id)
+    // Sem login a missa disponível (hoje ou a próxima já montada) é pública;
+    // as demais seções abrem o cadastro.
     if (rotaExigeConta(s, estaAutenticado, missaPublica)) {
       setLoginAberto(true)
       return

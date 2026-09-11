@@ -3,15 +3,16 @@ import { describe, expect, it } from 'vitest'
 import { rotaExigeConta } from './acesso'
 
 describe('acesso de visitante', () => {
-  it('permite somente a missa da data atual sem login', () => {
+  it('permite a missa já disponível sem login', () => {
     expect(rotaExigeConta('reading', false, true)).toBe(false)
     expect(rotaExigeConta('home', false, false)).toBe(false)
   })
 
-  it('direciona o visitante ao cadastro para recursos pessoais e conteúdo fora do dia', () => {
-    for (const destino of ['calendar', 'igrejas', 'oracoes', 'history', 'reading']) {
+  it('direciona o visitante ao cadastro para seções e quando não há missa disponível', () => {
+    for (const destino of ['calendar', 'igrejas', 'oracoes', 'history']) {
       expect(rotaExigeConta(destino, false, false)).toBe(true)
     }
+    expect(rotaExigeConta('reading', false, false)).toBe(true)
   })
 
   it('não impõe a barreira a uma conta autenticada', () => {

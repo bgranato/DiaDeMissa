@@ -189,7 +189,7 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
           </span>
           <span className="min-w-0">
             <span className="block ds-title text-brand-gray-dark dark:text-brand-white truncate">Olá, {nome}!</span>
-            <span className="block ds-body-sm italic text-brand-blue/70 dark:text-brand-gold/70">A paz esteja convosco.</span>
+            <span className="block ds-body-sm italic text-brand-blue/70 dark:text-brand-gold/70">O Senhor esteja convosco.</span>
             {!estaAutenticado && (
               <span className="mt-1 inline-flex rounded-full border border-brand-gold/40 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-brand-gold">
                 Cadastrar
@@ -358,15 +358,15 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
       <section className="flex flex-col gap-3">
         <h4 className="ds-section-label opacity-60 ml-1">Explorar</h4>
         <div className="grid grid-cols-2 gap-3">
-          {(estaAutenticado ? [
+          {[
             { id: 'igrejas-salvas', icon: Church, label: 'Minhas Igrejas', onClick: () => { localStorage.setItem('@igrejas_aba_inicial', 'salvas'); setScreen('igrejas') } },
             { id: 'igrejas-buscar', icon: Search, label: 'Buscar Igreja', onClick: () => { localStorage.setItem('@igrejas_aba_inicial', 'buscar'); setScreen('igrejas') } },
             { id: 'calendar', icon: Calendar, label: 'Agenda de Missas', onClick: () => setScreen('calendar') },
             { id: 'history', icon: ScrollText, label: 'Minha Jornada', onClick: () => setScreen('history') },
-            { id: 'profile', icon: User, label: 'Minha conta', onClick: () => setScreen('profile') },
-          ] : [
-            { id: 'cadastro', icon: User, label: 'Cadastrar', onClick: () => setScreen('login') },
-          ]).map(({ id, icon: Icon, label, onClick }) => (
+            estaAutenticado
+              ? { id: 'profile', icon: User, label: 'Minha conta', onClick: () => setScreen('profile') }
+              : { id: 'cadastro', icon: User, label: 'Cadastrar', onClick: () => setScreen('login') },
+          ].map(({ id, icon: Icon, label, onClick }) => (
             <button key={id} onClick={onClick}
               className="ds-card flex flex-col items-center gap-3 active:scale-[0.97] transition-transform min-w-0">
               <span className="p-3 bg-brand-gold text-white rounded-2xl flex-shrink-0">
