@@ -5,6 +5,7 @@ import { CheckCircle2, House, Bookmark, Share2, MapPin, Church, X, ArrowRight, S
 import { minhasIgrejas, buscarIgrejas } from '../services/igrejas';
 import type { Igreja } from '../types/igreja';
 import api from '../services/api';
+import { ApoioVoluntarioModal } from '../components/ApoioVoluntarioModal';
 
 interface Props {
   setScreen: (s: string) => void;
@@ -230,6 +231,7 @@ export const ConclusionScreen = ({ setScreen, missaId, missaData }: Props) => {
           </motion.div>
         )}
       </AnimatePresence>
+      <ApoioVoluntarioModal missaId={missaId} />
     </motion.div>
   );
 };

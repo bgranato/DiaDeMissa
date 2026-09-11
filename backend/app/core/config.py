@@ -27,6 +27,12 @@ class Settings(BaseSettings):
 
     APP_BASE_URL: str = "http://localhost:3000"
 
+    # Apoio voluntário. Os segredos ficam exclusivamente no ambiente do
+    # servidor; o navegador recebe somente a URL hospedada do Checkout Pro.
+    APOIOS_ATIVOS: bool = False
+    MERCADOPAGO_ACCESS_TOKEN: Optional[str] = None
+    MERCADOPAGO_WEBHOOK_SECRET: Optional[str] = None
+
     CORS_ORIGINS: list[str] = ["*"]
 
     class Config:

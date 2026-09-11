@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation
+from uuid import uuid4
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, String, func
 
@@ -31,6 +33,7 @@ from app.schemas.usuario import (
     MetaMensalUpdate, AdminUsuarioUpdate,
 )
 from app.models.custo_llm import CustoLLM
+from app.models.apoio import Apoio
 from app.schemas.missa import (
     BlocoResponse, MissaResponse, MissaCompletaResponse,
 )
@@ -39,6 +42,20 @@ from app.pipeline import processar_pdf
 from app.services.catalogo_catolico import eh_local_catolico_oficial
 from app.services.google_places import GeocodingIndisponivelError, geocodificar_query_google, geocoding_configurado
 from app.services.cota_geocoding import ControleGeocodingIndisponivelError, reservar_consulta
+from app.schemas.apoio import (
+    ApoioCheckoutRequest,
+    ApoioCheckoutResponse,
+    ApoioStatusResponse,
+    ApoiosConfiguracaoResponse,
+)
+from app.services.mercado_pago import (
+    MercadoPagoErro,
+    VALORES_PERMITIDOS,
+    configurado as mercado_pago_configurado,
+    consultar_pagamento,
+    criar_checkout,
+    validar_assinatura_webhook,
+)
 
 router = APIRouter()
 
@@ -46,6 +63,126 @@ router = APIRouter()
 @router.get("/health")
 def health_check():
     return {"status": "ok", "version": settings.APP_VERSION, "app": settings.APP_NAME}
+
+
+@router.get("/apoios/configuracao", response_model=ApoiosConfiguracaoResponse)
+def configuracao_apoios():
+    """Expõe somente se o fluxo está seguro e habilitado; não vaza credenciais."""
+    return {
+        "ativo": mercado_pago_configurado(),
+        "valores_centavos": [500, 1000, 1500],
+        "reexibir_em_dias": 30,
+    }
+
+
+@router.post("/apoios/checkout", response_model=ApoioCheckoutResponse, status_code=status.HTTP_201_CREATED)
+def iniciar_checkout_apoio(
+    dados: ApoioCheckoutRequest,
+    db: Session = Depends(get_db),
+    usuario: Usuario | None = Depends(obter_usuario_opcional),
+):
+    """Inicia apoio avulso, com valor fechado e checkout externo do provedor."""
+    if not mercado_pago_configurado():
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Apoios ainda não estão disponíveis.")
+    if dados.valor_centavos not in VALORES_PERMITIDOS:
+        # Defesa adicional caso o schema seja alterado sem atualizar o contrato.
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Valor de apoio inválido.")
+
+    apoio = Apoio(
+        public_id=str(uuid4()),
+        usuario_id=usuario.id if usuario else None,
+        missa_id=dados.missa_id,
+        valor_centavos=dados.valor_centavos,
+        status="iniciado",
+    )
+    db.add(apoio)
+    db.flush()
+    try:
+        checkout_url, preference_id = criar_checkout(apoio_id=apoio.public_id, valor_centavos=apoio.valor_centavos)
+    except MercadoPagoErro as exc:
+        apoio.status = "erro_checkout"
+        db.commit()
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Não foi possível abrir o pagamento agora.") from exc
+
+    apoio.preference_id = preference_id
+    apoio.status = "aguardando_pagamento"
+    db.commit()
+    return {"apoio_id": apoio.public_id, "checkout_url": checkout_url}
+
+
+@router.get("/apoios/{apoio_id}/status", response_model=ApoioStatusResponse)
+def status_apoio(apoio_id: str, db: Session = Depends(get_db)):
+    """Estado enxuto para a tela de retorno; valores e dados pessoais não saem daqui."""
+    apoio = db.query(Apoio).filter(Apoio.public_id == apoio_id).first()
+    if apoio is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Apoio não encontrado.")
+    return {"status": apoio.status}
+
+
+def _payment_id_do_webhook(request: Request, corpo: object) -> str | None:
+    candidato = request.query_params.get("data.id")
+    if not candidato and isinstance(corpo, dict):
+        data = corpo.get("data")
+        if isinstance(data, dict):
+            candidato = data.get("id")
+    if candidato is None:
+        return None
+    return str(candidato)
+
+
+def _valor_em_centavos(valor: object) -> int | None:
+    try:
+        centavos = Decimal(str(valor)) * 100
+        if centavos != centavos.to_integral_value():
+            return None
+        return int(centavos)
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+
+
+@router.post("/apoios/mercadopago/webhook", status_code=status.HTTP_200_OK)
+async def webhook_mercado_pago(request: Request, db: Session = Depends(get_db)):
+    """Confirma o pagamento somente após validar assinatura e consultar a API oficial."""
+    try:
+        corpo: object = await request.json()
+    except ValueError:
+        corpo = {}
+    payment_id = _payment_id_do_webhook(request, corpo)
+    if not payment_id or not validar_assinatura_webhook(
+        x_signature=request.headers.get("x-signature"),
+        x_request_id=request.headers.get("x-request-id"),
+        payment_id=payment_id,
+    ):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Assinatura de webhook inválida.")
+
+    try:
+        pagamento = consultar_pagamento(payment_id)
+    except MercadoPagoErro as exc:
+        # O Mercado Pago reenviará notificações que não recebam 2xx.
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Confirmação temporariamente indisponível.") from exc
+
+    referencia = pagamento.get("external_reference")
+    if not isinstance(referencia, str):
+        return {"ok": True}
+    apoio = db.query(Apoio).filter(Apoio.public_id == referencia).first()
+    if apoio is None:
+        return {"ok": True}
+
+    valor = _valor_em_centavos(pagamento.get("transaction_amount"))
+    moeda = pagamento.get("currency_id")
+    if valor != apoio.valor_centavos or moeda != "BRL":
+        apoio.status = "divergencia_pagamento"
+        db.commit()
+        return {"ok": True}
+
+    status_provedor = str(pagamento.get("status") or "desconhecido")
+    apoio.status = status_provedor
+    apoio.payment_id = payment_id
+    apoio.metodo_pagamento = str(pagamento.get("payment_type_id") or "") or None
+    if status_provedor == "approved":
+        apoio.confirmado_em = datetime.now(timezone.utc)
+    db.commit()
+    return {"ok": True}
 
 
 from pathlib import Path
