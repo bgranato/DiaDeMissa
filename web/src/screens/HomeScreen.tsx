@@ -316,6 +316,35 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
           </div>
           <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-brand-blue opacity-5 rounded-full blur-3xl" />
         </Card>
+      ) : proxima?.montada && proxima.data ? (
+        <Card className="ds-card-feature overflow-hidden relative">
+          <div className="relative z-10 flex flex-col items-center text-center gap-3 py-4">
+            <span className="p-3 rounded-2xl bg-brand-gold/10 text-brand-gold">
+              <CalendarClock size={28} />
+            </span>
+            <span className="ds-section-label">Missa disponível</span>
+            <span className="ds-pill ds-pill-gold">
+              {new Date(proxima.data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </span>
+            <h3 className="ds-display text-brand-blue dark:text-brand-white break-words">
+              {proxima.celebracao || 'Missa do Dia'}
+            </h3>
+            {proxima.categoria && proxima.categoria !== proxima.celebracao && (
+              <p className="ds-body-sm font-semibold text-brand-slate dark:text-brand-gold/80">
+                {proxima.categoria}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={abrirProximaMissa}
+              className="mt-2 inline-flex max-w-full items-center justify-center gap-2 rounded-2xl bg-brand-gold px-4 py-3 text-sm font-black text-white shadow-soft transition-all hover:brightness-95 active:scale-95"
+            >
+              <span>Ver missa</span>
+              <ArrowRight size={17} aria-hidden="true" />
+            </button>
+          </div>
+          <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-brand-blue opacity-5 rounded-full blur-3xl" />
+        </Card>
       ) : (
         <Card className="ds-card-feature overflow-hidden relative">
           <div className="relative z-10 flex flex-col items-center text-center gap-3 py-4">
@@ -326,27 +355,7 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
             <p className="ds-body text-brand-text/70 dark:text-brand-white/70 max-w-sm">
               O folheto está disponível aos sábados (à noite), domingos e solenidades.
             </p>
-            {proxima?.montada && proxima.data ? (
-              <div className="mt-2 flex flex-col items-center gap-1">
-                <span className="ds-section-label opacity-70">Próxima missa</span>
-                <span className="ds-pill ds-pill-gold">
-                  {new Date(proxima.data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
-                </span>
-                {proxima.celebracao && (
-                  <h3 className="ds-title text-brand-blue dark:text-brand-white mt-1 break-words">
-                    {proxima.celebracao}
-                  </h3>
-                )}
-                <button
-                  type="button"
-                  onClick={abrirProximaMissa}
-                  className="mt-3 inline-flex max-w-full items-center justify-center gap-2 rounded-2xl bg-brand-gold px-4 py-3 text-sm font-black text-white shadow-soft transition-all hover:brightness-95 active:scale-95"
-                >
-                  <span>Ver missa</span>
-                  <ArrowRight size={17} aria-hidden="true" />
-                </button>
-              </div>
-            ) : ultimaMissa ? (
+            {ultimaMissa ? (
               <button
                 type="button"
                 onClick={abrirUltimaMissa}
