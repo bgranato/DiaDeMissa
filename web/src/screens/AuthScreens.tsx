@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { motion } from 'motion/react'
 import { login, cadastrar, recuperarSenha, redefinirSenha, loginGoogleToken } from '../services/auth'
 import { Card } from '../components/UI'
-import { LogIn, UserPlus, Mail, Lock, Phone, KeyRound, ArrowLeft, Church } from 'lucide-react'
+import { LogIn, UserPlus, Mail, Lock, Phone, KeyRound, ArrowLeft, Church, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 // Client ID do Google OAuth (Web) — definido em build via VITE_GOOGLE_CLIENT_ID.
@@ -11,11 +11,12 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undef
 
 interface Props {
   setScreen: (s: string) => void
+  onClose?: () => void
 }
 
 type Modo = 'login' | 'cadastro' | 'esqueci' | 'redefinir'
 
-export const AuthScreens = ({ setScreen }: Props) => {
+export const AuthScreens = ({ setScreen, onClose }: Props) => {
   const { setUsuario } = useAuth()
   // Detecta se a URL tem ?token=... pra ir direto pra redefinição
   const tokenUrl = new URLSearchParams(window.location.search).get('token')
@@ -31,6 +32,11 @@ export const AuthScreens = ({ setScreen }: Props) => {
   const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
 
+  function concluirAutenticacao() {
+    if (onClose) onClose()
+    else setScreen('home')
+  }
+
   function reset(novoModo: Modo) {
     setErro(''); setInfo(''); setSenha(''); setSenhaConfirma(''); setModo(novoModo)
   }
@@ -45,7 +51,7 @@ export const AuthScreens = ({ setScreen }: Props) => {
     try {
       const res = await loginGoogleToken(response.access_token)
       setUsuario(res.usuario)
-      setScreen('home')
+      concluirAutenticacao()
     } catch {
       setErro('Falha no login com Google. Tente novamente.')
     } finally {
@@ -95,7 +101,7 @@ export const AuthScreens = ({ setScreen }: Props) => {
       try {
         const res = await login(email, senha)
         setUsuario(res.usuario)
-        setScreen('home')
+        concluirAutenticacao()
       } catch { setErro('Email ou senha inválidos') }
       finally { setLoading(false) }
       return
@@ -112,7 +118,7 @@ export const AuthScreens = ({ setScreen }: Props) => {
         await cadastrar(nome, email, senha, celular, igreja || undefined)
         const res = await login(email, senha)
         setUsuario(res.usuario)
-        setScreen('home')
+        concluirAutenticacao()
       } catch { setErro('Não foi possível criar a conta (e-mail pode já estar em uso)') }
       finally { setLoading(false) }
       return
@@ -154,14 +160,35 @@ export const AuthScreens = ({ setScreen }: Props) => {
   }[modo]
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-10">
-          <h1 className="text-5xl font-serif font-black text-brand-blue dark:text-brand-gold mb-2">Dia de Missa</h1>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className={onClose
+        ? 'fixed inset-0 z-[80] flex items-end sm:items-center justify-center overflow-y-auto bg-brand-blue/45 p-3 sm:p-6 backdrop-blur-[2px]'
+        : 'min-h-screen flex items-center justify-center p-6'}
+      role={onClose ? 'dialog' : undefined}
+      aria-modal={onClose || undefined}
+      aria-labelledby={onClose ? 'acesso-titulo' : undefined}
+      onClick={onClose}
+    >
+      <div className="relative w-full max-w-md" onClick={event => event.stopPropagation()}>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fechar e continuar sem conta"
+            className="absolute right-1 top-1 z-10 rounded-full bg-brand-white/90 p-2 text-brand-blue shadow-soft hover:bg-brand-white dark:bg-slate-800 dark:text-brand-gold"
+          >
+            <X size={20} />
+          </button>
+        )}
+        <div className={`text-center ${onClose ? 'mb-5 pt-2' : 'mb-10'}`}>
+          <h1 id={onClose ? 'acesso-titulo' : undefined} className={`${onClose ? 'text-4xl' : 'text-5xl'} font-serif font-black text-brand-blue dark:text-brand-gold mb-2`}>Dia de Missa</h1>
           <p className="text-brand-gold font-bold italic text-lg">Liturgia Diária</p>
         </div>
 
-        <Card className="p-8 shadow-strong">
+        <Card className={`${onClose ? 'p-6 sm:p-8' : 'p-8'} shadow-strong`}>
           {(modo === 'esqueci' || modo === 'redefinir') && (
             <button
               type="button"
@@ -301,6 +328,16 @@ export const AuthScreens = ({ setScreen }: Props) => {
                 Faça login
               </button>
             </p>
+          )}
+
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-5 w-full text-center text-sm font-medium text-brand-gray-dark/65 hover:text-brand-blue dark:text-brand-white/65 dark:hover:text-brand-gold"
+            >
+              Continuar sem conta
+            </button>
           )}
         </Card>
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { AnimatePresence } from 'motion/react'
 import { useAuth } from './contexts/AuthContext'
 import { getMissaHoje } from './services/missa'
@@ -27,14 +27,17 @@ export default function App() {
   const [screen, setScreen] = useState('splash')
   const [lastScreen, setLastScreen] = useState('home')
   const [missa, setMissa] = useState<Missa | null>(null)
+  const [loginAberto, setLoginAberto] = useState(false)
+  const inicioConcluido = useRef(false)
 
   const usuarioNome = usuario?.nome || 'Visitante'
 
   useEffect(() => {
-    if (estaCarregando) return
+    if (estaCarregando || inicioConcluido.current) return
+    inicioConcluido.current = true
     setScreen('home')
     carregarMissa()
-  }, [estaCarregando, estaAutenticado])
+  }, [estaCarregando])
 
   // Toda troca de tela começa pelo topo (não herda scroll da tela anterior).
   useEffect(() => {
@@ -57,11 +60,20 @@ export default function App() {
     // Login continua sendo exigido apenas quando a pessoa escolhe um recurso que
     // guarda dados pessoais (histórico, lembretes, perfil ou revisão).
     const exigeConta = ['history', 'reminders', 'profile', 'meus-dados', 'alterar-senha', 'revisao'].includes(s)
-    const destino = exigeConta && !estaAutenticado ? 'login' : s
+    if (s === 'login' || (exigeConta && !estaAutenticado)) {
+      setLoginAberto(true)
+      return
+    }
+    const destino = s
     logNav(screen, destino)
     setLastScreen(screen)
     setScreen(destino)
   }, [screen, estaAutenticado])
+
+  const logoutEVoltarAoInicio = useCallback(async () => {
+    await logout()
+    setScreen('home')
+  }, [logout])
 
   // Registra a navegação globalmente (usado pela sineta de notificações no AppHeader).
   useEffect(() => { registrarNavegador(navigateTo) }, [navigateTo])
@@ -76,8 +88,7 @@ export default function App() {
       <div className="relative z-10 flex flex-col min-h-screen">
         <AnimatePresence mode="wait">
           {screen === 'splash' && <SplashScreen onFinish={() => {}} />}
-          {screen === 'login' && <AuthScreens setScreen={navigateTo} />}
-          {screen === 'home' && <HomeScreen setScreen={navigateTo} missa={missa} nome={usuarioNome} estaAutenticado={estaAutenticado} onLogout={logout} />}
+          {screen === 'home' && <HomeScreen setScreen={navigateTo} missa={missa} nome={usuarioNome} estaAutenticado={estaAutenticado} onLogout={logoutEVoltarAoInicio} />}
           {screen === 'reading' && <ReadingScreen onBack={() => navigateTo('home')} onFinish={() => navigateTo('conclusion')} missaId={missa?.id} registrarProgresso={estaAutenticado} />}
           {screen === 'igrejas' && <IgrejasScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
           {screen === 'oracoes' && <OracoesScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
@@ -86,12 +97,21 @@ export default function App() {
           {screen === 'reminders' && (
             <LembretesScreen onBack={() => navigateTo(lastScreen)} />
           )}
-          {screen === 'profile' && <ProfileScreen setScreen={navigateTo} usuario={usuario} onLogout={logout} />}
+          {screen === 'profile' && <ProfileScreen setScreen={navigateTo} usuario={usuario} onLogout={logoutEVoltarAoInicio} />}
           {screen === 'conclusion' && <ConclusionScreen setScreen={navigateTo} missaId={missa?.id} missaData={missa?.data} estaAutenticado={estaAutenticado} />}
           {screen === 'design-system' && <DesignSystemScreen onBack={() => navigateTo('profile')} />}
           {screen === 'meus-dados' && <MeusDadosScreen onBack={() => navigateTo('profile')} />}
           {screen === 'alterar-senha' && <AlterarSenhaScreen onBack={() => navigateTo('profile')} />}
           {screen === 'revisao' && <RevisaoScreen setScreen={navigateTo} />}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {loginAberto && (
+            <AuthScreens
+              setScreen={navigateTo}
+              onClose={() => setLoginAberto(false)}
+            />
+          )}
         </AnimatePresence>
 
         {!['splash', 'login', 'reading', 'conclusion', 'design-system', 'meus-dados', 'alterar-senha'].includes(screen) && (
