@@ -71,7 +71,7 @@ def configuracao_apoios():
     return {
         "ativo": mercado_pago_configurado(),
         "valores_centavos": [500, 1000, 1500],
-        "reexibir_em_dias": 30,
+        "reexibir_em_dias": 1,
     }
 
 

@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { AnimatePresence } from 'motion/react'
 import { useAuth } from './contexts/AuthContext'
 import { getMissaHoje, getMissaPorData, getProximaMissa } from './services/missa'
+import api from './services/api'
+import { pausarConviteApoioAposPagamento } from './services/apoioExibicao'
 import { logNav, logError } from './services/logger'
 import { HomeScreen } from './screens/HomeScreen'
 import { ReadingScreen } from './screens/ReadingScreen'
@@ -38,6 +40,50 @@ export default function App() {
     setScreen('home')
     carregarMissa()
   }, [estaCarregando])
+
+  // O Mercado Pago retorna ao início após checkout. A pausa do convite só é
+  // aplicada quando o webhook já confirmou o apoio como aprovado no servidor.
+  useEffect(() => {
+    const parametros = new URLSearchParams(window.location.search)
+    const apoioId = parametros.get('apoio_id')
+    if (parametros.get('apoio') !== 'retorno' || !apoioId) return
+
+    let cancelado = false
+    let timer: number | undefined
+    let tentativas = 0
+    const limparRetorno = () => {
+      parametros.delete('apoio')
+      parametros.delete('apoio_id')
+      const busca = parametros.toString()
+      window.history.replaceState({}, '', `${window.location.pathname}${busca ? `?${busca}` : ''}${window.location.hash}`)
+    }
+    const conferir = async () => {
+      try {
+        const { data } = await api.get<{ status: string }>(`/apoios/${encodeURIComponent(apoioId)}/status`)
+        if (cancelado) return
+        if (data.status === 'approved') {
+          pausarConviteApoioAposPagamento()
+          limparRetorno()
+          return
+        }
+        if (['rejected', 'cancelled', 'failure', 'divergencia_pagamento'].includes(data.status)) {
+          limparRetorno()
+          return
+        }
+      } catch {
+        if (!cancelado) limparRetorno()
+        return
+      }
+      tentativas += 1
+      if (tentativas < 15 && !cancelado) timer = window.setTimeout(conferir, 2000)
+      else if (!cancelado) limparRetorno()
+    }
+    void conferir()
+    return () => {
+      cancelado = true
+      if (timer !== undefined) window.clearTimeout(timer)
+    }
+  }, [])
 
   // Toda troca de tela começa pelo topo (não herda scroll da tela anterior).
   useEffect(() => {

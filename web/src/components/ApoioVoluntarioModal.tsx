@@ -3,8 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { Heart, LoaderCircle, X } from 'lucide-react'
 
 import api from '../services/api'
-
-const COOLDOWN_KEY = '@dia_de_missa_apoio_reexibir_em'
+import { conviteApoioEmPausa } from '../services/apoioExibicao'
 
 type ConfiguracaoApoios = {
   ativo: boolean
@@ -14,15 +13,6 @@ type ConfiguracaoApoios = {
 
 type Props = {
   missaId?: number
-}
-
-function emCooldown() {
-  const ate = Number(localStorage.getItem(COOLDOWN_KEY) || 0)
-  return Number.isFinite(ate) && ate > Date.now()
-}
-
-function adiar(dias: number) {
-  localStorage.setItem(COOLDOWN_KEY, String(Date.now() + dias * 24 * 60 * 60 * 1000))
 }
 
 function formatoBRL(valorCentavos: number) {
@@ -38,7 +28,7 @@ export function ApoioVoluntarioModal({ missaId }: Props) {
 
   useEffect(() => {
     let ativo = true
-    if (emCooldown()) return () => { ativo = false }
+    if (conviteApoioEmPausa()) return () => { ativo = false }
 
     api.get<ConfiguracaoApoios>('/apoios/configuracao')
       .then(({ data }) => {
@@ -54,7 +44,6 @@ export function ApoioVoluntarioModal({ missaId }: Props) {
   }, [])
 
   function fechar() {
-    if (configuracao) adiar(configuracao.reexibir_em_dias)
     setAberto(false)
   }
 
@@ -67,7 +56,6 @@ export function ApoioVoluntarioModal({ missaId }: Props) {
         missa_id: missaId,
       })
       if (!data.checkout_url.startsWith('https://')) throw new Error('Checkout inválido')
-      if (configuracao) adiar(configuracao.reexibir_em_dias)
       window.location.assign(data.checkout_url)
     } catch {
       setErro('Não foi possível abrir o pagamento agora. Tente novamente mais tarde.')
