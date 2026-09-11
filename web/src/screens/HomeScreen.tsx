@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { Card, LargeButton, AccessibilityControls } from '../components/UI'
+import { Card, LargeButton, AccessibilityControls, PrayingHandsIcon } from '../components/UI'
 import { Play, Bell, ArrowRight, CheckCircle2, Calendar, ScrollText, Settings2, Church, Search, MapPin, X, User, CalendarClock } from 'lucide-react'
 import type { Missa } from '../types/missa'
 import type { Igreja } from '../types/igreja'
@@ -363,6 +363,7 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
             { id: 'igrejas-buscar', icon: Search, label: 'Buscar Igreja', onClick: () => { localStorage.setItem('@igrejas_aba_inicial', 'buscar'); setScreen('igrejas') } },
             { id: 'calendar', icon: Calendar, label: 'Agenda de Missas', onClick: () => setScreen('calendar') },
             { id: 'history', icon: ScrollText, label: 'Minha Jornada', onClick: () => setScreen('history') },
+            { id: 'oracoes', icon: PrayingHandsIcon, label: 'Orações', onClick: () => setScreen('oracoes') },
             estaAutenticado
               ? { id: 'profile', icon: User, label: 'Minha conta', onClick: () => setScreen('profile') }
               : { id: 'cadastro', icon: User, label: 'Cadastrar', onClick: () => setScreen('login') },
