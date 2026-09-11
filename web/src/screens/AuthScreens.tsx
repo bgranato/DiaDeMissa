@@ -165,14 +165,14 @@ export const AuthScreens = ({ setScreen, onClose }: Props) => {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className={onClose
-        ? 'fixed inset-0 z-[80] flex items-end sm:items-center justify-center overflow-y-auto bg-brand-blue/45 p-3 sm:p-6 backdrop-blur-[2px]'
+        ? 'fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-brand-blue/45 px-3 py-4 sm:p-6 backdrop-blur-[2px]'
         : 'min-h-screen flex items-center justify-center p-6'}
       role={onClose ? 'dialog' : undefined}
       aria-modal={onClose || undefined}
       aria-labelledby={onClose ? 'acesso-titulo' : undefined}
       onClick={onClose}
     >
-      <div className="relative w-full max-w-md" onClick={event => event.stopPropagation()}>
+      <div className="relative w-full max-w-md pb-4" onClick={event => event.stopPropagation()}>
         {onClose && (
           <button
             type="button"
@@ -183,12 +183,12 @@ export const AuthScreens = ({ setScreen, onClose }: Props) => {
             <X size={20} />
           </button>
         )}
-        <div className={`text-center ${onClose ? 'mb-5 pt-2' : 'mb-10'}`}>
+        <div className={`text-center ${onClose ? 'mb-3 pt-1' : 'mb-10'}`}>
           <h1 id={onClose ? 'acesso-titulo' : undefined} className={`${onClose ? 'text-4xl' : 'text-5xl'} font-serif font-black text-brand-blue dark:text-brand-gold mb-2`}>Dia de Missa</h1>
           <p className="text-brand-gold font-bold italic text-lg">Liturgia Diária</p>
         </div>
 
-        <Card className={`${onClose ? 'p-6 sm:p-8' : 'p-8'} shadow-strong`}>
+        <Card className={`${onClose ? 'p-4 sm:p-6' : 'p-8'} shadow-strong`}>
           {(modo === 'esqueci' || modo === 'redefinir') && (
             <button
               type="button"
@@ -199,16 +199,16 @@ export const AuthScreens = ({ setScreen, onClose }: Props) => {
             </button>
           )}
 
-          <h2 className="text-2xl font-serif font-black text-brand-blue dark:text-brand-gold mb-6">{titulo}</h2>
+          <h2 className="text-2xl font-serif font-black text-brand-blue dark:text-brand-gold mb-4">{titulo}</h2>
 
           <form onSubmit={handleSubmit}>
             {erro && <p className="text-red-500 text-sm font-bold mb-4 text-center">{erro}</p>}
             {info && <p className="text-green-600 text-sm font-medium mb-4 text-center">{info}</p>}
 
             {modo === 'cadastro' && (
-              <div className="mb-4">
-                <label className="text-xs font-bold uppercase tracking-widest text-brand-gray-dark/60 mb-2 block">Nome</label>
-                <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-800 rounded-2xl px-5 py-4 border border-gray-200 dark:border-slate-700">
+              <div className="mb-3">
+                <label className="text-xs font-bold uppercase tracking-widest text-brand-gray-dark/60 mb-1 block">Nome</label>
+                <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-800 rounded-2xl px-4 py-3 border border-gray-200 dark:border-slate-700">
                   <UserPlus size={20} className="text-brand-gold" />
                   <input className="bg-transparent w-full text-lg font-medium outline-none placeholder:text-gray-400 dark:text-white" placeholder="Seu nome" value={nome} onChange={e => setNome(e.target.value)} />
                 </div>
@@ -216,9 +216,9 @@ export const AuthScreens = ({ setScreen, onClose }: Props) => {
             )}
 
             {(modo === 'login' || modo === 'cadastro' || modo === 'esqueci') && (
-              <div className="mb-4">
-                <label className="text-xs font-bold uppercase tracking-widest text-brand-gray-dark/60 mb-2 block">E-mail</label>
-                <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-800 rounded-2xl px-5 py-4 border border-gray-200 dark:border-slate-700">
+              <div className="mb-3">
+                <label className="text-xs font-bold uppercase tracking-widest text-brand-gray-dark/60 mb-1 block">E-mail</label>
+                <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-800 rounded-2xl px-4 py-3 border border-gray-200 dark:border-slate-700">
                   <Mail size={20} className="text-brand-gold" />
                   <input type="email" className="bg-transparent w-full text-lg font-medium outline-none placeholder:text-gray-400 dark:text-white" placeholder="seu@email.com" value={email} onChange={e => setEmail(e.target.value)} />
                 </div>
@@ -226,9 +226,9 @@ export const AuthScreens = ({ setScreen, onClose }: Props) => {
             )}
 
             {modo === 'cadastro' && (
-              <div className="mb-4">
-                <label className="text-xs font-bold uppercase tracking-widest text-brand-gray-dark/60 mb-2 block">Celular (WhatsApp)</label>
-                <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-800 rounded-2xl px-5 py-4 border border-gray-200 dark:border-slate-700">
+              <div className="mb-3">
+                <label className="text-xs font-bold uppercase tracking-widest text-brand-gray-dark/60 mb-1 block">Celular (WhatsApp)</label>
+                <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-800 rounded-2xl px-4 py-3 border border-gray-200 dark:border-slate-700">
                   <Phone size={20} className="text-brand-gold" />
                   <input type="tel" className="bg-transparent w-full text-lg font-medium outline-none placeholder:text-gray-400 dark:text-white" placeholder="(21) 99999-9999" value={celular} onChange={e => setCelular(e.target.value)} />
                 </div>
@@ -236,9 +236,9 @@ export const AuthScreens = ({ setScreen, onClose }: Props) => {
             )}
 
             {modo === 'cadastro' && (
-              <div className="mb-4">
-                <label className="text-xs font-bold uppercase tracking-widest text-brand-gray-dark/60 mb-2 block">Igreja que frequenta (opcional)</label>
-                <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-800 rounded-2xl px-5 py-4 border border-gray-200 dark:border-slate-700">
+              <div className="mb-3">
+                <label className="text-xs font-bold uppercase tracking-widest text-brand-gray-dark/60 mb-1 block">Igreja que frequenta (opcional)</label>
+                <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-800 rounded-2xl px-4 py-3 border border-gray-200 dark:border-slate-700">
                   <Church size={20} className="text-brand-gold" />
                   <input className="bg-transparent w-full text-lg font-medium outline-none placeholder:text-gray-400 dark:text-white" placeholder="Ex.: Capela PUC-Rio" value={igreja} onChange={e => setIgreja(e.target.value)} />
                 </div>
@@ -246,9 +246,9 @@ export const AuthScreens = ({ setScreen, onClose }: Props) => {
             )}
 
             {modo === 'redefinir' && (
-              <div className="mb-4">
-                <label className="text-xs font-bold uppercase tracking-widest text-brand-gray-dark/60 mb-2 block">Token</label>
-                <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-800 rounded-2xl px-5 py-4 border border-gray-200 dark:border-slate-700">
+              <div className="mb-3">
+                <label className="text-xs font-bold uppercase tracking-widest text-brand-gray-dark/60 mb-1 block">Token</label>
+                <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-800 rounded-2xl px-4 py-3 border border-gray-200 dark:border-slate-700">
                   <KeyRound size={20} className="text-brand-gold" />
                   <input className="bg-transparent w-full text-sm font-medium outline-none placeholder:text-gray-400 dark:text-white" placeholder="Token do e-mail" value={token} onChange={e => setToken(e.target.value)} />
                 </div>
@@ -256,11 +256,11 @@ export const AuthScreens = ({ setScreen, onClose }: Props) => {
             )}
 
             {(modo === 'login' || modo === 'cadastro' || modo === 'redefinir') && (
-              <div className="mb-4">
-                <label className="text-xs font-bold uppercase tracking-widest text-brand-gray-dark/60 mb-2 block">
+              <div className="mb-3">
+                <label className="text-xs font-bold uppercase tracking-widest text-brand-gray-dark/60 mb-1 block">
                   {modo === 'redefinir' ? 'Nova senha' : 'Senha'}
                 </label>
-                <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-800 rounded-2xl px-5 py-4 border border-gray-200 dark:border-slate-700">
+                <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-800 rounded-2xl px-4 py-3 border border-gray-200 dark:border-slate-700">
                   <Lock size={20} className="text-brand-gold" />
                   <input type="password" className="bg-transparent w-full text-lg font-medium outline-none placeholder:text-gray-400 dark:text-white" placeholder="••••••" value={senha} onChange={e => setSenha(e.target.value)} />
                 </div>
@@ -268,9 +268,9 @@ export const AuthScreens = ({ setScreen, onClose }: Props) => {
             )}
 
             {(modo === 'cadastro' || modo === 'redefinir') && (
-              <div className="mb-6">
-                <label className="text-xs font-bold uppercase tracking-widest text-brand-gray-dark/60 mb-2 block">Confirme a senha</label>
-                <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-800 rounded-2xl px-5 py-4 border border-gray-200 dark:border-slate-700">
+              <div className="mb-4">
+                <label className="text-xs font-bold uppercase tracking-widest text-brand-gray-dark/60 mb-1 block">Confirme a senha</label>
+                <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-800 rounded-2xl px-4 py-3 border border-gray-200 dark:border-slate-700">
                   <Lock size={20} className="text-brand-gold" />
                   <input type="password" className="bg-transparent w-full text-lg font-medium outline-none placeholder:text-gray-400 dark:text-white" placeholder="••••••" value={senhaConfirma} onChange={e => setSenhaConfirma(e.target.value)} />
                 </div>

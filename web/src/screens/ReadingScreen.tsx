@@ -44,6 +44,7 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo, regist
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showIndex, setShowIndex] = useState(false)
   const [showReiniciar, setShowReiniciar] = useState(false)
+  const [apoioAtingiuPasso23, setApoioAtingiuPasso23] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const blocoRefs = useRef<(HTMLDivElement | null)[]>([])
@@ -229,9 +230,11 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo, regist
     else break
   }
 
-  // O convite existe exclusivamente no passo 23, que é o encerramento numerado
-  // do folheto. Rubricas posteriores e a tela de conclusão nunca o acionam.
-  const oferecerApoioNaLeitura = blocos[currentIndex]?.numero_folheto === 23
+  // O convite nasce no passo 23 e permanece montado até uma decisão explícita
+  // da pessoa. Assim, uma rolagem posterior não o desmonta nem o fecha.
+  useEffect(() => {
+    if (blocos[currentIndex]?.numero_folheto === 23) setApoioAtingiuPasso23(true)
+  }, [blocos, currentIndex])
 
   if (loading) return (
     <div className="min-h-screen bg-brand-bg dark:bg-slate-900 flex items-center justify-center">
@@ -456,7 +459,7 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo, regist
           )
         })}
 
-        {oferecerApoioNaLeitura && <ApoioVoluntarioModal missaId={missaId} />}
+        {apoioAtingiuPasso23 && <ApoioVoluntarioModal missaId={missaId} />}
 
         {/* Concluir missa — no fim da tripa (substitui o antigo botão Próximo/Concluir). */}
         <div className="mt-4 mb-2">

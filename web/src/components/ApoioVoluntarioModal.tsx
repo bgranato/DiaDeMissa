@@ -43,6 +43,20 @@ export function ApoioVoluntarioModal({ missaId }: Props) {
     return () => { ativo = false }
   }, [])
 
+  // Enquanto o convite está aberto, o conteúdo litúrgico não pode receber
+  // rolagem nem cliques. O desbloqueio ocorre somente ao fechar o convite.
+  useEffect(() => {
+    if (!aberto) return
+    const bodyOverflow = document.body.style.overflow
+    const htmlOverflow = document.documentElement.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = bodyOverflow
+      document.documentElement.style.overflow = htmlOverflow
+    }
+  }, [aberto])
+
   function fechar() {
     // X, "Agora não" e clique fora são a mesma decisão: pausa de uma hora.
     pausarConviteApoioAposRecusa()
@@ -69,7 +83,7 @@ export function ApoioVoluntarioModal({ missaId }: Props) {
     <AnimatePresence>
       {aberto && configuracao && (
         <motion.div
-          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-brand-blue/45 p-3 sm:p-6"
+          className="fixed inset-0 z-[60] flex items-end justify-center overflow-y-auto overscroll-contain bg-brand-blue/65 p-3 sm:items-center sm:p-6 backdrop-blur-[1px]"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           role="dialog" aria-modal="true" aria-labelledby="apoio-titulo"
           onClick={fechar}
