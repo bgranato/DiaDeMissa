@@ -185,4 +185,13 @@ describe('IgrejasScreen — Próximas', () => {
 
     expect(await screen.findByText('O limite mensal de buscas por endereço foi atingido. Use a sua localização atual ou tente no próximo mês.')).toBeTruthy()
   })
+
+  it('permite busca pública sem expor igrejas salvas nem favoritos pessoais', () => {
+    render(<IgrejasScreen setScreen={vi.fn()} estaAutenticado={false} />)
+
+    expect(screen.getAllByRole('button', { name: 'Buscar' }).length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: 'Próximas' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Salvas' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Salvar nas minhas igrejas/i })).toBeNull()
+  })
 })

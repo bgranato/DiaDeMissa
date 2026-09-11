@@ -12,6 +12,7 @@ interface Props {
   setScreen: (s: string) => void
   missa: Missa | null
   nome: string
+  estaAutenticado: boolean
   onLogout?: () => void | Promise<void>
 }
 
@@ -24,7 +25,7 @@ function statusDaMissa(data: string | undefined | null): StatusMissa {
   return 'nao_iniciada'
 }
 
-export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
+export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) => {
   const [descricaoExpandida, setDescricaoExpandida] = useState(false)
   // Status pode ser desfeito localmente sem reload — guardamos override em state
   const [statusOverride, setStatusOverride] = useState<StatusMissa | null>(null)
@@ -43,10 +44,14 @@ export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
   const [buscando, setBuscando] = useState(false)
 
   useEffect(() => {
+    if (!estaAutenticado) {
+      setLembretesNaoLidos(0)
+      return
+    }
     api.get<Array<{ lido?: boolean }>>('/usuarios/me/lembretes')
       .then(r => setLembretesNaoLidos(r.data.filter(l => !l.lido).length))
       .catch(() => setLembretesNaoLidos(0))
-  }, [])
+  }, [estaAutenticado])
 
   // Sem missa hoje → oferece a próxima e também a última missa publicada.
   useEffect(() => {
@@ -62,7 +67,7 @@ export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
   // Sincroniza concluída do localStorage com o backend — UMA VEZ por sessão por missa.
   // sessionStorage evita re-sync a cada re-mount da Home.
   useEffect(() => {
-    if (!missa?.id || !missa?.data) return
+    if (!estaAutenticado || !missa?.id || !missa?.data) return
     const sessionKey = `@sync_concluida_${missa.id}`
     if (sessionStorage.getItem(sessionKey)) return  // já sincronizou nesta sessão
     if (localStorage.getItem(`@missa_concluida_${missa.data}`) === 'true') {
@@ -71,7 +76,7 @@ export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
         sessionStorage.removeItem(sessionKey)  // permite retry se falhou
       })
     }
-  }, [missa?.id, missa?.data])
+  }, [estaAutenticado, missa?.id, missa?.data])
 
   // Carrega igreja salva pra missa de hoje + lista de favoritas
   useEffect(() => {
@@ -86,6 +91,10 @@ export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
     setShowSeletor(true)
     setBuscaIgreja('')
     setResultadosBusca([])
+    if (!estaAutenticado) {
+      setSalvas([])
+      return
+    }
     try { setSalvas(await minhasIgrejas()) } catch { setSalvas([]) }
   }
 
@@ -107,7 +116,7 @@ export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
     }
     setShowSeletor(false)
     // Registra no histórico (igreja_id)
-    if (missa?.id) {
+    if (estaAutenticado && missa?.id) {
       api.post('/usuarios/me/historico', {
         missa_id: missa.id,
         ultimo_bloco_id: 0,
@@ -123,7 +132,7 @@ export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
       localStorage.removeItem(`@missa_igreja_${missa.data}`)
     }
     // Limpa também no histórico no backend
-    if (missa?.id) {
+    if (estaAutenticado && missa?.id) {
       api.post('/usuarios/me/historico', {
         missa_id: missa.id,
         ultimo_bloco_id: 0,
@@ -180,7 +189,7 @@ export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
             title="Acessibilidade">
             <Settings2 size={20} />
           </button>
-          <button onClick={() => setScreen('reminders')}
+          {estaAutenticado && <button onClick={() => setScreen('reminders')}
             className="p-2.5 bg-brand-white dark:bg-slate-800 rounded-2xl shadow-soft border border-black/5 dark:border-white/5 text-brand-blue dark:text-brand-gold active:scale-95 transition-transform">
             <span className="relative inline-flex">
               <Bell size={20} />
@@ -190,7 +199,7 @@ export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
                 </span>
               )}
             </span>
-          </button>
+          </button>}
         </div>
       </header>
 
@@ -348,10 +357,10 @@ export const HomeScreen = ({ setScreen, missa, nome }: Props) => {
         <h4 className="ds-section-label opacity-60 ml-1">Explorar</h4>
         <div className="grid grid-cols-2 gap-3">
           {[
-            { id: 'igrejas-salvas', icon: Church, label: 'Minhas Igrejas', onClick: () => { localStorage.setItem('@igrejas_aba_inicial', 'salvas'); setScreen('igrejas') } },
+            ...(estaAutenticado ? [{ id: 'igrejas-salvas', icon: Church, label: 'Minhas Igrejas', onClick: () => { localStorage.setItem('@igrejas_aba_inicial', 'salvas'); setScreen('igrejas') } }] : []),
             { id: 'igrejas-buscar', icon: Search, label: 'Buscar Igreja', onClick: () => { localStorage.setItem('@igrejas_aba_inicial', 'buscar'); setScreen('igrejas') } },
             { id: 'calendar', icon: Calendar, label: 'Agenda', onClick: () => setScreen('calendar') },
-            { id: 'history', icon: ScrollText, label: 'Minha Jornada', onClick: () => setScreen('history') },
+            ...(estaAutenticado ? [{ id: 'history', icon: ScrollText, label: 'Minha Jornada', onClick: () => setScreen('history') }] : []),
           ].map(({ id, icon: Icon, label, onClick }) => (
             <button key={id} onClick={onClick}
               className="ds-card flex flex-col items-center gap-3 active:scale-[0.97] transition-transform min-w-0">

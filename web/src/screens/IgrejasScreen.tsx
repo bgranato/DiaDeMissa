@@ -7,6 +7,7 @@ import type { Igreja } from '../types/igreja'
 
 interface Props {
   setScreen: (s: string) => void
+  estaAutenticado?: boolean
 }
 
 type Aba = 'salvas' | 'buscar' | 'proximas'
@@ -44,10 +45,11 @@ function dedupIgrejas(lista: Igreja[]): Igreja[] {
   return out
 }
 
-export const IgrejasScreen = ({ setScreen }: Props) => {
+export const IgrejasScreen = ({ setScreen, estaAutenticado = true }: Props) => {
   const [aba, setAba] = useState<Aba>(() => {
     const inicial = localStorage.getItem('@igrejas_aba_inicial') as Aba | null
     localStorage.removeItem('@igrejas_aba_inicial')  // consome uma vez
+    if (!estaAutenticado) return inicial && ['buscar', 'proximas'].includes(inicial) ? inicial : 'buscar'
     return inicial && ['salvas', 'buscar', 'proximas'].includes(inicial) ? inicial : 'salvas'
   })
   const [busca, setBusca] = useState('')
@@ -104,6 +106,10 @@ export const IgrejasScreen = ({ setScreen }: Props) => {
     setGeoErro('')
     setErroBusca('')
     try {
+      if (aba === 'salvas' && !estaAutenticado) {
+        setIgrejas([])
+        return
+      }
       if (aba === 'salvas') {
         const resultado = await minhasIgrejas()
         if (idConsulta !== consultaAtual.current) return
@@ -287,7 +293,7 @@ export const IgrejasScreen = ({ setScreen }: Props) => {
         {/* Abas */}
         <div className="flex gap-2 bg-brand-gray-dark/5 dark:bg-slate-800 p-1 rounded-2xl">
           {([
-            { id: 'salvas', label: 'Salvas' },
+            ...(estaAutenticado ? [{ id: 'salvas' as const, label: 'Salvas' }] : []),
             { id: 'buscar', label: 'Buscar' },
             { id: 'proximas', label: 'Próximas' },
           ] as { id: Aba; label: string }[]).map(t => (
@@ -489,7 +495,7 @@ export const IgrejasScreen = ({ setScreen }: Props) => {
                     </a>
                   )}
                 </div>
-                <button
+                {estaAutenticado && <button
                   onClick={() => alternarFavorito(ig)}
                   title={ig.favorita ? 'Remover dos favoritos' : 'Salvar nas minhas igrejas'}
                   aria-label={ig.favorita ? 'Remover dos favoritos' : 'Salvar nas minhas igrejas'}
@@ -500,7 +506,7 @@ export const IgrejasScreen = ({ setScreen }: Props) => {
                   }`}
                 >
                   <Heart size={22} fill={ig.favorita ? 'currentColor' : 'none'} strokeWidth={1.8} />
-                </button>
+                </button>}
               </div>
             </Card>
           ))

@@ -28,14 +28,10 @@ export default function App() {
   const [lastScreen, setLastScreen] = useState('home')
   const [missa, setMissa] = useState<Missa | null>(null)
 
-  const usuarioNome = usuario?.nome || 'Fiel'
+  const usuarioNome = usuario?.nome || 'Visitante'
 
   useEffect(() => {
     if (estaCarregando) return
-    if (!estaAutenticado) {
-      setScreen('login')
-      return
-    }
     setScreen('home')
     carregarMissa()
   }, [estaCarregando, estaAutenticado])
@@ -57,10 +53,15 @@ export default function App() {
   }
 
   const navigateTo = useCallback((s: string) => {
-    logNav(screen, s)
+    // A celebração, o calendário, as orações e a busca de igrejas são públicos.
+    // Login continua sendo exigido apenas quando a pessoa escolhe um recurso que
+    // guarda dados pessoais (histórico, lembretes, perfil ou revisão).
+    const exigeConta = ['history', 'reminders', 'profile', 'meus-dados', 'alterar-senha', 'revisao'].includes(s)
+    const destino = exigeConta && !estaAutenticado ? 'login' : s
+    logNav(screen, destino)
     setLastScreen(screen)
-    setScreen(s)
-  }, [screen])
+    setScreen(destino)
+  }, [screen, estaAutenticado])
 
   // Registra a navegação globalmente (usado pela sineta de notificações no AppHeader).
   useEffect(() => { registrarNavegador(navigateTo) }, [navigateTo])
@@ -76,9 +77,9 @@ export default function App() {
         <AnimatePresence mode="wait">
           {screen === 'splash' && <SplashScreen onFinish={() => {}} />}
           {screen === 'login' && <AuthScreens setScreen={navigateTo} />}
-          {screen === 'home' && <HomeScreen setScreen={navigateTo} missa={missa} nome={usuarioNome} onLogout={logout} />}
-          {screen === 'reading' && <ReadingScreen onBack={() => navigateTo('home')} onFinish={() => navigateTo('conclusion')} missaId={missa?.id} />}
-          {screen === 'igrejas' && <IgrejasScreen setScreen={navigateTo} />}
+          {screen === 'home' && <HomeScreen setScreen={navigateTo} missa={missa} nome={usuarioNome} estaAutenticado={estaAutenticado} onLogout={logout} />}
+          {screen === 'reading' && <ReadingScreen onBack={() => navigateTo('home')} onFinish={() => navigateTo('conclusion')} missaId={missa?.id} registrarProgresso={estaAutenticado} />}
+          {screen === 'igrejas' && <IgrejasScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
           {screen === 'oracoes' && <OracoesScreen setScreen={navigateTo} />}
           {screen === 'calendar' && <CalendarScreen setScreen={navigateTo} />}
           {screen === 'history' && <JornadaScreen setScreen={navigateTo} />}
@@ -86,7 +87,7 @@ export default function App() {
             <LembretesScreen onBack={() => navigateTo(lastScreen)} />
           )}
           {screen === 'profile' && <ProfileScreen setScreen={navigateTo} usuario={usuario} onLogout={logout} />}
-          {screen === 'conclusion' && <ConclusionScreen setScreen={navigateTo} missaId={missa?.id} missaData={missa?.data} />}
+          {screen === 'conclusion' && <ConclusionScreen setScreen={navigateTo} missaId={missa?.id} missaData={missa?.data} estaAutenticado={estaAutenticado} />}
           {screen === 'design-system' && <DesignSystemScreen onBack={() => navigateTo('profile')} />}
           {screen === 'meus-dados' && <MeusDadosScreen onBack={() => navigateTo('profile')} />}
           {screen === 'alterar-senha' && <AlterarSenhaScreen onBack={() => navigateTo('profile')} />}
@@ -94,7 +95,7 @@ export default function App() {
         </AnimatePresence>
 
         {!['splash', 'login', 'reading', 'conclusion', 'design-system', 'meus-dados', 'alterar-senha'].includes(screen) && (
-          <BottomNav currentScreen={screen} setScreen={navigateTo} />
+          <BottomNav currentScreen={screen} setScreen={navigateTo} estaAutenticado={estaAutenticado} />
         )}
       </div>
     </div>

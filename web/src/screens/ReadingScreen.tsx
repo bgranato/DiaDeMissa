@@ -12,6 +12,7 @@ interface Props {
   onFinish: () => void
   missaId?: number
   missaDataAlvo?: string  // YYYY-MM-DD — usado quando acessa via Agenda
+  registrarProgresso?: boolean
 }
 
 interface SectionInfo {
@@ -29,7 +30,7 @@ interface BlocoLeitura {
   [campo: string]: any
 }
 
-export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Props) => {
+export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo, registrarProgresso = true }: Props) => {
   const [todosBlocos, setTodosBlocos] = useState<BlocoLeitura[]>([])
   const [missaData, setMissaData] = useState<string | null>(null)
   const [missaTitulo, setMissaTitulo] = useState<string | null>(null)
@@ -165,7 +166,7 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
     if (loading || blocos.length === 0) return
     if (missaData) localStorage.setItem(`@missa_bloco_${missaData}`, String(currentIndex))
     if (currentIndex > 0) marcarIniciada()
-    if (!missaId) return
+    if (!registrarProgresso || !missaId) return
     const t = setTimeout(() => {
       const bloco = blocos[currentIndex]
       const pct = Math.round(((currentIndex + 1) / blocos.length) * 100)
@@ -184,7 +185,7 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
   }
 
   const concluir = () => {
-    if (missaId) concluirMissa(missaId).catch(err => logError('concluirMissa', err))
+    if (registrarProgresso && missaId) concluirMissa(missaId).catch(err => logError('concluirMissa', err))
     if (missaData) {
       localStorage.setItem(`@missa_concluida_${missaData}`, 'true')
       localStorage.removeItem(`@missa_iniciada_${missaData}`)
@@ -532,7 +533,7 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo }: Prop
                     }
                     setCurrentIndex(0)
                     setShowReiniciar(false)
-                    if (missaId) {
+                    if (registrarProgresso && missaId) {
                       import('../services/api').then(({ default: api }) => {
                         api.post(`/usuarios/me/historico/${missaId}/desconcluir`).catch(() => { })
                       })

@@ -341,10 +341,12 @@ const PadreIcon = ({ size = 24, strokeWidth = 2 }: { size?: number; strokeWidth?
 // Bottom Navigation
 export const BottomNav = ({
   currentScreen,
-  setScreen
+  setScreen,
+  estaAutenticado = true,
 }: {
   currentScreen: string,
-  setScreen: (s: string) => void
+  setScreen: (s: string) => void,
+  estaAutenticado?: boolean,
 }) => {
   const [showMais, setShowMais] = useState(false);
 
@@ -362,9 +364,11 @@ export const BottomNav = ({
     { id: 'igrejas', label: 'Igrejas', icon: Church },
     { id: 'calendar', label: 'Agenda', icon: Calendar },
     { id: 'oracoes', label: 'Orações', icon: PrayingHandsIcon as any },
-    { id: 'reminders', label: 'Lembretes', icon: Bell },
-    { id: 'history', label: 'Minha Jornada', icon: ScrollText },
-    { id: 'profile', label: 'Perfil', icon: User },
+    ...(estaAutenticado ? [
+      { id: 'reminders', label: 'Lembretes', icon: Bell },
+      { id: 'history', label: 'Minha Jornada', icon: ScrollText },
+      { id: 'profile', label: 'Perfil', icon: User },
+    ] : []),
   ];
 
   function ir(screen: string) {
@@ -443,5 +447,4 @@ export const BottomNav = ({
     </>
   );
 };
-
 

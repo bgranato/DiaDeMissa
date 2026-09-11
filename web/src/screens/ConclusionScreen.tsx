@@ -11,9 +11,10 @@ interface Props {
   setScreen: (s: string) => void;
   missaId?: number;
   missaData?: string;
+  estaAutenticado?: boolean;
 }
 
-export const ConclusionScreen = ({ setScreen, missaId, missaData }: Props) => {
+export const ConclusionScreen = ({ setScreen, missaId, missaData, estaAutenticado = true }: Props) => {
   const [igrejaSelecionada, setIgrejaSelecionada] = useState<{ id: number; nome: string } | null>(null);
   const [showSeletor, setShowSeletor] = useState(false);
   const [salvas, setSalvas] = useState<Igreja[]>([]);
@@ -33,6 +34,10 @@ export const ConclusionScreen = ({ setScreen, missaId, missaData }: Props) => {
     setShowSeletor(true);
     setBuscaIgreja('');
     setResultadosBusca([]);
+    if (!estaAutenticado) {
+      setSalvas([]);
+      return;
+    }
     try { setSalvas(await minhasIgrejas()); } catch { setSalvas([]); }
   }
 
@@ -51,7 +56,7 @@ export const ConclusionScreen = ({ setScreen, missaId, missaData }: Props) => {
     setIgrejaSelecionada(escolha);
     if (missaData) localStorage.setItem(`@missa_igreja_${missaData}`, JSON.stringify(escolha));
     setShowSeletor(false);
-    if (missaId) {
+    if (estaAutenticado && missaId) {
       api.post('/usuarios/me/historico', {
         missa_id: missaId,
         ultimo_bloco_id: 0,
@@ -73,7 +78,7 @@ export const ConclusionScreen = ({ setScreen, missaId, missaData }: Props) => {
 
       <h2 className="text-4xl font-serif font-black text-brand-blue dark:text-brand-white mb-3">Missa Concluída!</h2>
       <p className="text-brand-gray-dark/60 dark:text-brand-white/60 text-lg mb-10 max-w-xs mx-auto">
-        Que a paz do Senhor esteja sempre com você. Sua leitura foi registrada no histórico.
+        Que a paz do Senhor esteja sempre com você.{estaAutenticado ? ' Sua leitura foi registrada no histórico.' : ''}
       </p>
 
       <div className="w-full max-w-md flex flex-col gap-4">
@@ -122,13 +127,15 @@ export const ConclusionScreen = ({ setScreen, missaId, missaData }: Props) => {
           Voltar para Início
         </LargeButton>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className={`grid ${estaAutenticado ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
+          {estaAutenticado && (
           <button
             onClick={() => setScreen('history')}
             className="flex items-center justify-center gap-2 p-5 bg-brand-white dark:bg-slate-800 rounded-[28px] font-bold text-sm text-brand-gray-dark dark:text-brand-white shadow-soft active:scale-95 transition-transform"
           >
             <Bookmark size={20} /> Histórico
           </button>
+          )}
           <button
             className="flex items-center justify-center gap-2 p-5 bg-brand-white dark:bg-slate-800 rounded-[28px] font-bold text-sm text-brand-gray-dark dark:text-brand-white shadow-soft active:scale-95 transition-transform"
           >
