@@ -4,6 +4,7 @@ import { AppHeader } from '../components/UI'
 import { getMissaAtual, getMissaEstruturadaPorData, salvarProgressoMissa, concluirMissa } from '../services/missa'
 import { logError } from '../services/logger'
 import BlocoRenderer from '../components/blocos/BlocoRenderer'
+import { ApoioVoluntarioModal } from '../components/ApoioVoluntarioModal'
 import { tituloDuplicaTexto, ordenarBlocos } from '../lib/blocoText'
 import { List as ListIcon, X, Check, RotateCcw } from 'lucide-react'
 
@@ -205,6 +206,11 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo, regist
     if (navEntries[k].i <= currentIndex) currentNav = k
     else break
   }
+
+  // O passo 23 é o encerramento numerado do folheto atual. Também oferecemos
+  // apoio no último bloco, pois algumas edições trazem rubricas após ele.
+  const oferecerApoioNaLeitura = blocos[currentIndex]?.numero_folheto === 23
+    || currentIndex === blocos.length - 1
 
   if (loading) return (
     <div className="min-h-screen bg-brand-bg dark:bg-slate-900 flex items-center justify-center">
@@ -425,6 +431,8 @@ export const ReadingScreen = ({ onBack, onFinish, missaId, missaDataAlvo, regist
             </div>
           )
         })}
+
+        {oferecerApoioNaLeitura && <ApoioVoluntarioModal missaId={missaId} />}
 
         {/* Concluir missa — no fim da tripa (substitui o antigo botão Próximo/Concluir). */}
         <div className="mt-4 mb-2">
