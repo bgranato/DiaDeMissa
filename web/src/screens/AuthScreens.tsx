@@ -188,22 +188,28 @@ export const AuthScreens = ({ setScreen, onClose }: Props) => {
       aria-labelledby={onClose ? 'acesso-titulo' : undefined}
     >
       <div className="relative w-full max-w-md pb-4" onClick={event => event.stopPropagation()}>
-        {onClose && (
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fechar e continuar sem conta"
-            className="absolute right-1 top-1 z-10 rounded-full bg-brand-white/90 p-2 text-brand-blue shadow-soft hover:bg-brand-white dark:bg-slate-800 dark:text-brand-gold"
-          >
-            <X size={20} />
-          </button>
-        )}
-        <div className={`text-center ${onClose ? 'mb-3 pt-1' : 'mb-10'}`}>
+        {!onClose && <div className="mb-10 text-center">
           <h1 id={onClose ? 'acesso-titulo' : undefined} className={`${onClose ? 'text-4xl' : 'text-5xl'} font-serif font-black text-brand-blue dark:text-brand-gold mb-2`}>Dia de Missa</h1>
           <p className="text-brand-gold font-bold italic text-lg">Liturgia Diária</p>
-        </div>
+        </div>}
 
-        <Card className={`${onClose ? 'p-4 sm:p-6' : 'p-8'} shadow-strong`}>
+        <Card className={`relative ${onClose ? 'p-4 sm:p-6' : 'p-8'} shadow-strong`}>
+          {onClose && (
+            <>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Fechar e continuar sem conta"
+                className="absolute right-3 top-3 z-10 rounded-full p-2 text-brand-blue/65 hover:bg-brand-blue/5 hover:text-brand-blue dark:text-brand-gold dark:hover:bg-white/10"
+              >
+                <X size={20} />
+              </button>
+              <div className="mb-5 border-b border-brand-gold/20 pb-4 pr-10 text-left">
+                <h1 id="acesso-titulo" className="mb-1 font-serif text-3xl font-black text-brand-blue dark:text-brand-gold">Dia de Missa</h1>
+                <p className="text-sm font-bold italic text-brand-gold">Liturgia Diária</p>
+              </div>
+            </>
+          )}
           {(modo === 'esqueci' || modo === 'redefinir') && (
             <button
               type="button"
