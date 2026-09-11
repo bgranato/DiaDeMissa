@@ -1,6 +1,6 @@
 # Dia de Missa
 
-> Folheto digital católico gratuito para acompanhar a celebração com conteúdo organizado a partir de folhetos oficiais da Arquidiocese de São Sebastião do Rio de Janeiro.
+> Missa de hoje, folheto da missa e liturgia católica em um serviço digital gratuito, organizado a partir de folhetos oficiais da Arquidiocese de São Sebastião do Rio de Janeiro.
 
 ## Fonte canônica
 
@@ -9,7 +9,7 @@
 
 ## O que o serviço oferece
 
-- Leitura organizada do folheto litúrgico de domingos, solenidades e demais edições oficiais disponíveis.
+- Leitura organizada da missa de hoje e do folheto litúrgico de domingos, solenidades e demais edições oficiais disponíveis.
 - Estrutura de celebração com ritos, leituras, orações e cantos conforme a edição de referência.
 - Acesso público à missa disponível; recursos pessoais como jornada, agenda, igrejas e notificações exigem cadastro.
 
