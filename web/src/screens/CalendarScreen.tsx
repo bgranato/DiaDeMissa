@@ -178,7 +178,7 @@ export const CalendarScreen = ({ setScreen, estaAutenticado = true }: Props) => 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
       className="min-h-screen bg-brand-bg dark:bg-slate-900 ds-bottom-nav-padding">
-      <AppHeader title="Agenda" onBack={() => setScreen('home')} showNotifications={estaAutenticado} />
+      <AppHeader title="Agenda de Missas" onBack={() => setScreen('home')} showNotifications={estaAutenticado} />
 
       <div className="ds-container mt-6 ds-stack-md">
         <BuscaMissas setScreen={setScreen} titulo="Buscar missa por data ou título" />

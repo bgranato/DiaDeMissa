@@ -355,7 +355,7 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
           {[
             ...(estaAutenticado ? [{ id: 'igrejas-salvas', icon: Church, label: 'Minhas Igrejas', onClick: () => { localStorage.setItem('@igrejas_aba_inicial', 'salvas'); setScreen('igrejas') } }] : []),
             { id: 'igrejas-buscar', icon: Search, label: 'Buscar Igreja', onClick: () => { localStorage.setItem('@igrejas_aba_inicial', 'buscar'); setScreen('igrejas') } },
-            { id: 'calendar', icon: Calendar, label: 'Agenda', onClick: () => setScreen('calendar') },
+            { id: 'calendar', icon: Calendar, label: 'Agenda de Missas', onClick: () => setScreen('calendar') },
             ...(estaAutenticado ? [{ id: 'history', icon: ScrollText, label: 'Minha Jornada', onClick: () => setScreen('history') }] : []),
           ].map(({ id, icon: Icon, label, onClick }) => (
             <button key={id} onClick={onClick}
