@@ -3,6 +3,12 @@ const PAUSA_APOS_PAGAMENTO_MS = 24 * 60 * 60 * 1000
 
 export function conviteApoioEmPausa() {
   const ate = Number(localStorage.getItem(COOLDOWN_KEY) || 0)
+  // Migração da regra antiga, que gravava 30 dias antes mesmo de haver
+  // pagamento. Nenhuma pausa persistida pode ultrapassar a nova política.
+  if (Number.isFinite(ate) && ate > Date.now() + PAUSA_APOS_PAGAMENTO_MS) {
+    localStorage.removeItem(COOLDOWN_KEY)
+    return false
+  }
   return Number.isFinite(ate) && ate > Date.now()
 }
 

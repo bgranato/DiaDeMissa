@@ -19,4 +19,11 @@ describe('pausa do convite de apoio', () => {
     vi.advanceTimersByTime(24 * 60 * 60 * 1000)
     expect(conviteApoioEmPausa()).toBe(false)
   })
+
+  it('remove a pausa legada de 30 dias criada antes da confirmação de pagamento', () => {
+    localStorage.setItem('@dia_de_missa_apoio_reexibir_em', String(Date.now() + 30 * 24 * 60 * 60 * 1000))
+
+    expect(conviteApoioEmPausa()).toBe(false)
+    expect(localStorage.getItem('@dia_de_missa_apoio_reexibir_em')).toBeNull()
+  })
 })
