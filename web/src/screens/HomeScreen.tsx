@@ -157,9 +157,6 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
   const dataUltimaMissaFormatada = ultimaMissa?.data
     ? new Date(ultimaMissa.data + 'T12:00:00').toLocaleDateString('pt-BR')
     : ''
-  const dataProximaMissaFormatada = proxima?.data
-    ? new Date(proxima.data + 'T12:00:00').toLocaleDateString('pt-BR')
-    : ''
   const dataFormatada = missa?.data
     ? new Date(missa.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()
     : ''
@@ -329,7 +326,7 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
             <p className="ds-body text-brand-text/70 dark:text-brand-white/70 max-w-sm">
               O folheto está disponível aos sábados (à noite), domingos e solenidades.
             </p>
-            {proxima?.data ? (
+            {proxima?.montada && proxima.data ? (
               <div className="mt-2 flex flex-col items-center gap-1">
                 <span className="ds-section-label opacity-70">Próxima missa</span>
                 <span className="ds-pill ds-pill-gold">
@@ -340,44 +337,28 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
                     {proxima.celebracao}
                   </h3>
                 )}
-                {proxima.montada ? (
-                  <button
-                    type="button"
-                    onClick={abrirProximaMissa}
-                    className="mt-3 inline-flex max-w-full items-center justify-center gap-2 rounded-2xl bg-brand-gold px-4 py-3 text-sm font-black text-white shadow-soft transition-all hover:brightness-95 active:scale-95"
-                  >
-                    <span>Ver missa</span>
-                    <ArrowRight size={17} aria-hidden="true" />
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      disabled
-                      aria-describedby="proxima-missa-pendente"
-                      className="mt-3 inline-flex max-w-full items-center justify-center gap-2 rounded-2xl bg-brand-gold/45 px-4 py-3 text-sm font-black text-white shadow-soft"
-                    >
-                      <span>Ver missa do dia {dataProximaMissaFormatada}</span>
-                      <ArrowRight size={17} aria-hidden="true" />
-                    </button>
-                    <p id="proxima-missa-pendente" className="ds-body-sm italic text-brand-slate mt-2">Assim que o folheto for publicado, a missa fica disponível aqui.</p>
-                  </>
-                )}
+                <button
+                  type="button"
+                  onClick={abrirProximaMissa}
+                  className="mt-3 inline-flex max-w-full items-center justify-center gap-2 rounded-2xl bg-brand-gold px-4 py-3 text-sm font-black text-white shadow-soft transition-all hover:brightness-95 active:scale-95"
+                >
+                  <span>Ver missa</span>
+                  <ArrowRight size={17} aria-hidden="true" />
+                </button>
               </div>
+            ) : ultimaMissa ? (
+              <button
+                type="button"
+                onClick={abrirUltimaMissa}
+                className="mt-2 inline-flex max-w-full items-center justify-center gap-2 rounded-2xl bg-brand-gold px-4 py-3 text-sm font-black text-white shadow-soft transition-all hover:brightness-95 active:scale-95"
+              >
+                <span className="truncate">Ver missa do dia {dataUltimaMissaFormatada}</span>
+                <ArrowRight size={17} className="flex-shrink-0" aria-hidden="true" />
+              </button>
             ) : (
               <p className="ds-body-sm italic text-brand-slate mt-1">
                 Assim que o próximo folheto for publicado, a missa aparece aqui.
               </p>
-            )}
-            {ultimaMissa && (
-              <button
-                type="button"
-                onClick={abrirUltimaMissa}
-                className="mt-3 inline-flex max-w-full items-center justify-center gap-2 rounded-2xl bg-brand-gold px-4 py-3 text-sm font-black text-white shadow-soft transition-all hover:brightness-95 active:scale-95"
-              >
-                <span className="truncate">Ver última missa, {dataUltimaMissaFormatada}</span>
-                <ArrowRight size={17} className="flex-shrink-0" aria-hidden="true" />
-              </button>
             )}
           </div>
           <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-brand-blue opacity-5 rounded-full blur-3xl" />
