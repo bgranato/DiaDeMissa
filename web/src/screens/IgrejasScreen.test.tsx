@@ -190,8 +190,9 @@ describe('IgrejasScreen — Próximas', () => {
     render(<IgrejasScreen setScreen={vi.fn()} estaAutenticado={false} />)
 
     expect(screen.getAllByRole('button', { name: 'Buscar' }).length).toBeGreaterThan(0)
-    expect(screen.getByRole('button', { name: 'Próximas' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Próximas' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Salvas' })).toBeNull()
     expect(screen.queryByRole('button', { name: /Salvar nas minhas igrejas/i })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Entrar ou criar conta' })).toBeTruthy()
   })
 })

@@ -295,7 +295,7 @@ export const IgrejasScreen = ({ setScreen, estaAutenticado = true }: Props) => {
           {([
             ...(estaAutenticado ? [{ id: 'salvas' as const, label: 'Salvas' }] : []),
             { id: 'buscar', label: 'Buscar' },
-            { id: 'proximas', label: 'Próximas' },
+            ...(estaAutenticado ? [{ id: 'proximas' as const, label: 'Próximas' }] : []),
           ] as { id: Aba; label: string }[]).map(t => (
             <button key={t.id}
               onClick={() => selecionarAba(t.id)}
@@ -308,6 +308,23 @@ export const IgrejasScreen = ({ setScreen, estaAutenticado = true }: Props) => {
             </button>
           ))}
         </div>
+
+        {!estaAutenticado && (
+          <Card className="p-5 text-center">
+            <MapPin size={26} className="mx-auto mb-2 text-brand-gold" />
+            <p className="text-sm font-bold text-brand-text dark:text-brand-white">Encontre paróquias perto de você</p>
+            <p className="mt-1 text-xs text-brand-gray-dark/60 dark:text-brand-white/60">
+              Entre ou crie sua conta para usar sua localização, salvar igrejas e receber lembretes de missa.
+            </p>
+            <button
+              type="button"
+              onClick={() => setScreen('profile')}
+              className="mt-4 rounded-xl bg-brand-blue px-4 py-2.5 text-sm font-bold text-white dark:bg-brand-gold dark:text-brand-blue"
+            >
+              Entrar ou criar conta
+            </button>
+          </Card>
+        )}
 
         {aba === 'proximas' && (
           <>
