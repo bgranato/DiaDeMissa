@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { Card, LargeButton, AccessibilityControls, PrayingHandsIcon } from '../components/UI'
+import { ApoioBanner } from '../components/ApoioBanner'
+import { ApoioVoluntarioModal } from '../components/ApoioVoluntarioModal'
 import { Play, Bell, ArrowRight, CheckCircle2, Calendar, ScrollText, Settings2, Church, Search, MapPin, X, User, CalendarClock } from 'lucide-react'
 import type { Missa } from '../types/missa'
 import type { Igreja } from '../types/igreja'
@@ -41,6 +43,16 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
   const [buscaIgreja, setBuscaIgreja] = useState('')
   const [resultadosBusca, setResultadosBusca] = useState<Igreja[]>([])
   const [buscando, setBuscando] = useState(false)
+  const [apoiosAtivos, setApoiosAtivos] = useState(false)
+  const [apoioAberto, setApoioAberto] = useState(false)
+
+  useEffect(() => {
+    let ativo = true
+    api.get<{ ativo?: boolean }>('/apoios/configuracao')
+      .then(({ data }) => { if (ativo) setApoiosAtivos(data.ativo === true) })
+      .catch(() => { if (ativo) setApoiosAtivos(false) })
+    return () => { ativo = false }
+  }, [])
 
   useEffect(() => {
     if (!estaAutenticado) {
@@ -380,6 +392,16 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
           ))}
         </div>
       </section>
+
+      {apoiosAtivos && <ApoioBanner onApoiar={() => setApoioAberto(true)} />}
+
+      {apoioAberto && (
+        <ApoioVoluntarioModal
+          missaId={missa?.id}
+          modo="manual"
+          onClose={() => setApoioAberto(false)}
+        />
+      )}
 
       {/* Modal: seleciona igreja onde está assistindo */}
       <AnimatePresence>

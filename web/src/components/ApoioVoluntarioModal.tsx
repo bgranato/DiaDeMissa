@@ -13,35 +13,39 @@ type ConfiguracaoApoios = {
 
 type Props = {
   missaId?: number
+  modo?: 'automatico' | 'manual'
+  onClose?: () => void
 }
 
 function formatoBRL(valorCentavos: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorCentavos / 100)
 }
 
-/** Oferta discreta, exibida no passo litúrgico 23 e só se o servidor estiver configurado. */
-export function ApoioVoluntarioModal({ missaId }: Props) {
+/** Oferta discreta. No modo automático, aparece somente no passo litúrgico 23. */
+export function ApoioVoluntarioModal({ missaId, modo = 'automatico', onClose }: Props) {
   const [configuracao, setConfiguracao] = useState<ConfiguracaoApoios | null>(null)
-  const [aberto, setAberto] = useState(false)
+  const [aberto, setAberto] = useState(modo === 'manual')
   const [enviando, setEnviando] = useState<number | null>(null)
   const [erro, setErro] = useState('')
 
   useEffect(() => {
     let ativo = true
-    if (conviteApoioEmPausa()) return () => { ativo = false }
+    if (modo === 'automatico' && conviteApoioEmPausa()) return () => { ativo = false }
 
     api.get<ConfiguracaoApoios>('/apoios/configuracao')
       .then(({ data }) => {
         if (!ativo || !data.ativo || data.valores_centavos.length === 0) return
         setConfiguracao(data)
-        window.setTimeout(() => {
-          if (ativo) setAberto(true)
-        }, 700)
+        if (modo === 'automatico') {
+          window.setTimeout(() => {
+            if (ativo) setAberto(true)
+          }, 700)
+        }
       })
       // A oferta é opcional: se a API não estiver disponível, a celebração segue normal.
       .catch(() => undefined)
     return () => { ativo = false }
-  }, [])
+  }, [modo])
 
   // Enquanto o convite está aberto, o conteúdo litúrgico não pode receber
   // rolagem nem cliques. O desbloqueio ocorre somente ao fechar o convite.
@@ -58,9 +62,11 @@ export function ApoioVoluntarioModal({ missaId }: Props) {
   }, [aberto])
 
   function fechar() {
-    // X, "Agora não" e clique fora são a mesma decisão: pausa de uma hora.
-    pausarConviteApoioAposRecusa()
+    // No convite automático, fechar pausa uma hora. O banner inicial é uma
+    // escolha voluntária, então continua disponível após fechar o diálogo.
+    if (modo === 'automatico') pausarConviteApoioAposRecusa()
     setAberto(false)
+    onClose?.()
   }
 
   async function apoiar(valorCentavos: number) {

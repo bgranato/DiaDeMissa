@@ -21,6 +21,7 @@ import { AlterarSenhaScreen } from './screens/AlterarSenhaScreen'
 import { IgrejasScreen } from './screens/IgrejasScreen'
 import { OracoesScreen } from './screens/OracoesScreen'
 import { FeedbackScreen } from './screens/FeedbackScreen'
+import { AgradecimentoApoioScreen } from './screens/AgradecimentoApoioScreen'
 import { BottomNav } from './components/UI'
 import { registrarNavegador } from './services/navigation'
 import { rotaExigeConta } from './lib/acesso'
@@ -73,6 +74,7 @@ export default function App() {
         if (data.status === 'approved') {
           pausarConviteApoioAposPagamento()
           limparRetorno()
+          setScreen('support-thanks')
           return
         }
         if (['rejected', 'cancelled', 'failure', 'divergencia_pagamento'].includes(data.status)) {
@@ -175,6 +177,7 @@ export default function App() {
           {screen === 'igrejas' && <IgrejasScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
           {screen === 'oracoes' && <OracoesScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
           {screen === 'feedback' && <FeedbackScreen onBack={() => navigateTo('home')} telaOrigem={lastScreen} />}
+          {screen === 'support-thanks' && <AgradecimentoApoioScreen onFinish={() => navigateTo('home')} />}
           {screen === 'calendar' && <CalendarScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
           {screen === 'history' && <JornadaScreen setScreen={navigateTo} />}
           {screen === 'reminders' && (
@@ -201,7 +204,7 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {!['splash', 'login', 'reading', 'conclusion', 'design-system', 'meus-dados', 'alterar-senha'].includes(screen) && (
+        {!['splash', 'login', 'reading', 'conclusion', 'design-system', 'meus-dados', 'alterar-senha', 'support-thanks'].includes(screen) && (
           <BottomNav currentScreen={screen} setScreen={navigateTo} estaAutenticado={estaAutenticado} />
         )}
       </div>
