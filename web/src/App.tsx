@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { AnimatePresence } from 'motion/react'
 import { useAuth } from './contexts/AuthContext'
-import { getMissaHoje } from './services/missa'
+import { getMissaHoje, getMissaPorData, getProximaMissa } from './services/missa'
 import { logNav, logError } from './services/logger'
 import { HomeScreen } from './screens/HomeScreen'
 import { ReadingScreen } from './screens/ReadingScreen'
@@ -51,7 +51,13 @@ export default function App() {
       setMissa(await getMissaHoje())
     } catch (e) {
       logError('carregarMissaHoje', e)
-      setMissa(null)
+      try {
+        const proxima = await getProximaMissa()
+        setMissa(proxima.montada && proxima.data ? await getMissaPorData(proxima.data) : null)
+      } catch (erroProxima) {
+        logError('carregarProximaMissaDisponivel', erroProxima)
+        setMissa(null)
+      }
     }
   }
 

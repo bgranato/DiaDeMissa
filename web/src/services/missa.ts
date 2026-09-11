@@ -1,9 +1,7 @@
 import api from './api'
 import type { Missa, PalavraDoDia } from '../types/missa'
 
-export async function getMissaHoje(): Promise<Missa> {
-  const res = await api.get('/missa/atual')
-  const m = res.data
+function normalizarMissa(m: any): Missa {
   // Descrição "Cor litúrgica: X" não é resumo — vira parte do subtítulo.
   // Resumo de verdade só aparece em missas ricas (folheto Arquidiocese).
   const descRaw: string = m.descricao || ''
@@ -25,8 +23,8 @@ export async function getMissaHoje(): Promise<Missa> {
   return {
     id: m.id ?? 0,
     data: m.data || '',
-    celebracao: m.titulo_celebracao || '',
-    subtitulo: subPartes.length ? subPartes.join(' · ') : null,
+    celebracao: m.titulo_celebracao || m.celebracao || '',
+    subtitulo: m.subtitulo || (subPartes.length ? subPartes.join(' · ') : null),
     descricao: descReal || null,
     tempo_liturgico: null,
     status_processamento: 'concluido',
@@ -35,9 +33,14 @@ export async function getMissaHoje(): Promise<Missa> {
   } as Missa
 }
 
+export async function getMissaHoje(): Promise<Missa> {
+  const res = await api.get('/missa/atual')
+  return normalizarMissa(res.data)
+}
+
 export async function getMissaPorData(data: string): Promise<Missa> {
-  const res = await api.get<Missa>(`/missas/${data}`)
-  return res.data
+  const res = await api.get(`/missas/${data}`)
+  return normalizarMissa(res.data)
 }
 
 export interface ProximaMissa {

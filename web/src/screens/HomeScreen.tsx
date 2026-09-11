@@ -5,7 +5,7 @@ import { Play, Bell, ArrowRight, CheckCircle2, Calendar, ScrollText, Settings2, 
 import type { Missa } from '../types/missa'
 import type { Igreja } from '../types/igreja'
 import { minhasIgrejas, buscarIgrejas } from '../services/igrejas'
-import { getProximaMissa, getUltimaMissaDisponivel, type MissaDisponivel, type ProximaMissa } from '../services/missa'
+import { getUltimaMissaDisponivel, type MissaDisponivel } from '../services/missa'
 import api from '../services/api'
 
 interface Props {
@@ -32,7 +32,6 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
   const status = statusOverride ?? statusDaMissa(missa?.data)
   const [lembretesNaoLidos, setLembretesNaoLidos] = useState(0)
   const [showAcessibilidade, setShowAcessibilidade] = useState(false)
-  const [proxima, setProxima] = useState<ProximaMissa | null>(null)
   const [ultimaMissa, setUltimaMissa] = useState<MissaDisponivel | null>(null)
 
   // Seletor de igreja
@@ -53,14 +52,12 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
       .catch(() => setLembretesNaoLidos(0))
   }, [estaAutenticado])
 
-  // Sem missa hoje → oferece a próxima e também a última missa publicada.
+  // Sem missa disponível → oferece a última missa publicada.
   useEffect(() => {
     if (missa) {
-      setProxima(null)
       setUltimaMissa(null)
       return
     }
-    getProximaMissa().then(setProxima).catch(() => setProxima(null))
     getUltimaMissaDisponivel().then(setUltimaMissa).catch(() => setUltimaMissa(null))
   }, [missa])
 
@@ -148,11 +145,18 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
     setScreen('reading')
   }
 
-  function abrirProximaMissa() {
-    if (!proxima?.data || !proxima.montada) return
-    localStorage.setItem('@missa_data_alvo', proxima.data)
+  function abrirMissaDisponivel() {
+    if (!missa?.data) return
+    localStorage.setItem('@missa_data_alvo', missa.data)
     setScreen('reading')
   }
+
+  const partesHoje = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date())
+  const parteHoje = (tipo: Intl.DateTimeFormatPartTypes) => partesHoje.find(p => p.type === tipo)?.value ?? ''
+  const hojeEmBrasilia = `${parteHoje('year')}-${parteHoje('month')}-${parteHoje('day')}`
+  const missaEhDoDia = missa?.data === hojeEmBrasilia
 
   const dataUltimaMissaFormatada = ultimaMissa?.data
     ? new Date(ultimaMissa.data + 'T12:00:00').toLocaleDateString('pt-BR')
@@ -224,7 +228,7 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
         <Card className="ds-card-feature overflow-hidden relative">
           <div className="relative z-10">
             <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-              <span className="ds-section-label">Missa do Dia</span>
+              <span className="ds-section-label">{missaEhDoDia ? 'Missa do Dia' : 'Missa disponível'}</span>
               <span className="ds-pill ds-pill-gold">{dataFormatada}</span>
             </div>
 
@@ -263,8 +267,8 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
             )}
 
             <div className="flex flex-col gap-3">
-              <LargeButton variant="primary" onClick={() => setScreen('reading')} icon={Play} className="w-full">
-                Acompanhar Missa
+              <LargeButton variant="primary" onClick={abrirMissaDisponivel} icon={Play} className="w-full">
+                {missaEhDoDia ? 'Acompanhar Missa' : 'Ver missa'}
               </LargeButton>
 
               {/* Rodapé: local (esquerda, clicável pra alterar) | check (direita, se concluída) */}
@@ -313,35 +317,6 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
                 )}
               </div>
             </div>
-          </div>
-          <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-brand-blue opacity-5 rounded-full blur-3xl" />
-        </Card>
-      ) : proxima?.montada && proxima.data ? (
-        <Card className="ds-card-feature overflow-hidden relative">
-          <div className="relative z-10 flex flex-col items-center text-center gap-3 py-4">
-            <span className="p-3 rounded-2xl bg-brand-gold/10 text-brand-gold">
-              <CalendarClock size={28} />
-            </span>
-            <span className="ds-section-label">Missa disponível</span>
-            <span className="ds-pill ds-pill-gold">
-              {new Date(proxima.data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
-            </span>
-            <h3 className="ds-display text-brand-blue dark:text-brand-white break-words">
-              {proxima.celebracao || 'Missa do Dia'}
-            </h3>
-            {proxima.categoria && proxima.categoria !== proxima.celebracao && (
-              <p className="ds-body-sm font-semibold text-brand-slate dark:text-brand-gold/80">
-                {proxima.categoria}
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={abrirProximaMissa}
-              className="mt-2 inline-flex max-w-full items-center justify-center gap-2 rounded-2xl bg-brand-gold px-4 py-3 text-sm font-black text-white shadow-soft transition-all hover:brightness-95 active:scale-95"
-            >
-              <span>Ver missa</span>
-              <ArrowRight size={17} aria-hidden="true" />
-            </button>
           </div>
           <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-brand-blue opacity-5 rounded-full blur-3xl" />
         </Card>
