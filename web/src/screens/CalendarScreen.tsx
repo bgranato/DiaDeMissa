@@ -5,7 +5,10 @@ import { BuscaMissas } from '../components/BuscaMissas'
 import { CheckCircle2, Clock, Play, BellPlus, BellOff, Hourglass } from 'lucide-react'
 import api from '../services/api'
 
-interface Props { setScreen: (s: string) => void }
+interface Props {
+  setScreen: (s: string) => void
+  estaAutenticado?: boolean
+}
 
 interface MissaAgenda {
   id?: number
@@ -34,7 +37,7 @@ function partesData(data: string) {
   }
 }
 
-export const CalendarScreen = ({ setScreen }: Props) => {
+export const CalendarScreen = ({ setScreen, estaAutenticado = true }: Props) => {
   const [agenda, setAgenda] = useState<Agenda | null>(null)
   const [loading, setLoading] = useState(true)
   // mapa missa_id -> lembrete_id (existentes), para o botão saber se já tem lembrete
@@ -43,13 +46,17 @@ export const CalendarScreen = ({ setScreen }: Props) => {
   const primeiraCarga = useRef(true)
 
   const carregarLembretes = useCallback(async () => {
+    if (!estaAutenticado) {
+      setLembretes({})
+      return
+    }
     try {
       const r = await api.get<{ id: number; missa_id: number | null }[]>('/usuarios/me/lembretes')
       const map: Record<number, number> = {}
       for (const l of r.data) if (l.missa_id) map[l.missa_id] = l.id
       setLembretes(map)
     } catch { /* mantém */ }
-  }, [])
+  }, [estaAutenticado])
 
   const carregar = useCallback(async () => {
     try {
@@ -129,7 +136,7 @@ export const CalendarScreen = ({ setScreen }: Props) => {
           <button onClick={() => abrirMissa(m.data)} className="ds-btn ds-btn-primary flex-1 min-w-0">
             <Play size={16} /><span className="truncate">Acompanhar</span>
           </button>
-          {proxima && (
+          {proxima && estaAutenticado && (
             <button onClick={() => toggleLembrete(m)} disabled={lembreteCarregando}
               title={temLembrete ? 'Remover lembrete' : 'Adicionar lembrete'}
               className={`ds-btn flex-shrink-0 ${temLembrete ? 'ds-btn-secondary' : 'ds-btn-outline'}`}>
@@ -171,7 +178,7 @@ export const CalendarScreen = ({ setScreen }: Props) => {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
       className="min-h-screen bg-brand-bg dark:bg-slate-900 ds-bottom-nav-padding">
-      <AppHeader title="Agenda" onBack={() => setScreen('home')} />
+      <AppHeader title="Agenda" onBack={() => setScreen('home')} showNotifications={estaAutenticado} />
 
       <div className="ds-container mt-6 ds-stack-md">
         <BuscaMissas setScreen={setScreen} titulo="Buscar missa por data ou título" />

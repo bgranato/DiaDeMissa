@@ -287,7 +287,7 @@ export const IgrejasScreen = ({ setScreen, estaAutenticado = true }: Props) => {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-brand-bg dark:bg-slate-900 ds-bottom-nav-padding">
-      <AppHeader title="Igrejas" onBack={() => setScreen('home')} />
+      <AppHeader title="Igrejas" onBack={() => setScreen('home')} showNotifications={estaAutenticado} />
 
       <div className="max-w-lg mx-auto px-5 mt-6 flex flex-col gap-4">
         {/* Abas */}

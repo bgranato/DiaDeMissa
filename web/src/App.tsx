@@ -80,8 +80,8 @@ export default function App() {
           {screen === 'home' && <HomeScreen setScreen={navigateTo} missa={missa} nome={usuarioNome} estaAutenticado={estaAutenticado} onLogout={logout} />}
           {screen === 'reading' && <ReadingScreen onBack={() => navigateTo('home')} onFinish={() => navigateTo('conclusion')} missaId={missa?.id} registrarProgresso={estaAutenticado} />}
           {screen === 'igrejas' && <IgrejasScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
-          {screen === 'oracoes' && <OracoesScreen setScreen={navigateTo} />}
-          {screen === 'calendar' && <CalendarScreen setScreen={navigateTo} />}
+          {screen === 'oracoes' && <OracoesScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
+          {screen === 'calendar' && <CalendarScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
           {screen === 'history' && <JornadaScreen setScreen={navigateTo} />}
           {screen === 'reminders' && (
             <LembretesScreen onBack={() => navigateTo(lastScreen)} />

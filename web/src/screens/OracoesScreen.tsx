@@ -11,6 +11,7 @@ function normalizar(s: string): string {
 
 interface Props {
   setScreen: (s: string) => void
+  estaAutenticado?: boolean
 }
 
 /**
@@ -44,7 +45,7 @@ function escolherMelhorVoz(vozes: SpeechSynthesisVoice[]): SpeechSynthesisVoice 
 
 const STORAGE_VOZ = '@tts_voz_preferida'
 
-export const OracoesScreen = ({ setScreen }: Props) => {
+export const OracoesScreen = ({ setScreen, estaAutenticado = true }: Props) => {
   const [oracaoAtiva, setOracaoAtiva] = useState<Oracao | null>(null)
   const [busca, setBusca] = useState('')
   const [falando, setFalando] = useState(false)
@@ -135,7 +136,7 @@ export const OracoesScreen = ({ setScreen }: Props) => {
     return (
       <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
         className="min-h-screen bg-brand-bg dark:bg-slate-900 ds-bottom-nav-padding">
-        <AppHeader title="Oração" onBack={() => setOracaoAtiva(null)} />
+        <AppHeader title="Oração" onBack={() => setOracaoAtiva(null)} showNotifications={estaAutenticado} />
 
         <div className="max-w-lg mx-auto px-5 mt-6 flex flex-col gap-5">
           <div className="text-center">
@@ -227,7 +228,7 @@ export const OracoesScreen = ({ setScreen }: Props) => {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
       className="min-h-screen bg-brand-bg dark:bg-slate-900 ds-bottom-nav-padding">
-      <AppHeader title="Orações" onBack={() => setScreen('home')} />
+      <AppHeader title="Orações" onBack={() => setScreen('home')} showNotifications={estaAutenticado} />
 
       <div className="max-w-lg mx-auto px-5 mt-6 flex flex-col gap-6">
         {/* Busca por nome, palavra ou trecho */}
