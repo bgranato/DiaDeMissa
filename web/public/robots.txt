@@ -1,0 +1,18 @@
+# Páginas públicas e estáticas podem ser descobertas normalmente.
+# APIs, autenticação e dados de aplicação não são páginas de busca.
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /api/
+Disallow: /missa/
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /api/
+Disallow: /missa/
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /missa/
+
+Sitemap: https://diademissa.com.br/sitemap.xml

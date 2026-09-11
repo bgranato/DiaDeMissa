@@ -1,0 +1,28 @@
+# Dia de Missa
+
+> Folheto digital católico gratuito para acompanhar a celebração com conteúdo organizado a partir de folhetos oficiais da Arquidiocese de São Sebastião do Rio de Janeiro.
+
+## Fonte canônica
+
+- https://diademissa.com.br/ — acesso à celebração disponível e aos recursos do aplicativo.
+- https://diademissa.com.br/sobre-o-dia-de-missa.html — descrição editorial, escopo, fonte e perguntas frequentes.
+
+## O que o serviço oferece
+
+- Leitura organizada do folheto litúrgico de domingos, solenidades e demais edições oficiais disponíveis.
+- Estrutura de celebração com ritos, leituras, orações e cantos conforme a edição de referência.
+- Acesso público à missa disponível; recursos pessoais como jornada, agenda, igrejas e notificações exigem cadastro.
+
+## Confiabilidade do conteúdo litúrgico
+
+O PDF oficial da mesma edição é a fonte de referência da montagem. Antes da publicação, o conteúdo e a hierarquia litúrgica passam por conferência independente. Projeto editorial, diagramação e paginação não fazem parte dessa conferência de conteúdo.
+
+## Limites importantes
+
+- O Dia de Missa não substitui a participação presencial, a orientação pastoral ou fontes oficiais da Igreja.
+- A disponibilidade depende da publicação do folheto oficial correspondente.
+- Dados de conta, preferências e rotas de aplicação não são conteúdo editorial público.
+
+## Contato e apoio
+
+O serviço é gratuito e pode apresentar um convite voluntário de apoio ao final da celebração. O pagamento é processado pelo Mercado Pago.
