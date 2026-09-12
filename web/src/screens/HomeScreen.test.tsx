@@ -28,6 +28,7 @@ describe('HomeScreen — atalhos do cabeçalho', () => {
     render(<HomeScreen setScreen={setScreen} missa={null} nome="Visitante" estaAutenticado={false} />)
     await waitFor(() => expect(apiGet).toHaveBeenCalled())
 
+    expect(screen.getByRole('button', { name: 'Acessibilidade' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Dicas e sugestões' }))
     expect(setScreen).toHaveBeenCalledWith('feedback')
   })

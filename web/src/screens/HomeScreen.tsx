@@ -273,11 +273,14 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
             className={`p-2.5 rounded-2xl shadow-soft border border-black/5 dark:border-white/5 active:scale-95 transition-all ${
               showAcessibilidade ? 'bg-brand-gold text-white' : 'bg-brand-white dark:bg-slate-800 text-brand-blue dark:text-brand-gold'
             }`}
-            title="Acessibilidade">
+            title="Acessibilidade"
+            aria-label="Acessibilidade">
             <Settings2 size={20} />
           </button>
           {estaAutenticado && <button onClick={() => setScreen('reminders')}
-            className="p-2.5 bg-brand-white dark:bg-slate-800 rounded-2xl shadow-soft border border-black/5 dark:border-white/5 text-brand-blue dark:text-brand-gold active:scale-95 transition-transform">
+            className="p-2.5 bg-brand-white dark:bg-slate-800 rounded-2xl shadow-soft border border-black/5 dark:border-white/5 text-brand-blue dark:text-brand-gold active:scale-95 transition-transform"
+            title="Notificações"
+            aria-label="Notificações">
             <span className="relative inline-flex">
               <Bell size={20} />
               {lembretesNaoLidos > 0 && (

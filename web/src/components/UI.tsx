@@ -18,6 +18,7 @@ export const NotificationBell = () => {
     <button
       onClick={() => navegarPara('reminders')}
       title="Notificações"
+      aria-label="Notificações"
       className="p-2.5 rounded-2xl shadow-soft border border-black/5 dark:border-white/5 bg-brand-white dark:bg-slate-800 text-brand-blue dark:text-brand-gold active:scale-95 transition-all"
     >
       <span className="relative inline-flex">
