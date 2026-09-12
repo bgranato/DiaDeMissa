@@ -430,7 +430,7 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
       )}
 
       <section className="flex flex-col gap-3">
-        <h4 className="ds-section-label opacity-60 ml-1">Explorar</h4>
+        <h4 className="ds-section-label text-center opacity-60">Explorar</h4>
         <div className="grid grid-cols-2 gap-3">
           {[
             { id: 'igrejas-salvas', icon: Church, label: 'Minhas Igrejas', onClick: () => { localStorage.setItem('@igrejas_aba_inicial', 'salvas'); setScreen('igrejas') } },
