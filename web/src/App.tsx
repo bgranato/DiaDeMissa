@@ -165,6 +165,7 @@ export default function App() {
             <ReadingScreen
               onBack={() => navigateTo('home')}
               onFinish={() => navigateTo('conclusion')}
+              onFeedback={() => navigateTo('feedback')}
               onRestricted={() => {
                 setScreen('home')
                 setConteudoRestrito(true)
@@ -176,7 +177,7 @@ export default function App() {
           )}
           {screen === 'igrejas' && <IgrejasScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
           {screen === 'oracoes' && <OracoesScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
-          {screen === 'feedback' && <FeedbackScreen onBack={() => navigateTo('home')} telaOrigem={lastScreen} />}
+          {screen === 'feedback' && <FeedbackScreen onBack={() => navigateTo(lastScreen)} telaOrigem={lastScreen} />}
           {screen === 'support-thanks' && <AgradecimentoApoioScreen onFinish={() => navigateTo('home')} />}
           {screen === 'calendar' && <CalendarScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
           {screen === 'history' && <JornadaScreen setScreen={navigateTo} />}

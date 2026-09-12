@@ -6,12 +6,13 @@ import { logError } from '../services/logger'
 import BlocoRenderer from '../components/blocos/BlocoRenderer'
 import { ApoioVoluntarioModal } from '../components/ApoioVoluntarioModal'
 import { tituloDuplicaTexto, ordenarBlocos } from '../lib/blocoText'
-import { List as ListIcon, X, Check, RotateCcw } from 'lucide-react'
+import { List as ListIcon, X, Check, RotateCcw, MessageCircleHeart } from 'lucide-react'
 
 interface Props {
   onBack: () => void
   onFinish: () => void
   onRestricted?: () => void
+  onFeedback?: () => void
   missaId?: number
   missaDataAlvo?: string  // YYYY-MM-DD — usado quando acessa via Agenda
   registrarProgresso?: boolean
@@ -32,7 +33,7 @@ interface BlocoLeitura {
   [campo: string]: any
 }
 
-export const ReadingScreen = ({ onBack, onFinish, onRestricted, missaId, missaDataAlvo, registrarProgresso = true }: Props) => {
+export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, missaId, missaDataAlvo, registrarProgresso = true }: Props) => {
   const [todosBlocos, setTodosBlocos] = useState<BlocoLeitura[]>([])
   const [missaData, setMissaData] = useState<string | null>(null)
   const [missaTitulo, setMissaTitulo] = useState<string | null>(null)
@@ -261,6 +262,18 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, missaId, missaDa
         showNotifications={false}
         rightElement={
           <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                persistirPontoDeLeitura()
+                onFeedback?.()
+              }}
+              title="Dicas e sugestões"
+              aria-label="Dicas e sugestões"
+              className="p-2 text-brand-text dark:text-slate-100 active:scale-90 transition-transform"
+            >
+              <MessageCircleHeart size={22} />
+            </button>
             <button
               onClick={() => setShowReiniciar(true)}
               title="Reiniciar missa"
