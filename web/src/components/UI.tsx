@@ -379,7 +379,7 @@ export const BottomNav = ({
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-brand-gray-dark border-t border-white/5 pb-safe shadow-2xl overflow-hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-brand-blue border-t border-white/5 pb-safe shadow-2xl overflow-hidden">
         <div className="flex justify-around items-center h-20 max-w-lg mx-auto px-1">
           {navItems.map((item) => (
             <button
