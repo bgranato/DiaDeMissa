@@ -254,6 +254,13 @@
   padding-bottom: calc(5rem + env(safe-area-inset-bottom) + 2rem);
 }
 
+/* O banner final ocupa a reserva da BottomNav. Assim, sua faixa azul termina
+   exatamente na navegação fixa, sem esconder o botão de apoio. */
+.ds-home-support-banner {
+  margin-bottom: calc(-5rem - env(safe-area-inset-bottom) - 2rem);
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom) + 2rem);
+}
+
 /* Menu "Mais": nas fontes grandes de acessibilidade, cai para 2 colunas para os
    rótulos (px fixo) respirarem em telas estreitas — nunca quebrar/transbordar. */
 html[data-font-size="extra-large"] .menu-mais-grid,
