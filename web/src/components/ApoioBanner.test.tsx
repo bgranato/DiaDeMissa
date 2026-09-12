@@ -8,8 +8,8 @@ describe('ApoioBanner', () => {
     const onApoiar = vi.fn()
     render(<ApoioBanner onApoiar={onApoiar} />)
 
-    expect(screen.getByText(/para manter o dia de missa gratuito/i)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /apoiar o dia de missa/i }))
+    expect(screen.getByText(/o dia de missa é gratuito/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /contribuir/i }))
     expect(onApoiar).toHaveBeenCalledOnce()
   })
 })

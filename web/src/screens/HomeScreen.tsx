@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react'
 import { Card, LargeButton, AccessibilityControls, PrayingHandsIcon } from '../components/UI'
 import { ApoioBanner } from '../components/ApoioBanner'
 import { ApoioVoluntarioModal } from '../components/ApoioVoluntarioModal'
-import { Play, Bell, ArrowRight, CheckCircle2, Calendar, ScrollText, Settings2, Church, Search, MapPin, X, User, CalendarClock } from 'lucide-react'
+import { Play, Bell, ArrowRight, CheckCircle2, Calendar, ScrollText, Settings2, Church, Search, MapPin, X, User, CalendarClock, ChevronDown, LogOut, MessageCircleHeart } from 'lucide-react'
 import type { Missa } from '../types/missa'
 import type { Igreja } from '../types/igreja'
 import { minhasIgrejas, buscarIgrejas } from '../services/igrejas'
@@ -27,13 +27,14 @@ function statusDaMissa(data: string | undefined | null): StatusMissa {
   return 'nao_iniciada'
 }
 
-export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) => {
+export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }: Props) => {
   const [descricaoExpandida, setDescricaoExpandida] = useState(false)
   // Status pode ser desfeito localmente sem reload — guardamos override em state
   const [statusOverride, setStatusOverride] = useState<StatusMissa | null>(null)
   const status = statusOverride ?? statusDaMissa(missa?.data)
   const [lembretesNaoLidos, setLembretesNaoLidos] = useState(0)
   const [showAcessibilidade, setShowAcessibilidade] = useState(false)
+  const [showMenuConta, setShowMenuConta] = useState(false)
   const [ultimaMissa, setUltimaMissa] = useState<MissaDisponivel | null>(null)
 
   // Seletor de igreja
@@ -192,24 +193,82 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
           </motion.div>
         )}
       </AnimatePresence>
-      <header className="flex justify-between items-start gap-3">
-        <button onClick={() => setScreen(estaAutenticado ? 'profile' : 'login')}
-          title={estaAutenticado ? 'Abrir minha conta' : 'Cadastrar ou entrar'}
-          className="flex items-center gap-3 min-w-0 flex-1 text-left active:opacity-70 transition-opacity">
-          <span className="w-11 h-11 flex-shrink-0 rounded-full bg-brand-gold flex items-center justify-center shadow-soft">
-            <User size={22} className="text-white" />
-          </span>
-          <span className="min-w-0">
-            <span className="block ds-title text-brand-gray-dark dark:text-brand-white truncate">Olá, {nome}!</span>
-            <span className="block ds-body-sm italic text-brand-blue/70 dark:text-brand-gold/70">O Senhor esteja convosco.</span>
-            {!estaAutenticado && (
-              <span className="mt-1 inline-flex rounded-full border border-brand-gold/40 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-brand-gold">
-                Cadastrar
-              </span>
+      <header className="relative flex justify-between items-start gap-3">
+        {showMenuConta && (
+          <button
+            type="button"
+            aria-label="Fechar menu da conta"
+            className="fixed inset-0 z-40 cursor-default"
+            onClick={() => setShowMenuConta(false)}
+          />
+        )}
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="relative flex-shrink-0">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-gold shadow-soft">
+              <User size={22} className="text-white" />
+            </span>
+            {estaAutenticado && (
+              <button
+                type="button"
+                aria-label="Abrir menu da conta"
+                aria-expanded={showMenuConta}
+                onClick={() => setShowMenuConta(!showMenuConta)}
+                className="absolute -bottom-2 left-1/2 z-50 flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full border border-brand-white bg-brand-blue text-white shadow-soft active:scale-90"
+              >
+                <ChevronDown size={14} strokeWidth={3} />
+              </button>
             )}
-          </span>
-        </button>
+            <AnimatePresence>
+              {showMenuConta && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                  className="absolute left-0 top-[calc(100%+1rem)] z-50 w-52 overflow-hidden rounded-2xl border border-black/5 bg-brand-white py-1 shadow-xl dark:border-white/10 dark:bg-slate-800"
+                >
+                  <button
+                    type="button"
+                    onClick={() => { setShowMenuConta(false); setScreen('profile') }}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-bold text-brand-blue hover:bg-brand-gold/10 dark:text-brand-white"
+                  >
+                    <User size={17} className="text-brand-gold" />
+                    Minha conta
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowMenuConta(false); void onLogout?.() }}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+                  >
+                    <LogOut size={17} />
+                    Sair
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          {estaAutenticado ? (
+            <span className="min-w-0">
+              <span className="block ds-title text-brand-gray-dark dark:text-brand-white truncate">Olá, {nome}!</span>
+              <span className="block ds-body-sm italic text-brand-blue/70 dark:text-brand-gold/70">O Senhor esteja convosco.</span>
+            </span>
+          ) : (
+            <button onClick={() => setScreen('login')} title="Cadastrar ou entrar" className="min-w-0 text-left active:opacity-70 transition-opacity">
+              <span className="block ds-title text-brand-gray-dark dark:text-brand-white truncate">Olá, {nome}!</span>
+              <span className="block ds-body-sm italic text-brand-blue/70 dark:text-brand-gold/70">O Senhor esteja convosco.</span>
+              <span className="mt-1 inline-flex rounded-full border border-brand-gold/40 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-brand-gold">Cadastrar</span>
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => setScreen('feedback')}
+            className="p-2.5 rounded-2xl shadow-soft border border-black/5 dark:border-white/5 bg-brand-white dark:bg-slate-800 text-brand-blue dark:text-brand-gold active:scale-95 transition-all"
+            title="Dicas e sugestões"
+            aria-label="Dicas e sugestões"
+          >
+            <MessageCircleHeart size={20} />
+          </button>
           <button onClick={() => setShowAcessibilidade(!showAcessibilidade)}
             className={`p-2.5 rounded-2xl shadow-soft border border-black/5 dark:border-white/5 active:scale-95 transition-all ${
               showAcessibilidade ? 'bg-brand-gold text-white' : 'bg-brand-white dark:bg-slate-800 text-brand-blue dark:text-brand-gold'
@@ -377,7 +436,7 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado }: Props) =
             { id: 'history', icon: ScrollText, label: 'Minha Jornada', onClick: () => setScreen('history') },
             { id: 'oracoes', icon: PrayingHandsIcon, label: 'Orações', onClick: () => setScreen('oracoes') },
             estaAutenticado
-              ? { id: 'profile', icon: User, label: 'Minha conta', onClick: () => setScreen('profile') }
+              ? { id: 'reminders', icon: Bell, label: 'Lembretes', onClick: () => setScreen('reminders') }
               : { id: 'cadastro', icon: User, label: 'Cadastrar', onClick: () => setScreen('login') },
           ].map(({ id, icon: Icon, label, onClick }) => (
             <button key={id} onClick={onClick}

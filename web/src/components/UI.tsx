@@ -367,10 +367,7 @@ export const BottomNav = ({
     { id: 'oracoes', label: 'Orações', icon: PrayingHandsIcon as any },
     { id: 'reminders', label: 'Lembretes', icon: Bell },
     { id: 'history', label: 'Minha Jornada', icon: ScrollText },
-    { id: 'feedback', label: 'Dicas e sugestões', icon: MessageCircleHeart },
-    ...(estaAutenticado ? [
-      { id: 'profile', label: 'Minha conta', icon: User },
-    ] : [
+    ...(estaAutenticado ? [] : [
       { id: 'login', label: 'Cadastro', icon: User },
     ]),
   ];

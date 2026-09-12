@@ -15,8 +15,8 @@ export function ApoioBanner({ onApoiar }: { onApoiar: () => void }) {
           </span>
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-gold">Apoio voluntário</p>
-            <h2 className="mt-1 font-serif text-xl font-black leading-tight">Para manter o Dia de Missa gratuito</h2>
-            <p className="mt-2 max-w-md text-sm leading-relaxed text-white/80">Se este serviço é útil para você, uma contribuição ajuda a mantê-lo disponível.</p>
+            <h2 className="mt-1 font-serif text-xl font-black leading-tight">O Dia de Missa é gratuito.</h2>
+            <p className="mt-2 max-w-md text-sm leading-relaxed text-white/80">Se ele faz parte da sua celebração, sua contribuição ajuda a mantê-lo disponível para todos.</p>
           </div>
         </div>
         <button
@@ -24,7 +24,7 @@ export function ApoioBanner({ onApoiar }: { onApoiar: () => void }) {
           onClick={onApoiar}
           className="inline-flex min-h-12 flex-shrink-0 items-center justify-center rounded-2xl bg-brand-gold px-5 py-3 text-sm font-black text-white shadow-lg transition hover:brightness-105 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-brand-blue"
         >
-          Apoiar o Dia de Missa
+          Contribuir
         </button>
       </div>
     </section>
