@@ -8,7 +8,7 @@ import { ApoioVoluntarioModal } from '../components/ApoioVoluntarioModal'
 import { conviteDeveAparecerAposPaiNosso } from '../lib/apoioLiturgia'
 import { EXIBIR_CONVITES_DE_APOIO } from '../lib/recursos'
 import { tituloDuplicaTexto, ordenarBlocos } from '../lib/blocoText'
-import { List as ListIcon, X, Check, RotateCcw, MessageCircleHeart } from 'lucide-react'
+import { List as ListIcon, X, Check, RotateCcw, MessageCircleHeart, Info } from 'lucide-react'
 
 interface Props {
   onBack: () => void
@@ -49,6 +49,7 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
   const [showIndex, setShowIndex] = useState(false)
   const [showReiniciar, setShowReiniciar] = useState(false)
   const [apoioAposPaiNosso, setApoioAposPaiNosso] = useState(false)
+  const [avisoFolhetoVisivel, setAvisoFolhetoVisivel] = useState(true)
   const [loading, setLoading] = useState(true)
 
   const blocoRefs = useRef<(HTMLDivElement | null)[]>([])
@@ -396,6 +397,31 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
               {missaCreditos.final && <p><span className="font-bold">Final:</span> {missaCreditos.final}</p>}
             </div>
           </div>
+        </div>
+      )}
+
+      {avisoFolhetoVisivel && (
+        <div className="ds-container pt-3">
+          <aside
+            className="relative flex gap-3 rounded-2xl border border-[#e5c96d] bg-[#fff6cf] px-4 py-3.5 pr-11 text-[#5b4611] shadow-sm dark:border-amber-400/30 dark:bg-amber-300/15 dark:text-amber-100"
+            aria-label="Aviso sobre o roteiro da missa"
+          >
+            <Info className="mt-0.5 flex-shrink-0 text-[#b98217] dark:text-amber-300" size={19} aria-hidden="true" />
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-[#9a6810] dark:text-amber-300">Sobre este roteiro</p>
+              <p className="mt-1 text-sm leading-relaxed">
+                Este roteiro segue fielmente o folheto litúrgico da Arquidiocese. A celebração da sua paróquia pode ter homilia, cantos e orientações próprias.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAvisoFolhetoVisivel(false)}
+              aria-label="Fechar aviso sobre o roteiro"
+              className="absolute right-2.5 top-2.5 rounded-full p-1.5 text-[#806016] transition hover:bg-[#eacb72]/40 hover:text-[#4e3907] focus:outline-none focus:ring-2 focus:ring-[#aa7918] dark:text-amber-200 dark:hover:bg-amber-200/15 dark:hover:text-amber-50"
+            >
+              <X size={18} aria-hidden="true" />
+            </button>
+          </aside>
         </div>
       )}
 
