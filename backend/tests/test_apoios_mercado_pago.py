@@ -47,7 +47,7 @@ def test_configuracao_nao_expoe_apoio_sem_configuracao(monkeypatch):
     with TestClient(app) as cliente:
         resposta = cliente.get("/apoios/configuracao")
     assert resposta.status_code == 200
-    assert resposta.json() == {"ativo": False, "valores_centavos": [500, 1000, 1500], "reexibir_em_dias": 1}
+    assert resposta.json() == {"ativo": False, "valores_centavos": [300, 500, 1000, 1500], "reexibir_em_dias": 1}
 
 
 def test_checkout_aceita_somente_valores_fechados(client, monkeypatch):
@@ -69,6 +69,20 @@ def test_checkout_aceita_somente_valores_fechados(client, monkeypatch):
         assert apoio.valor_centavos == 1000
         assert apoio.status == "aguardando_pagamento"
         assert apoio.preference_id == "pref_1"
+    finally:
+        db.close()
+
+
+def test_checkout_aceita_o_novo_valor_de_tres_reais(client, monkeypatch):
+    teste, Session = client
+    monkeypatch.setattr(routes, "criar_checkout", lambda **_kwargs: ("https://www.mercadopago.com/checkout", "pref_3"))
+
+    resposta = teste.post("/apoios/checkout", json={"valor_centavos": 300})
+    assert resposta.status_code == 201
+
+    db = Session()
+    try:
+        assert db.query(Apoio).one().valor_centavos == 300
     finally:
         db.close()
 

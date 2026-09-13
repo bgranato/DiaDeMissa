@@ -46,10 +46,10 @@ describe('HomeScreen — atalhos do cabeçalho', () => {
     expect(setScreen).toHaveBeenCalledWith('profile')
   })
 
-  it('não consulta nem exibe apoio quando os convites estão desativados', () => {
+  it('consulta a disponibilidade de apoio para exibir o convite somente quando habilitado', () => {
     render(<HomeScreen setScreen={() => {}} missa={null} nome="Visitante" estaAutenticado={false} />)
 
-    expect(apiGet).not.toHaveBeenCalledWith('/apoios/configuracao')
+    expect(apiGet).toHaveBeenCalledWith('/apoios/configuracao')
     expect(screen.queryByText(/apoio voluntário/i)).not.toBeInTheDocument()
   })
 })

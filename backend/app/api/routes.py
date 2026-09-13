@@ -96,7 +96,7 @@ def configuracao_apoios():
     """Expõe somente se o fluxo está seguro e habilitado; não vaza credenciais."""
     return {
         "ativo": mercado_pago_configurado(),
-        "valores_centavos": [500, 1000, 1500],
+        "valores_centavos": [300, 500, 1000, 1500],
         "reexibir_em_dias": 1,
     }
 

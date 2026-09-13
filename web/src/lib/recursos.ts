@@ -1,6 +1,2 @@
-/**
- * Convites de apoio estão temporariamente desativados na interface.
- * A infraestrutura de checkout e os registros de pagamentos permanecem
- * preservados para uma futura reativação consciente.
- */
-export const EXIBIR_CONVITES_DE_APOIO = false
+/** Convites de apoio usam Checkout Pro e só são exibidos se a API os habilitar. */
+export const EXIBIR_CONVITES_DE_APOIO = true

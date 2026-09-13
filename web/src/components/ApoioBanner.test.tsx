@@ -9,8 +9,8 @@ describe('ApoioBanner', () => {
     render(<ApoioBanner onApoiar={onApoiar} />)
 
     expect(screen.getByText(/ajude a manter o dia de missa vivo/i)).toBeInTheDocument()
-    expect(screen.getByText(/5, 10 ou 15 reais/i)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /faça sua doação/i }))
+    expect(screen.getByText(/r\$ 3, r\$ 5, r\$ 10 ou r\$ 15/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /fazer uma doação/i }))
     expect(onApoiar).toHaveBeenCalledOnce()
   })
 })

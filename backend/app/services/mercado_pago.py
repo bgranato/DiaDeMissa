@@ -13,7 +13,7 @@ from app.core.config import settings
 
 CHECKOUT_PREFERENCES_URL = "https://api.mercadopago.com/checkout/preferences"
 PAYMENTS_URL = "https://api.mercadopago.com/v1/payments"
-VALORES_PERMITIDOS = frozenset({500, 1000, 1500})
+VALORES_PERMITIDOS = frozenset({300, 500, 1000, 1500})
 
 
 class MercadoPagoErro(RuntimeError):

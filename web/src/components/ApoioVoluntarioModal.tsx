@@ -21,7 +21,7 @@ function formatoBRL(valorCentavos: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorCentavos / 100)
 }
 
-/** Oferta discreta. No modo automático, aparece somente no passo litúrgico 23. */
+/** Oferta discreta. No modo automático, aparece após o bloco do Pai-Nosso. */
 export function ApoioVoluntarioModal({ missaId, modo = 'automatico', onClose }: Props) {
   const [configuracao, setConfiguracao] = useState<ConfiguracaoApoios | null>(null)
   const [aberto, setAberto] = useState(modo === 'manual')
@@ -105,11 +105,11 @@ export function ApoioVoluntarioModal({ missaId, modo = 'automatico', onClose }: 
               <Heart size={22} fill="currentColor" />
             </div>
             <p className="mb-2 text-[10px] font-black uppercase tracking-[0.22em] text-brand-gold">Apoio voluntário</p>
-            <h3 id="apoio-titulo" className="pr-8 text-2xl font-serif font-black text-brand-blue dark:text-brand-white">Ajude a manter esta celebração disponível</h3>
+            <h3 id="apoio-titulo" className="pr-8 text-2xl font-serif font-black text-brand-blue dark:text-brand-white">Ajude a manter o Dia de Missa vivo</h3>
             <p className="mt-3 text-sm leading-relaxed text-brand-gray-dark/70 dark:text-brand-white/70">
-              O Dia de Missa é gratuito. Se ele fez bem a você, uma contribuição espontânea ajuda a manter esse projeto disponível para mais pessoas.
+              O Dia de Missa é gratuito. Sua contribuição ajuda a manter o projeto vivo e permite que mais pessoas tenham acesso às liturgias.
             </p>
-            <div className="mt-6 grid grid-cols-3 gap-3">
+            <div className="mt-6 grid grid-cols-2 gap-3">
               {configuracao.valores_centavos.map((valor) => (
                 <button key={valor} disabled={enviando !== null} onClick={() => apoiar(valor)} className="rounded-2xl border-2 border-brand-gold/35 px-2 py-4 text-center font-black text-brand-blue transition hover:border-brand-gold hover:bg-brand-gold hover:text-white disabled:cursor-wait disabled:opacity-60 dark:text-brand-white">
                   {enviando === valor ? <LoaderCircle className="mx-auto animate-spin" size={21} /> : formatoBRL(valor)}
