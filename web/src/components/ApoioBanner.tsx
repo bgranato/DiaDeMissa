@@ -16,7 +16,7 @@ export function ApoioBanner({ onApoiar }: { onApoiar: () => void }) {
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-gold">Apoio voluntário</p>
             <h2 className="mt-1 font-serif text-xl font-black leading-tight">Ajude a manter o Dia de Missa vivo</h2>
-            <p className="mt-2 max-w-md text-sm leading-relaxed text-white/80">Com R$ 3, R$ 5, R$ 10 ou R$ 15, você ajuda a manter o projeto vivo e leva a liturgia a mais pessoas.</p>
+            <p className="mt-2 max-w-md text-sm leading-relaxed text-white/80">Com R$ 3, R$ 5, R$ 10 ou R$ 15, você ajuda a manter o projeto vivo e a levar a liturgia para mais pessoas.</p>
           </div>
         </div>
         <button
