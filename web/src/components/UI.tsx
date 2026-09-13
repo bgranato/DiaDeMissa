@@ -371,7 +371,7 @@ export const BottomNav = ({
     { id: 'sobre', label: 'Sobre', icon: CircleHelp, href: '/sobre-o-dia-de-missa.html' },
     { id: 'uso', label: 'Uso', icon: FileText, href: '/politica-de-uso.html' },
     { id: 'privacidade', label: 'Privacidade', icon: ShieldCheck, href: '/politica-de-privacidade.html' },
-    { id: 'cookies', label: 'Cookies', icon: Cookie, href: '/#cookies' },
+    { id: 'cookies', label: 'Política de cookies', icon: Cookie, href: '/politica-de-cookies.html' },
     ...(estaAutenticado ? [] : [
       { id: 'login', label: 'Cadastro', icon: User },
     ]),

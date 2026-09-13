@@ -34,7 +34,7 @@
   }
 
   function deveExibirAviso() {
-    return window.location.hash === '#cookies' || (!lerPreferencia() && sessionStorage.getItem(DISMISS_KEY) !== 'true');
+    return !lerPreferencia() && sessionStorage.getItem(DISMISS_KEY) !== 'true';
   }
 
   function criarAviso() {
@@ -49,7 +49,7 @@
         <button type="button" class="dm-cookie-close" aria-label="Fechar preferências de cookies">×</button>
         <div class="dm-cookie-copy">
           <strong id="dm-cookie-title">Cookies</strong>
-          <p>Usamos cookies para melhorar sua experiência no Dia de Missa. Ao clicar em “Aceitar”, você concorda com o uso de cookies estatísticos, conforme nossa <a href="/politica-de-privacidade.html">Política de Privacidade</a>.</p>
+          <p>Usamos cookies para melhorar sua experiência no Dia de Missa. Ao clicar em “Aceitar”, você autoriza o uso de cookies estatísticos.</p>
         </div>
         <div class="dm-cookie-actions">
           <button type="button" class="dm-cookie-accept">Aceitar</button>
