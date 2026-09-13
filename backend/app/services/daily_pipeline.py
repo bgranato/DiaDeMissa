@@ -9,11 +9,9 @@ from pathlib import Path
 from typing import Optional
 
 from app.core.database import SessionLocal
-from app.core.config import settings
 from app.core.pipeline_version import pipeline_version
 from app.models.missa import Missa as MissaModel
-from app.pipeline import processar_pdf
-from app.pipeline.download import obter_pdf, hash_pdf, CACHE_DIR
+from app.pipeline.download import baixar_fontes_oficiais, hash_pdf, CACHE_DIR
 from app.services.persist_missa import persistir_missa
 
 logger = logging.getLogger(__name__)
@@ -98,7 +96,28 @@ def auto_atualizar_montagens(db, hoje: Optional[date] = None) -> dict:
             continue
         # Fluxo NOVO (conferência convergente): só montagem aprovada substitui;
         # reprovada/erro-de-montagem NÃO clobbera a boa existente (guarda item 0b).
-        resultados.append(montar_e_publicar(db, m.data.isoformat(), pdf_bytes, texto))
+        pdf_celebrante_path = CACHE_DIR / "archive" / f"{m.data.isoformat()}-celebrante.pdf"
+        if not pdf_celebrante_path.exists():
+            logger.info("auto-atualiza %s: sem PDF Celebrante arquivado — pulando", m.data)
+            resultados.append({"data": m.data.isoformat(), "resultado": "sem_pdf_celebrante"})
+            continue
+        fontes = ((m.revisao_json or {}).get("conferencia", {}).get("fontes", {}))
+        fonte_celular = fontes.get("principal") or {}
+        fonte_celebrante = fontes.get("secundaria") or {}
+        url_celular = fonte_celular.get("url")
+        url_celebrante = fonte_celebrante.get("url")
+        if not url_celular or not url_celebrante:
+            logger.info("auto-atualiza %s: sem evidência das fontes oficiais — pulando", m.data)
+            resultados.append({"data": m.data.isoformat(), "resultado": "sem_evidencia_fontes"})
+            continue
+        resultados.append(montar_e_publicar(
+            db, m.data.isoformat(), pdf_bytes, texto,
+            pdf_celebrante_bytes=pdf_celebrante_path.read_bytes(),
+            fonte_celular_url=url_celular,
+            fonte_celebrante_url=url_celebrante,
+            fonte_celular_tipo=fonte_celular.get("tipo"),
+            fonte_celebrante_tipo=fonte_celebrante.get("tipo"),
+        ))
     resumo = {
         "alvo_pipeline_version": pipeline_version(),
         "selecionadas": len(alvos),
@@ -135,17 +154,18 @@ def executar_pipeline_diario(forcar: bool = False) -> dict:
     finally:
         db_retenção.close()
 
+    data_referencia = date.today()
     try:
-        conteudo = obter_pdf()
+        fonte_celular, conteudo, fonte_celebrante, conteudo_celebrante = baixar_fontes_oficiais(data_referencia)
     except Exception as e:
-        logger.exception("Falha no download do PDF")
+        logger.exception("Falha no download das fontes oficiais Celular/Celebrante")
         return {"status": "erro_download", "motivo": str(e)}
 
     h = hash_pdf(conteudo)
     # O PDF arquivado é a referência auditável do Gauntlet. Sem conseguir
     # preservá-lo, não existe fonte contra a qual a montagem possa ser conferida
     # ou reprocessada, portanto a publicação é bloqueada antes de tocar no BD.
-    data_publicacao = date.today().isoformat()
+    data_publicacao = data_referencia.isoformat()
     try:
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
         pdf_path = CACHE_DIR / f"{h}.pdf"
@@ -155,6 +175,8 @@ def executar_pipeline_diario(forcar: bool = False) -> dict:
         archive_dir.mkdir(parents=True, exist_ok=True)
         archive_path = archive_dir / f"{data_publicacao}.pdf"
         archive_path.write_bytes(conteudo)
+        archive_celebrante_path = archive_dir / f"{data_publicacao}-celebrante.pdf"
+        archive_celebrante_path.write_bytes(conteudo_celebrante)
     except (OSError, PermissionError) as e:
         logger.error("PDF não pôde ser arquivado em %s (%s) — publicação bloqueada", CACHE_DIR, e)
         return {"status": "erro_arquivamento", "motivo": str(e), "hash": h}
@@ -185,7 +207,14 @@ def executar_pipeline_diario(forcar: bool = False) -> dict:
         from app.services.publicacao_convergente import montar_e_publicar
 
         texto_limpo = limpar(extrair_texto_estruturado(pdf_path))
-        resultado = montar_e_publicar(db, data_publicacao, conteudo, texto_limpo)
+        resultado = montar_e_publicar(
+            db, data_publicacao, conteudo, texto_limpo,
+            pdf_celebrante_bytes=conteudo_celebrante,
+            fonte_celular_url=fonte_celular.url,
+            fonte_celebrante_url=fonte_celebrante.url,
+            fonte_celular_tipo=fonte_celular.tipo,
+            fonte_celebrante_tipo=fonte_celebrante.tipo,
+        )
         if resultado.get("resultado") != "publicada":
             return {
                 "status": resultado.get("resultado", "pendente_revisao"),

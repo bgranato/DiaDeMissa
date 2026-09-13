@@ -598,6 +598,22 @@ def _checar_cobertura_liturgica(src_norm: str, mont_norm: str, achados: list[Ach
         ))
 
 
+def conferir_cobertura_liturgica(texto_fonte: str, missa: Missa) -> list[Achado]:
+    """Compara deterministicamente, palavra a palavra, fonte e montagem.
+
+    É a parte reutilizável do auditor para o gate de publicação. Ela fica
+    deliberadamente limitada a conteúdo litúrgico: não avalia layout, páginas,
+    tipografia ou qualquer decisão editorial.
+    """
+    achados: list[Achado] = []
+    src_norm = _norm(texto_fonte)
+    mont_norm = _texto_montagem(missa)
+    _checar_ancoras(src_norm, mont_norm, achados)
+    _checar_cobertura_liturgica(src_norm, mont_norm, achados)
+    _checar_resposta_preces_no_fonte(missa, src_norm, achados)
+    return achados
+
+
 def _checar_resposta_preces_no_fonte(missa: Missa, src_norm: str, achados: list[Achado]) -> None:
     """A resposta (refrão) da Oração dos Fiéis TEM de existir no folheto-fonte.
 

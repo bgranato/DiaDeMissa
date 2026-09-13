@@ -15,7 +15,6 @@ from datetime import date as _date, datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.models.missa import Missa as MissaModel
 
 logger = logging.getLogger(__name__)
@@ -32,7 +31,11 @@ def _custo_no_intervalo(db: Session, inicio: datetime) -> float:
 
 
 def montar_e_publicar(db: Session, data_iso: str, pdf_bytes: bytes,
-                      texto_limpo: str) -> dict:
+                      texto_limpo: str, *, pdf_celebrante_bytes: bytes | None = None,
+                      fonte_celular_url: str | None = None,
+                      fonte_celebrante_url: str | None = None,
+                      fonte_celular_tipo: str | None = None,
+                      fonte_celebrante_tipo: str | None = None) -> dict:
     """Roda o fluxo convergente e publica conforme a conferência.
 
     Retorna {data, resultado, conferida, iteracoes, custo_usd, divergencias}.
@@ -59,6 +62,21 @@ def montar_e_publicar(db: Session, data_iso: str, pdf_bytes: bytes,
         logger.error("montagem bloqueada para %s: PDF oficial não está arquivado e íntegro", data_iso)
         return {"data": data_iso, "resultado": "bloqueado_sem_pdf_arquivado", "conferida": False,
                 "iteracoes": 0, "custo_usd": 0.0}
+    # O contrato exige duas fontes distintas e classificadas pela página oficial.
+    # Não caímos para Assembleia, PDF genérico ou uma segunda chamada do mesmo PDF.
+    pdf_celebrante_arquivado = Path(CACHE_DIR) / "archive" / f"{data_iso}-celebrante.pdf"
+    if (
+        not pdf_celebrante_bytes
+        or not fonte_celular_url
+        or not fonte_celebrante_url
+        or fonte_celular_tipo != "celular"
+        or fonte_celebrante_tipo != "celebrante"
+        or not pdf_celebrante_arquivado.exists()
+        or hash_pdf(pdf_celebrante_arquivado.read_bytes()) != hash_pdf(pdf_celebrante_bytes)
+    ):
+        logger.error("montagem bloqueada para %s: fontes Celular/Celebrante incompletas ou não arquivadas", data_iso)
+        return {"data": data_iso, "resultado": "bloqueado_sem_fontes_oficiais", "conferida": False,
+                "iteracoes": 0, "custo_usd": 0.0}
     # FREIOS DE GASTO — nenhum processo automático gasta ilimitado. Consulta antes de
     # qualquer chamada LLM: disjuntor de crédito (402), orçamento diário, teto/missa.
     from app.services import freios_gasto
@@ -79,7 +97,9 @@ def montar_e_publicar(db: Session, data_iso: str, pdf_bytes: bytes,
 
     # Passo 4 pode levantar (multimodal falhou) — NÃO cai para texto: agenda retry/alerta.
     try:
-        missa_pyd, meta = montar_com_conferencia(pdf_bytes, texto_limpo, data_hint=data_iso)
+        missa_pyd, meta = montar_com_conferencia(
+            pdf_bytes, texto_limpo, pdf_celebrante=pdf_celebrante_bytes, data_hint=data_iso
+        )
     except Exception as e:  # noqa: BLE001
         logger.exception("montagem multimodal falhou para %s — retry/alerta, NÃO publica", data_iso)
         # Emergência: falha por CRÉDITO/QUOTA → e-mail NA HORA + missa retida
@@ -107,14 +127,20 @@ def montar_e_publicar(db: Session, data_iso: str, pdf_bytes: bytes,
     custo = _custo_no_intervalo(db, inicio)
     conf = {"conferida": meta["conferida"], "iteracoes": meta["iteracoes"],
             "custo_usd": custo, "divergencias_restantes": meta["divergencias_restantes"],
-            "contrato": meta.get("contrato", {})}
+            "contrato": meta.get("contrato", {}),
+            "fontes": {
+                "principal": {"tipo": "celular", "url": fonte_celular_url, "sha256": hash_pdf(pdf_bytes)},
+                "secundaria": {"tipo": "celebrante", "url": fonte_celebrante_url,
+                                "sha256": hash_pdf(pdf_celebrante_bytes)},
+                "assembleia_foi_usada": False,
+            }}
 
     if meta["conferida"]:
         # A evidência entra na mesma persistência que torna a missa visível. Assim
         # não há janela em que blocos novos fiquem ``concluido`` sem o veredito
         # independente anexado (nem notificação antecipada ao fiel).
         m = persistir_missa(db, missa_pyd, pdf_hash=hash_pdf(pdf_bytes),
-                            fonte_url=settings.PDF_URL, pdf_bytes=None,
+                            fonte_url=fonte_celular_url, pdf_bytes=None,
                             revisao_json={"conferencia": conf})
         if m.status_processamento != "concluido":
             raise RuntimeError("conferência aprovada não satisfez o gate de persistência")
@@ -130,7 +156,7 @@ def montar_e_publicar(db: Session, data_iso: str, pdf_bytes: bytes,
 
     # Sem montagem boa: persiste como pendente_revisao para revisão humana.
     m = persistir_missa(db, missa_pyd, pdf_hash=hash_pdf(pdf_bytes),
-                        fonte_url=settings.PDF_URL, pdf_bytes=None,
+                        fonte_url=fonte_celular_url, pdf_bytes=None,
                         revisao_json={"conferencia": conf})
     if m.status_processamento != "pendente_revisao":
         raise RuntimeError("montagem reprovada não foi retida pelo gate de persistência")

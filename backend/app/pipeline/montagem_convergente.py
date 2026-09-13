@@ -55,16 +55,21 @@ def _contrato_gauntlet() -> dict:
     """
     return {
         "objetivo": "fidelidade do conteúdo e da hierarquia litúrgicos ao PDF oficial",
-        "referencia": "PDF oficial da mesma edição",
+        "referencia": "PDF oficial da mesma edição — versão Celular",
         "metrica": "zero divergências litúrgicas pendentes",
         "limite_iteracoes": MAX_ITER_CONFERENCIA,
         "fora_do_escopo": [
             "projeto editorial", "diagramação", "paginação", "cores", "tipografia", "imagens",
         ],
         "papeis": {
-            "construtor": "montagem",
+            "construtor": "montagem a partir do PDF oficial versão Celular",
             "critico": "conferente em contexto separado, sem o raciocínio do construtor",
-            "referencia": "mapa litúrgico do PDF + texto extraído do PDF",
+            "referencia": "mapa litúrgico + texto extraído do PDF Celular",
+        },
+        "fontes": {
+            "principal": "Celular: única fonte de extração e estruturação",
+            "secundaria": "Celebrante: conferência de falas do presidente, rubricas e Oração Eucarística",
+            "vedada_para_extracao": "Assembleia: nunca usada como fallback ou fonte de extração",
         },
     }
 
@@ -74,7 +79,7 @@ def _modelo(papel: str) -> str:
     padrao = os.getenv("ANTHROPIC_MODEL_MM", "claude-sonnet-5")
     if papel == "mapa":
         return os.getenv("MODELO_MAPA") or padrao
-    if papel == "conferente":
+    if papel.startswith("conferente"):
         return os.getenv("MODELO_CONFERENTE") or padrao
     return padrao  # montagem
 
@@ -148,7 +153,14 @@ def _mapa_para_contrato(mapa: dict) -> str:
 # ------------------------------------------------------- passo 4: MONTAGEM só-MM
 async def _montar_mm(pdf_bytes: bytes, texto_limpo: str, mapa: dict,
                      data_hint: Optional[str]) -> Missa:
-    user = build_user_prompt_mm(texto_limpo, data_hint) + _mapa_para_contrato(mapa)
+    user = (
+        "O PDF anexado é a versão oficial CELULAR e é a ÚNICA fonte para extrair e "
+        "estruturar a missa. Gere blocos estruturados com seção, número, tipo, "
+        "falante, texto, referência e postura. Não use conhecimento externo nem "
+        "qualquer versão Assembleia.\n"
+        + build_user_prompt_mm(texto_limpo, data_hint)
+        + _mapa_para_contrato(mapa)
+    )
     bruto = _limpar_cercas(await _gerar("montagem", SYSTEM_PROMPT, user, pdf_bytes))
     try:
         return _montar_missa(json.loads(bruto))
@@ -242,6 +254,32 @@ def checar_texto_liturgico_vs_fonte(texto_limpo: str, missa: Missa) -> list[dict
         raise ConferenciaIndisponivel("não foi possível conferir o texto litúrgico contra o PDF") from e
 
 
+def checar_cobertura_palavra_a_palavra(texto_limpo: str, missa: Missa) -> list[dict]:
+    """Gate determinístico de omissões: texto da montagem contra PDF Celular.
+
+    A comparação opera em tokens normalizados e preserva a tolerância mínima
+    para artefatos conhecidos da extração de PDF. Qualquer achado continua no
+    laço de correção; não há aprovação por amostragem ou por aparência visual.
+    """
+    try:
+        from app.services.auditor_missa import conferir_cobertura_liturgica
+
+        severidades = {"CRÍTICA": "critica", "ALTA": "alta", "MÉDIA": "media", "BAIXA": "baixa"}
+        return [
+            {
+                "severidade": severidades.get(achado.severidade, "critica"),
+                "escopo": "conteudo_liturgico",
+                "local": achado.bloco_titulo or "Missa (geral)",
+                "regra": achado.regra,
+                "detalhe": achado.detalhe,
+            }
+            for achado in conferir_cobertura_liturgica(texto_limpo, missa)
+        ]
+    except Exception as e:  # noqa: BLE001
+        logger.warning("checagem de cobertura falhou (%s) — publicação bloqueada", str(e)[:160])
+        raise ConferenciaIndisponivel("não foi possível auditar palavra a palavra contra o PDF") from e
+
+
 # --------------------------------------------------- passo 6: CONFERENTE com laço
 SYSTEM_CONF = (
     "Você é um conferente rigoroso e independente de fidelidade litúrgica. Compara a "
@@ -260,6 +298,23 @@ INSTR_CONF = (
     "Também ignore uma repetição visual do refrão ou resposta quando a montagem a guarda "
     "corretamente uma única vez.\n"
     'Responda SOMENTE JSON: {"divergencias":[{"severidade":"critica|baixa","escopo":"conteudo_liturgico|hierarquia_liturgica","local":"onde",'
+    '"esperado_pdf":"...","encontrado_montagem":"...","detalhe":"..."}]}'
+)
+
+SYSTEM_CONF_CELEBRANTE = (
+    "Você é um segundo conferente independente de fidelidade litúrgica. O PDF "
+    "anexado é a versão oficial CELEBRANTE; compare-o com a MONTAGEM JSON sem "
+    "reconstruí-la e sem avaliar qualquer escolha editorial."
+)
+INSTR_CONF_CELEBRANTE = (
+    "O PDF anexado é a versão CELEBRANTE, usada SOMENTE como conferência secundária. "
+    "Confira exclusivamente: falas do presidente (P), rubricas, postura e a Oração "
+    "Eucarística, incluindo título e prefácio. Não extraia nem reordene a missa a "
+    "partir dele; não avalie cantos, colunas, diagramação, paginação, cores, fontes, "
+    "imagens ou outros elementos editoriais.\n"
+    "Aponte apenas divergências reais de conteúdo/hierarquia no JSON. "
+    'Responda SOMENTE JSON: {"divergencias":[{"severidade":"critica|baixa",'
+    '"escopo":"conteudo_liturgico|hierarquia_liturgica","local":"onde",'
     '"esperado_pdf":"...","encontrado_montagem":"...","detalhe":"..."}]}'
 )
 
@@ -282,6 +337,22 @@ def conferir(pdf_bytes: bytes, missa: Missa) -> list[dict]:
         raise ConferenciaIndisponivel("não foi possível executar a crítica independente") from e
 
 
+def conferir_celebrante(pdf_bytes: bytes, missa: Missa) -> list[dict]:
+    """Crítica secundária focada no que a versão Celebrante esclarece melhor."""
+    try:
+        user = INSTR_CONF_CELEBRANTE + "\n\n=== MONTAGEM (JSON) ===\n" + _montagem_json(missa)
+        data = _extrair_json(_run_coro(_gerar(
+            "conferente_celebrante", SYSTEM_CONF_CELEBRANTE, user, pdf_bytes
+        )))
+        divergencias = data.get("divergencias")
+        if not isinstance(divergencias, list):
+            raise ValueError("resposta do conferente Celebrante sem lista de divergências")
+        return divergencias
+    except Exception as e:  # noqa: BLE001
+        logger.warning("conferente Celebrante falhou (%s) — publicação bloqueada", str(e)[:160])
+        raise ConferenciaIndisponivel("não foi possível executar a conferência secundária Celebrante") from e
+
+
 def _corrigir(pdf_bytes: bytes, texto_limpo: str, mapa: dict, missa: Missa,
               divergencias: list[dict], data_hint: Optional[str]) -> Missa:
     divs = json.dumps(divergencias, ensure_ascii=False)
@@ -302,6 +373,7 @@ def _corrigir(pdf_bytes: bytes, texto_limpo: str, mapa: dict, missa: Missa,
 
 
 def montar_com_conferencia(pdf_bytes: bytes, texto_limpo: str,
+                           pdf_celebrante: bytes | None = None,
                            data_hint: Optional[str] = None) -> tuple[Missa, dict]:
     """Orquestra os passos 3–6. Retorna (missa, meta).
 
@@ -309,6 +381,10 @@ def montar_com_conferencia(pdf_bytes: bytes, texto_limpo: str,
     RAISE se a montagem multimodal falhar (passo 4) — o chamador agenda retry/alerta;
     NUNCA cai para texto puro aqui.
     """
+    if not pdf_celebrante:
+        raise ConferenciaIndisponivel(
+            "PDF oficial versão Celebrante ausente; não há conferência secundária para publicar"
+        )
     mapa = gerar_mapa(pdf_bytes)                                   # passo 3
     missa = montar_com_mapa(pdf_bytes, texto_limpo, mapa, data_hint)  # passo 4 (+5 determ.)
 
@@ -317,8 +393,10 @@ def montar_com_conferencia(pdf_bytes: bytes, texto_limpo: str,
     for i in range(MAX_ITER_CONFERENCIA):
         estruturais = checar_estrutural_vs_mapa(missa, mapa)      # passo 5 (vs mapa)
         textuais = checar_texto_liturgico_vs_fonte(texto_limpo, missa)
-        visuais = conferir(pdf_bytes, missa)                      # passo 6 (visão)
-        divergencias = estruturais + textuais + visuais
+        cobertura = checar_cobertura_palavra_a_palavra(texto_limpo, missa)
+        visuais = conferir(pdf_bytes, missa)                      # passo 6 (Celular)
+        celebrante = conferir_celebrante(pdf_celebrante, missa)  # segunda crítica independente
+        divergencias = estruturais + textuais + cobertura + visuais + celebrante
         # O conferente recebe a instrução de devolver somente divergências litúrgicas.
         # Por isso nenhuma delas é "aceitável": conteúdo/hierarquia só convergem quando
         # a lista fica vazia. Elementos editoriais não entram nessa lista.
@@ -326,7 +404,8 @@ def montar_com_conferencia(pdf_bytes: bytes, texto_limpo: str,
             logger.info("conferência convergiu em %d iteração(ões)", i)
             return missa, {"conferida": True, "iteracoes": i,
                            "divergencias_restantes": divergencias, "mapa": mapa,
-                           "contrato": _contrato_gauntlet()}
+                           "contrato": _contrato_gauntlet(),
+                           "fontes": {"principal": "celular", "secundaria": "celebrante"}}
         iteracoes = i + 1
         logger.info("iteração %d: %d divergência(s) litúrgica(s) — corrigindo",
                     iteracoes, len(divergencias))
@@ -339,4 +418,5 @@ def montar_com_conferencia(pdf_bytes: bytes, texto_limpo: str,
     # Não convergiu
     return missa, {"conferida": False, "iteracoes": iteracoes,
                    "divergencias_restantes": divergencias, "mapa": mapa,
-                   "contrato": _contrato_gauntlet()}
+                   "contrato": _contrato_gauntlet(),
+                   "fontes": {"principal": "celular", "secundaria": "celebrante"}}

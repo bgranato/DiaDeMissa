@@ -53,14 +53,18 @@ def test_divergencia_liturgica_baixa_nao_e_publicavel(monkeypatch):
     monkeypatch.setattr(loop, "montar_com_mapa", lambda *_args, **_kwargs: missa)
     monkeypatch.setattr(loop, "checar_estrutural_vs_mapa", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(loop, "checar_texto_liturgico_vs_fonte", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(loop, "checar_cobertura_palavra_a_palavra", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(
         loop,
         "conferir",
         lambda *_args, **_kwargs: [{"severidade": "baixa", "escopo": "conteudo_liturgico"}],
     )
+    monkeypatch.setattr(loop, "conferir_celebrante", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(loop, "_corrigir", lambda *_args, **_kwargs: missa)
 
-    _resultado, meta = loop.montar_com_conferencia(b"%PDF-teste", "texto")
+    _resultado, meta = loop.montar_com_conferencia(
+        b"%PDF-teste", "texto", pdf_celebrante=b"%PDF-celebrante"
+    )
 
     assert meta["conferida"] is False
     assert meta["iteracoes"] == 1
@@ -82,3 +86,33 @@ def test_palavra_fora_do_pdf_e_divergencia_critica():
     assert len(divergencias) == 1
     assert divergencias[0]["severidade"] == "critica"
     assert divergencias[0]["escopo"] == "conteudo_liturgico"
+
+
+def test_sem_pdf_celebrante_bloqueia_a_publicacao(monkeypatch):
+    monkeypatch.setattr(loop, "gerar_mapa", lambda *_args: pytest.fail("não deve montar"))
+
+    with pytest.raises(loop.ConferenciaIndisponivel, match="Celebrante ausente"):
+        loop.montar_com_conferencia(b"%PDF-celular", "texto")
+
+
+def test_divergencia_do_celebrante_nao_e_publicavel(monkeypatch):
+    missa = _MissaMinima()
+    monkeypatch.setattr(loop, "MAX_ITER_CONFERENCIA", 1)
+    monkeypatch.setattr(loop, "gerar_mapa", lambda _pdf: {"blocos": []})
+    monkeypatch.setattr(loop, "montar_com_mapa", lambda *_args, **_kwargs: missa)
+    monkeypatch.setattr(loop, "checar_estrutural_vs_mapa", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(loop, "checar_texto_liturgico_vs_fonte", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(loop, "checar_cobertura_palavra_a_palavra", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(loop, "conferir", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(
+        loop, "conferir_celebrante",
+        lambda *_args, **_kwargs: [{"severidade": "critica", "escopo": "conteudo_liturgico"}],
+    )
+    monkeypatch.setattr(loop, "_corrigir", lambda *_args, **_kwargs: missa)
+
+    _resultado, meta = loop.montar_com_conferencia(
+        b"%PDF-celular", "texto", pdf_celebrante=b"%PDF-celebrante"
+    )
+
+    assert meta["conferida"] is False
+    assert meta["fontes"] == {"principal": "celular", "secundaria": "celebrante"}

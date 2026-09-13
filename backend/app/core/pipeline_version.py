@@ -24,8 +24,11 @@ from pathlib import Path
 _BACKEND = Path(__file__).resolve().parent.parent.parent
 _ARQUIVOS_REGRA = [
     "app/llm/prompts.py",
+    "app/pipeline/download.py",
+    "app/pipeline/montagem_convergente.py",
     "app/pipeline/structure_llm.py",
     "app/pipeline/clean.py",
+    "app/services/auditor_missa.py",
     "app/services/verificador_lexical.py",
 ]
 
