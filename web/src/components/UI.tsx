@@ -1,6 +1,6 @@
 import { ReactNode, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, ChevronRight, House, Calendar, Bookmark, User, Settings2, ZoomIn, ZoomOut, Contrast, Moon, Sun, List, Church, ScrollText, RotateCcw, MoreHorizontal, Hand, X, Bell, MessageCircleHeart } from 'lucide-react';
+import { ChevronLeft, ChevronRight, House, Calendar, Bookmark, User, Settings2, ZoomIn, ZoomOut, Contrast, Moon, Sun, List, Church, ScrollText, RotateCcw, MoreHorizontal, Hand, X, Bell, MessageCircleHeart, CircleHelp, FileText, ShieldCheck, Cookie } from 'lucide-react';
 import { useAccessibility } from '../hooks/useAccessibility';
 import api from '../services/api';
 import { navegarPara } from '../services/navigation';
@@ -368,6 +368,10 @@ export const BottomNav = ({
     { id: 'oracoes', label: 'Orações', icon: PrayingHandsIcon as any },
     { id: 'reminders', label: 'Lembretes', icon: Bell },
     { id: 'history', label: 'Minha Jornada', icon: ScrollText },
+    { id: 'sobre', label: 'Sobre', icon: CircleHelp, href: '/sobre-o-dia-de-missa.html' },
+    { id: 'uso', label: 'Uso', icon: FileText, href: '/politica-de-uso.html' },
+    { id: 'privacidade', label: 'Privacidade', icon: ShieldCheck, href: '/politica-de-privacidade.html' },
+    { id: 'cookies', label: 'Cookies', icon: Cookie, href: '/#cookies' },
     ...(estaAutenticado ? [] : [
       { id: 'login', label: 'Cadastro', icon: User },
     ]),
@@ -428,19 +432,22 @@ export const BottomNav = ({
                 </button>
               </div>
               <div className="menu-mais-grid grid grid-cols-3 gap-3 px-6 pb-8 pt-3">
-                {menuCompleto.map(item => (
-                  <button key={item.id} onClick={() => ir(item.id)}
-                    className={`flex flex-col items-center gap-2 p-[16px] rounded-2xl transition-all active:scale-[0.96] ${
-                      currentScreen === item.id
-                        ? 'bg-brand-gold/15 border-2 border-brand-gold'
-                        : 'bg-brand-bg dark:bg-slate-800 border-2 border-transparent'
-                    }`}>
+                {menuCompleto.map(item => {
+                  const estilo = `flex flex-col items-center gap-2 p-[16px] rounded-2xl transition-all active:scale-[0.96] ${
+                    currentScreen === item.id
+                      ? 'bg-brand-gold/15 border-2 border-brand-gold'
+                      : 'bg-brand-bg dark:bg-slate-800 border-2 border-transparent'
+                  }`
+                  const conteudo = <>
                     <div className={`p-[12px] rounded-xl ${currentScreen === item.id ? 'bg-brand-gold text-white' : 'bg-brand-blue dark:bg-brand-gold text-white dark:text-brand-blue'}`}>
                       <item.icon size={22} />
                     </div>
                     <span className="text-[13px] font-black text-brand-gray-dark dark:text-brand-white text-center leading-tight [overflow-wrap:normal] [word-break:normal] hyphens-none">{item.label}</span>
-                  </button>
-                ))}
+                  </>
+                  return item.href
+                    ? <a key={item.id} href={item.href} onClick={() => setShowMais(false)} className={estilo}>{conteudo}</a>
+                    : <button key={item.id} onClick={() => ir(item.id)} className={estilo}>{conteudo}</button>
+                })}
               </div>
             </motion.div>
           </motion.div>

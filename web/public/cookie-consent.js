@@ -1,6 +1,7 @@
 (() => {
-  const STORAGE_KEY = 'diademissa_cookie_preferencias_v1';
-  const DISMISS_KEY = 'diademissa_cookie_dialogo_fechado';
+  // Nova versão reapresenta o aviso após a mudança de formato para barra.
+  const STORAGE_KEY = 'diademissa_cookie_preferencias_v2';
+  const DISMISS_KEY = 'diademissa_cookie_dialogo_fechado_v2';
   const MEASUREMENT_ID = 'G-T4MBFSPFTC';
 
   function lerPreferencia() {
