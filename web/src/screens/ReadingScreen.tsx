@@ -61,6 +61,20 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
   useEffect(() => { indiceAtualRef.current = currentIndex }, [currentIndex])
   useEffect(() => { missaDataRef.current = missaData }, [missaData])
 
+  // O aviso é uma div modal: enquanto estiver aberta, o roteiro não pode ser
+  // rolado ou acionado por trás dela.
+  useEffect(() => {
+    if (!avisoFolhetoVisivel) return
+    const bodyOverflow = document.body.style.overflow
+    const htmlOverflow = document.documentElement.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = bodyOverflow
+      document.documentElement.style.overflow = htmlOverflow
+    }
+  }, [avisoFolhetoVisivel])
+
   // Não depende de a renderização seguinte terminar: ao sair pela seta, trocar
   // de aba ou fechar o navegador, o ponto atual continua disponível ao retorno.
   const persistirPontoDeLeitura = () => {
@@ -298,6 +312,39 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
         }
       />
 
+      <AnimatePresence>
+        {avisoFolhetoVisivel && (
+          <motion.div
+            className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto overscroll-contain bg-brand-blue/65 px-3 py-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-[1px] sm:items-center sm:p-6"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            role="dialog" aria-modal="true" aria-labelledby="aviso-folheto-titulo"
+          >
+            <motion.aside
+              className="relative w-full max-w-md rounded-[28px] border border-[#e5c96d] bg-[#fff6cf] p-5 pr-12 text-[#5b4611] shadow-2xl sm:p-6 sm:pr-14"
+              initial={{ y: -18, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -18, opacity: 0 }}
+              aria-label="Aviso sobre o roteiro da missa"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#eacb72]/45 text-[#9a6810]">
+                <Info size={22} aria-hidden="true" />
+              </div>
+              <p className="mt-4 text-[10px] font-black uppercase tracking-[0.18em] text-[#9a6810]">Sobre este roteiro</p>
+              <h2 id="aviso-folheto-titulo" className="mt-1 font-serif text-xl font-black text-[#5b4611]">Folheto litúrgico</h2>
+              <p className="mt-3 text-sm leading-relaxed">
+                Este conteúdo segue fielmente o folheto litúrgico da Arquidiocese. A celebração da sua paróquia pode ter homilia, cantos e orientações próprias.
+              </p>
+              <button
+                type="button"
+                onClick={() => setAvisoFolhetoVisivel(false)}
+                aria-label="Fechar aviso sobre o roteiro"
+                className="absolute right-3 top-3 rounded-full p-2 text-[#806016] transition hover:bg-[#eacb72]/50 hover:text-[#4e3907] focus:outline-none focus:ring-2 focus:ring-[#aa7918]"
+              >
+                <X size={20} aria-hidden="true" />
+              </button>
+            </motion.aside>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Navegação — BARRA FIXA NO RODAPÉ, acompanha o scroll. Atual grande e
           centralizado; vizinhos (passados/futuros) menores e mais apagados.
           Só números REAIS do folheto (nunca inventa). */}
@@ -397,31 +444,6 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
               {missaCreditos.final && <p><span className="font-bold">Final:</span> {missaCreditos.final}</p>}
             </div>
           </div>
-        </div>
-      )}
-
-      {avisoFolhetoVisivel && (
-        <div className="ds-container pt-3">
-          <aside
-            className="relative flex gap-3 rounded-2xl border border-[#e5c96d] bg-[#fff6cf] px-4 py-3.5 pr-11 text-[#5b4611] shadow-sm dark:border-amber-400/30 dark:bg-amber-300/15 dark:text-amber-100"
-            aria-label="Aviso sobre o roteiro da missa"
-          >
-            <Info className="mt-0.5 flex-shrink-0 text-[#b98217] dark:text-amber-300" size={19} aria-hidden="true" />
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-[#9a6810] dark:text-amber-300">Sobre este roteiro</p>
-              <p className="mt-1 text-sm leading-relaxed">
-                Este conteúdo segue fielmente o folheto litúrgico da Arquidiocese. A celebração da sua paróquia pode ter homilia, cantos e orientações próprias.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setAvisoFolhetoVisivel(false)}
-              aria-label="Fechar aviso sobre o roteiro"
-              className="absolute right-2.5 top-2.5 rounded-full p-1.5 text-[#806016] transition hover:bg-[#eacb72]/40 hover:text-[#4e3907] focus:outline-none focus:ring-2 focus:ring-[#aa7918] dark:text-amber-200 dark:hover:bg-amber-200/15 dark:hover:text-amber-50"
-            >
-              <X size={18} aria-hidden="true" />
-            </button>
-          </aside>
         </div>
       )}
 
