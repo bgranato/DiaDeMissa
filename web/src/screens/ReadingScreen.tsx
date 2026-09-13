@@ -327,7 +327,7 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#eacb72]/45 text-[#9a6810]">
                 <Info size={22} aria-hidden="true" />
               </div>
-              <p className="mt-4 text-[10px] font-black uppercase tracking-[0.18em] text-[#9a6810]">Sobre este roteiro</p>
+              <p className="mt-4 text-[10px] font-black uppercase tracking-[0.18em] text-[#9a6810]">AVISO</p>
               <h2 id="aviso-folheto-titulo" className="mt-1 font-serif text-xl font-black text-[#5b4611]">Folheto litúrgico</h2>
               <p className="mt-3 text-sm leading-relaxed">
                 Este conteúdo segue fielmente o folheto litúrgico da Arquidiocese. A celebração da sua paróquia pode ter homilia, cantos e orientações próprias.
