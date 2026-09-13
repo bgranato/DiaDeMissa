@@ -195,7 +195,7 @@
 /* Celular: reduz o respiro lateral do container pra o texto ficar um pouco
    mais largo. Vale só na leitura e só em telas pequenas. */
 @media (max-width: 639px) {
-  .reading-wide .ds-container { padding-inline: 0.875rem; }
+  .reading-wide .ds-container { padding-inline: 0.625rem; }
 }
 
 /* Texto da liturgia SEM caixa: zera o recuo horizontal interno dos blocos
