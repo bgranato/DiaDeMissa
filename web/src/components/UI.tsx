@@ -360,26 +360,47 @@ export const BottomNav = ({
     { id: 'oracoes', label: 'Orações', icon: PrayingHandsIcon as any },
   ];
 
-  // Menu completo aberto via "Mais"
-  const menuCompleto = [
-    { id: 'home', label: 'Missa', icon: PadreIcon as any },
-    { id: 'igrejas', label: 'Igrejas', icon: Church },
-    { id: 'calendar', label: 'Agenda', icon: Calendar },
+  type MenuItem = { id: string; label: string; icon: any; href?: string };
+
+  const utilidades: MenuItem[] = [
+    estaAutenticado
+      ? { id: 'profile', label: 'Minha conta', icon: User }
+      : { id: 'login', label: 'Cadastro', icon: User },
+    { id: 'home', label: 'Missa do Dia', icon: PadreIcon as any },
+    { id: 'igrejas', label: 'Igrejas perto de você', icon: Church },
+    { id: 'calendar', label: 'Agenda de Missas', icon: Calendar },
     { id: 'oracoes', label: 'Orações', icon: PrayingHandsIcon as any },
     { id: 'reminders', label: 'Lembretes', icon: Bell },
     { id: 'history', label: 'Minha Jornada', icon: ScrollText },
-    { id: 'sobre', label: 'Sobre', icon: CircleHelp, href: '/sobre-o-dia-de-missa.html' },
-    { id: 'uso', label: 'Uso', icon: FileText, href: '/politica-de-uso.html' },
-    { id: 'privacidade', label: 'Privacidade', icon: ShieldCheck, href: '/politica-de-privacidade.html' },
-    { id: 'cookies', label: 'Política de cookies', icon: Cookie, href: '/politica-de-cookies.html' },
-    ...(estaAutenticado ? [] : [
-      { id: 'login', label: 'Cadastro', icon: User },
-    ]),
+  ];
+
+  const informacoes: MenuItem[] = [
+    { id: 'sobre', label: 'Sobre o Dia de Missa', icon: CircleHelp, href: '/sobre-o-dia-de-missa.html' },
+    { id: 'uso', label: 'Política de Uso', icon: FileText, href: '/politica-de-uso.html' },
+    { id: 'privacidade', label: 'Política de Privacidade', icon: ShieldCheck, href: '/politica-de-privacidade.html' },
+    { id: 'cookies', label: 'Política de Cookies', icon: Cookie, href: '/politica-de-cookies.html' },
   ];
 
   function ir(screen: string) {
     setShowMais(false);
     setScreen(screen);
+  }
+
+  function renderMenuItem(item: MenuItem) {
+    const estilo = `flex min-h-[132px] flex-col items-center justify-center gap-2 rounded-2xl p-4 text-center transition-all active:scale-[0.96] ${
+      currentScreen === item.id
+        ? 'border-2 border-brand-gold bg-brand-gold/15'
+        : 'border-2 border-transparent bg-brand-bg dark:bg-slate-800'
+    }`;
+    const conteudo = <>
+      <div className={`rounded-xl p-3 ${currentScreen === item.id ? 'bg-brand-gold text-white' : 'bg-brand-blue text-white dark:bg-brand-gold dark:text-brand-blue'}`}>
+        <item.icon size={22} />
+      </div>
+      <span className="text-[13px] font-black leading-tight text-brand-gray-dark dark:text-brand-white">{item.label}</span>
+    </>;
+    return item.href
+      ? <a key={item.id} href={item.href} onClick={() => setShowMais(false)} className={estilo}>{conteudo}</a>
+      : <button key={item.id} onClick={() => ir(item.id)} className={estilo}>{conteudo}</button>;
   }
 
   return (
@@ -431,23 +452,19 @@ export const BottomNav = ({
                   <X size={20} />
                 </button>
               </div>
-              <div className="menu-mais-grid grid grid-cols-3 gap-3 px-6 pb-8 pt-3">
-                {menuCompleto.map(item => {
-                  const estilo = `flex flex-col items-center gap-2 p-[16px] rounded-2xl transition-all active:scale-[0.96] ${
-                    currentScreen === item.id
-                      ? 'bg-brand-gold/15 border-2 border-brand-gold'
-                      : 'bg-brand-bg dark:bg-slate-800 border-2 border-transparent'
-                  }`
-                  const conteudo = <>
-                    <div className={`p-[12px] rounded-xl ${currentScreen === item.id ? 'bg-brand-gold text-white' : 'bg-brand-blue dark:bg-brand-gold text-white dark:text-brand-blue'}`}>
-                      <item.icon size={22} />
-                    </div>
-                    <span className="text-[13px] font-black text-brand-gray-dark dark:text-brand-white text-center leading-tight [overflow-wrap:normal] [word-break:normal] hyphens-none">{item.label}</span>
-                  </>
-                  return item.href
-                    ? <a key={item.id} href={item.href} onClick={() => setShowMais(false)} className={estilo}>{conteudo}</a>
-                    : <button key={item.id} onClick={() => ir(item.id)} className={estilo}>{conteudo}</button>
-                })}
+              <div className="space-y-7 px-6 pb-8 pt-3">
+                <section aria-labelledby="menu-utilidades">
+                  <h4 id="menu-utilidades" className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-brand-gold">Utilidades</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {utilidades.map(renderMenuItem)}
+                  </div>
+                </section>
+                <section aria-labelledby="menu-informacoes" className="border-t border-brand-blue/10 pt-6 dark:border-white/15">
+                  <h4 id="menu-informacoes" className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-brand-gold">Informações</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {informacoes.map(renderMenuItem)}
+                  </div>
+                </section>
               </div>
             </motion.div>
           </motion.div>
