@@ -108,7 +108,7 @@ export function ApoioVoluntarioModal({ missaId, modo = 'automatico', onClose }: 
             <p className="mb-2 text-[10px] font-black uppercase tracking-[0.22em] text-brand-gold">Apoio voluntário</p>
             <h3 id="apoio-titulo" className="pr-8 text-2xl font-serif font-black text-brand-blue dark:text-brand-white">Ajude a manter esta celebração disponível</h3>
             <p className="mt-3 text-sm leading-relaxed text-brand-gray-dark/70 dark:text-brand-white/70">
-              O Dia de Missa é gratuito. Se ele fez bem a você, uma contribuição espontânea ajuda a cuidar dos folhetos, da revisão e da infraestrutura.
+              O Dia de Missa é gratuito. Se ele fez bem a você, uma contribuição espontânea ajuda a manter esse projeto disponível para mais pessoas.
             </p>
             <div className="mt-6 grid grid-cols-3 gap-3">
               {configuracao.valores_centavos.map((valor) => (
