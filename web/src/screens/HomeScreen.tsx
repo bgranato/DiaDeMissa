@@ -464,7 +464,7 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
         <a className="underline decoration-brand-gold/60 underline-offset-4 hover:text-brand-blue dark:hover:text-brand-gold" href="/sobre-o-dia-de-missa.html">Sobre o Dia de Missa</a>
         <a className="underline decoration-brand-gold/60 underline-offset-4 hover:text-brand-blue dark:hover:text-brand-gold" href="/politica-de-uso.html">Política de uso</a>
         <a className="underline decoration-brand-gold/60 underline-offset-4 hover:text-brand-blue dark:hover:text-brand-gold" href="/politica-de-privacidade.html">Privacidade</a>
-        <a className="underline decoration-brand-gold/60 underline-offset-4 hover:text-brand-blue dark:hover:text-brand-gold" href="/controle-de-cookies.html">Cookies</a>
+        <a className="underline decoration-brand-gold/60 underline-offset-4 hover:text-brand-blue dark:hover:text-brand-gold" href="/#cookies">Cookies</a>
       </footer>
 
       {EXIBIR_CONVITES_DE_APOIO && apoiosAtivos && <ApoioBanner onApoiar={() => setApoioAberto(true)} />}

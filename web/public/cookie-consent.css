@@ -1,25 +1,27 @@
 .dm-cookie-dialog {
   position: fixed;
-  inset: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   z-index: 200;
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: center;
-  overflow-y: auto;
-  padding: max(.75rem, env(safe-area-inset-top)) .75rem;
-  background: rgba(26, 43, 76, .7);
-  backdrop-filter: blur(2px);
+  padding: .75rem .75rem calc(5.5rem + env(safe-area-inset-bottom));
+  pointer-events: none;
 }
 .dm-cookie-card {
+  position: relative;
   width: min(100%, 31rem);
   margin: 0;
-  padding: 1.4rem;
+  padding: 1.2rem 3rem 1.2rem 1.2rem;
   border: 1px solid rgba(197, 160, 89, .45);
-  border-radius: 1.5rem;
+  border-radius: 1.35rem;
   background: #f9f9f9;
   color: #26364e;
   box-shadow: 0 18px 45px rgba(0, 0, 0, .24);
   font: 400 14px/1.5 Inter, system-ui, sans-serif;
+  pointer-events: auto;
 }
 .dm-cookie-card p { margin: .55rem 0 0; }
 .dm-cookie-card strong { color: #1a2b4c; font: 900 1.15rem/1.25 Merriweather, Georgia, serif; }
@@ -27,5 +29,10 @@
 .dm-cookie-actions button { border: 0; border-radius: .8rem; cursor: pointer; padding: .75rem .9rem; font: 800 13px/1 Inter, system-ui, sans-serif; }
 .dm-cookie-accept { background: #1a2b4c; color: white; }
 .dm-cookie-reject { background: #e8ebf0; color: #1a2b4c; }
-.dm-cookie-settings { color: #1a2b4c; align-self: center; font-weight: 800; font-size: .84rem; }
-@media (min-width: 640px) { .dm-cookie-dialog { align-items: center; padding: 1.5rem; } .dm-cookie-card { padding: 1.65rem; } }
+.dm-cookie-settings { appearance: none; border: 0; background: transparent; color: #1a2b4c; cursor: pointer; padding: .35rem 0; text-decoration: underline; text-underline-offset: 3px; font: 800 .84rem/1 Inter, system-ui, sans-serif; }
+.dm-cookie-close { position: absolute; top: .65rem; right: .65rem; border: 0; border-radius: 999px; background: transparent; color: #526075; cursor: pointer; padding: .4rem; font: 800 1.2rem/1 Inter, system-ui, sans-serif; }
+.dm-cookie-details { display: none; margin-top: .9rem; padding-top: .9rem; border-top: 1px solid rgba(26, 43, 76, .12); }
+.dm-cookie-details[data-open="true"] { display: block; }
+.dm-cookie-details label { display: flex; gap: .55rem; align-items: flex-start; color: #526075; font-size: .82rem; }
+.dm-cookie-details input { margin-top: .15rem; accent-color: #1a2b4c; }
+@media (min-width: 640px) { .dm-cookie-dialog { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)); } .dm-cookie-card { padding: 1.35rem 3.2rem 1.35rem 1.35rem; } }
