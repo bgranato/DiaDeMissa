@@ -185,7 +185,7 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
     : ''
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="ds-container py-6 ds-bottom-nav-padding flex flex-col gap-5">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="ds-container py-6 ds-bottom-nav-padding ds-home-bottom-nav-padding flex flex-col gap-5">
       <AnimatePresence>
         {showAcessibilidade && (
           <motion.div
