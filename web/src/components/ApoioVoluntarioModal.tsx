@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { Heart, LoaderCircle, X } from 'lucide-react'
 
 import api from '../services/api'
-import { conviteApoioEmPausa, pausarConviteApoioAposRecusa } from '../services/apoioExibicao'
+import { conviteApoioEmPausa } from '../services/apoioExibicao'
 
 type ConfiguracaoApoios = {
   ativo: boolean
@@ -62,9 +62,8 @@ export function ApoioVoluntarioModal({ missaId, modo = 'automatico', onClose }: 
   }, [aberto])
 
   function fechar() {
-    // No convite automático, fechar pausa uma hora. O banner inicial é uma
-    // escolha voluntária, então continua disponível após fechar o diálogo.
-    if (modo === 'automatico') pausarConviteApoioAposRecusa()
+    // Fechar é somente fechar: não grava pausa. Assim, quem não apoiou volta a
+    // receber o convite ao retomar a missa; somente apoio aprovado descansa 24h.
     setAberto(false)
     onClose?.()
   }
@@ -89,13 +88,13 @@ export function ApoioVoluntarioModal({ missaId, modo = 'automatico', onClose }: 
     <AnimatePresence>
       {aberto && configuracao && (
         <motion.div
-          className="fixed inset-0 z-[60] flex items-end justify-center overflow-y-auto overscroll-contain bg-brand-blue/65 p-3 sm:items-center sm:p-6 backdrop-blur-[1px]"
+          className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto overscroll-contain bg-brand-blue/65 px-3 py-[max(0.75rem,env(safe-area-inset-top))] sm:items-center sm:p-6 backdrop-blur-[1px]"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           role="dialog" aria-modal="true" aria-labelledby="apoio-titulo"
           onClick={fechar}
         >
           <motion.section
-            className="relative w-full max-w-md rounded-t-[30px] sm:rounded-[30px] bg-brand-white p-7 text-left shadow-2xl dark:bg-slate-900"
+            className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[30px] bg-brand-white p-6 text-left shadow-2xl sm:max-h-[calc(100dvh-3rem)] sm:p-7 dark:bg-slate-900"
             initial={{ y: 32, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 32, opacity: 0 }}
             onClick={(event) => event.stopPropagation()}
           >

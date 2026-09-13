@@ -21,7 +21,7 @@ import { AlterarSenhaScreen } from './screens/AlterarSenhaScreen'
 import { IgrejasScreen } from './screens/IgrejasScreen'
 import { OracoesScreen } from './screens/OracoesScreen'
 import { FeedbackScreen } from './screens/FeedbackScreen'
-import { AgradecimentoApoioScreen } from './screens/AgradecimentoApoioScreen'
+import { AgradecimentoApoioModal } from './components/AgradecimentoApoioModal'
 import { BottomNav } from './components/UI'
 import { registrarNavegador } from './services/navigation'
 import { rotaExigeConta } from './lib/acesso'
@@ -34,6 +34,7 @@ export default function App() {
   const [missa, setMissa] = useState<Missa | null>(null)
   const [loginAberto, setLoginAberto] = useState(false)
   const [conteudoRestrito, setConteudoRestrito] = useState(false)
+  const [agradecimentoApoioAberto, setAgradecimentoApoioAberto] = useState(false)
   const inicioConcluido = useRef(false)
   const requisicaoMissaRef = useRef(0)
 
@@ -74,7 +75,8 @@ export default function App() {
         if (data.status === 'approved') {
           pausarConviteApoioAposPagamento()
           limparRetorno()
-          setScreen('support-thanks')
+          setScreen('home')
+          setAgradecimentoApoioAberto(true)
           return
         }
         if (['rejected', 'cancelled', 'failure', 'divergencia_pagamento'].includes(data.status)) {
@@ -178,7 +180,6 @@ export default function App() {
           {screen === 'igrejas' && <IgrejasScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
           {screen === 'oracoes' && <OracoesScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
           {screen === 'feedback' && <FeedbackScreen onBack={() => navigateTo(lastScreen)} telaOrigem={lastScreen} />}
-          {screen === 'support-thanks' && <AgradecimentoApoioScreen onFinish={() => navigateTo('home')} />}
           {screen === 'calendar' && <CalendarScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
           {screen === 'history' && <JornadaScreen setScreen={navigateTo} />}
           {screen === 'reminders' && (
@@ -205,7 +206,13 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {!['splash', 'login', 'reading', 'conclusion', 'design-system', 'meus-dados', 'alterar-senha', 'support-thanks'].includes(screen) && (
+        <AnimatePresence>
+          {agradecimentoApoioAberto && (
+            <AgradecimentoApoioModal onClose={() => setAgradecimentoApoioAberto(false)} />
+          )}
+        </AnimatePresence>
+
+        {!['splash', 'login', 'reading', 'conclusion', 'design-system', 'meus-dados', 'alterar-senha'].includes(screen) && (
           <BottomNav currentScreen={screen} setScreen={navigateTo} estaAutenticado={estaAutenticado} />
         )}
       </div>

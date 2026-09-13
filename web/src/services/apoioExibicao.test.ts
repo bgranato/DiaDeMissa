@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { conviteApoioEmPausa, pausarConviteApoioAposPagamento, pausarConviteApoioAposRecusa } from './apoioExibicao'
+import { conviteApoioEmPausa, pausarConviteApoioAposPagamento } from './apoioExibicao'
 
 describe('pausa do convite de apoio', () => {
   afterEach(() => {
@@ -20,21 +20,17 @@ describe('pausa do convite de apoio', () => {
     expect(conviteApoioEmPausa()).toBe(false)
   })
 
-  it('remove a pausa legada de 30 dias criada antes da confirmação de pagamento', () => {
+  it('remove toda pausa legada sem a marca de pagamento confirmado', () => {
     localStorage.setItem('@dia_de_missa_apoio_reexibir_em', String(Date.now() + 30 * 24 * 60 * 60 * 1000))
 
     expect(conviteApoioEmPausa()).toBe(false)
     expect(localStorage.getItem('@dia_de_missa_apoio_reexibir_em')).toBeNull()
   })
 
-  it('dura uma hora quando a pessoa fecha o convite sem doar', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-09-11T12:00:00Z'))
+  it('não considera como pagamento uma pausa sem a origem registrada', () => {
+    localStorage.setItem('@dia_de_missa_apoio_reexibir_em', String(Date.now() + 60 * 60 * 1000))
 
-    pausarConviteApoioAposRecusa()
-    expect(conviteApoioEmPausa()).toBe(true)
-
-    vi.advanceTimersByTime(60 * 60 * 1000)
     expect(conviteApoioEmPausa()).toBe(false)
+    expect(localStorage.getItem('@dia_de_missa_apoio_reexibir_em')).toBeNull()
   })
 })

@@ -415,11 +415,11 @@ export const BottomNav = ({
       <AnimatePresence>
         {showMais && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center"
+            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-3 py-[max(0.75rem,env(safe-area-inset-top))] sm:items-center sm:p-6"
             onClick={() => setShowMais(false)}>
             <motion.div
               initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }}
-              className="bg-white dark:bg-slate-900 rounded-t-[32px] w-full max-w-lg pb-safe"
+              className="max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-[32px] bg-white pb-safe dark:bg-slate-900 sm:max-h-[calc(100dvh-3rem)]"
               onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between px-6 pt-5 pb-3">
                 <h3 className="text-lg font-serif font-black text-brand-blue dark:text-brand-white">Menu</h3>

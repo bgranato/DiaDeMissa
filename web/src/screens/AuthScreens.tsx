@@ -194,7 +194,7 @@ export const AuthScreens = ({ setScreen, onClose, conteudoRestrito = false }: Pr
           <p className="text-brand-gold font-bold italic text-lg">Liturgia Diária</p>
         </div>}
 
-        <Card className={`relative ${onClose ? 'p-4 sm:p-6' : 'p-8'} shadow-strong`}>
+        <Card className={`relative max-h-[calc(100dvh-2rem)] overflow-y-auto ${onClose ? 'p-4 sm:max-h-[calc(100dvh-3rem)] sm:p-6' : 'p-8'} shadow-strong`}>
           {onClose && (
             <>
               <button

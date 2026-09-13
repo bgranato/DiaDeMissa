@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react'
 import { Card, LargeButton, AccessibilityControls, PrayingHandsIcon } from '../components/UI'
 import { ApoioBanner } from '../components/ApoioBanner'
 import { ApoioVoluntarioModal } from '../components/ApoioVoluntarioModal'
+import { EXIBIR_CONVITES_DE_APOIO } from '../lib/recursos'
 import { Play, Bell, ArrowRight, CheckCircle2, Calendar, ScrollText, Settings2, Church, Search, MapPin, X, User, CalendarClock, ChevronDown, LogOut, MessageCircleHeart } from 'lucide-react'
 import type { Missa } from '../types/missa'
 import type { Igreja } from '../types/igreja'
@@ -48,6 +49,10 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
   const [apoioAberto, setApoioAberto] = useState(false)
 
   useEffect(() => {
+    if (!EXIBIR_CONVITES_DE_APOIO) {
+      setApoiosAtivos(false)
+      return
+    }
     let ativo = true
     api.get<{ ativo?: boolean }>('/apoios/configuracao')
       .then(({ data }) => { if (ativo) setApoiosAtivos(data.ativo === true) })
@@ -455,9 +460,9 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
         </div>
       </section>
 
-      {apoiosAtivos && <ApoioBanner onApoiar={() => setApoioAberto(true)} />}
+      {EXIBIR_CONVITES_DE_APOIO && apoiosAtivos && <ApoioBanner onApoiar={() => setApoioAberto(true)} />}
 
-      {apoioAberto && (
+      {EXIBIR_CONVITES_DE_APOIO && apoioAberto && (
         <ApoioVoluntarioModal
           missaId={missa?.id}
           modo="manual"
@@ -469,11 +474,11 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
       <AnimatePresence>
         {showSeletor && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center"
+            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-3 py-[max(0.75rem,env(safe-area-inset-top))] sm:items-center sm:p-6"
             onClick={() => setShowSeletor(false)}>
             <motion.div
               initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }}
-              className="bg-white dark:bg-slate-900 rounded-t-[32px] sm:rounded-[32px] w-full max-w-lg max-h-[85vh] flex flex-col"
+              className="max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex flex-col rounded-[32px] bg-white dark:bg-slate-900 sm:max-h-[calc(100dvh-3rem)]"
               onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between p-6 pb-4">
                 <div>

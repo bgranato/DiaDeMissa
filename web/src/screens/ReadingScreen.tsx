@@ -5,6 +5,8 @@ import { getMissaAtual, getMissaEstruturadaPorData, salvarProgressoMissa, conclu
 import { logError } from '../services/logger'
 import BlocoRenderer from '../components/blocos/BlocoRenderer'
 import { ApoioVoluntarioModal } from '../components/ApoioVoluntarioModal'
+import { conviteDeveAparecerAposPaiNosso } from '../lib/apoioLiturgia'
+import { EXIBIR_CONVITES_DE_APOIO } from '../lib/recursos'
 import { tituloDuplicaTexto, ordenarBlocos } from '../lib/blocoText'
 import { List as ListIcon, X, Check, RotateCcw, MessageCircleHeart } from 'lucide-react'
 
@@ -46,7 +48,7 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showIndex, setShowIndex] = useState(false)
   const [showReiniciar, setShowReiniciar] = useState(false)
-  const [apoioAtingiuPasso23, setApoioAtingiuPasso23] = useState(false)
+  const [apoioAposPaiNosso, setApoioAposPaiNosso] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const blocoRefs = useRef<(HTMLDivElement | null)[]>([])
@@ -233,10 +235,13 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
     else break
   }
 
-  // O convite nasce no passo 23 e permanece montado até uma decisão explícita
-  // da pessoa. Assim, uma rolagem posterior não o desmonta nem o fecha.
+  // O convite nasce somente depois do Pai-Nosso e permanece montado até uma
+  // decisão explícita. A referência é o conteúdo do bloco, não a numeração:
+  // edições diferentes do folheto podem numerar a sequência de outra forma.
   useEffect(() => {
-    if (blocos[currentIndex]?.numero_folheto === 23) setApoioAtingiuPasso23(true)
+    if (EXIBIR_CONVITES_DE_APOIO && conviteDeveAparecerAposPaiNosso(blocos, currentIndex)) {
+      setApoioAposPaiNosso(true)
+    }
   }, [blocos, currentIndex])
 
   if (loading) return (
@@ -474,7 +479,7 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
           )
         })}
 
-        {apoioAtingiuPasso23 && <ApoioVoluntarioModal missaId={missaId} />}
+        {EXIBIR_CONVITES_DE_APOIO && apoioAposPaiNosso && <ApoioVoluntarioModal missaId={missaId} />}
 
         {/* Concluir missa — no fim da tripa (substitui o antigo botão Próximo/Concluir). */}
         <div className="mt-4 mb-2">
@@ -499,7 +504,7 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
             <motion.div
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 rounded-t-[40px] z-[101] max-h-[85vh] overflow-hidden flex flex-col shadow-2xl"
+              className="fixed left-3 right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[101] flex max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden rounded-[32px] bg-white shadow-2xl dark:bg-slate-800 sm:left-1/2 sm:right-auto sm:top-1/2 sm:w-full sm:max-w-lg sm:max-h-[calc(100dvh-3rem)] sm:-translate-x-1/2 sm:-translate-y-1/2"
             >
               <div className="p-6 pb-2 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between">
                 <h3 className="text-xl font-bold dark:text-white">Roteiro da Missa</h3>
@@ -552,12 +557,12 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
         {showReiniciar && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-5"
+            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-5 py-[max(0.75rem,env(safe-area-inset-top))] sm:items-center sm:p-6"
             onClick={() => setShowReiniciar(false)}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-sm p-6 shadow-strong"
+              className="max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto rounded-3xl bg-white p-6 shadow-strong sm:max-h-[calc(100dvh-3rem)] dark:bg-slate-900"
               onClick={e => e.stopPropagation()}
             >
               <div className="w-14 h-14 rounded-full bg-brand-gold/15 flex items-center justify-center mx-auto mb-4">
