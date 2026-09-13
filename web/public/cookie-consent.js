@@ -42,13 +42,14 @@
     dialog.id = 'dm-cookie-dialog';
     dialog.className = 'dm-cookie-dialog';
     dialog.setAttribute('role', 'dialog');
-    dialog.setAttribute('aria-modal', 'true');
     dialog.setAttribute('aria-labelledby', 'dm-cookie-title');
     dialog.innerHTML = `
       <div class="dm-cookie-card">
         <button type="button" class="dm-cookie-close" aria-label="Fechar preferências de cookies">×</button>
-        <strong id="dm-cookie-title">Cookies</strong>
-        <p>Usamos cookies para melhorar sua experiência no Dia de Missa. Ao clicar em “Aceitar”, você concorda com o uso de cookies estatísticos, conforme nossa <a href="/politica-de-privacidade.html">Política de Privacidade</a>.</p>
+        <div class="dm-cookie-copy">
+          <strong id="dm-cookie-title">Cookies</strong>
+          <p>Usamos cookies para melhorar sua experiência no Dia de Missa. Ao clicar em “Aceitar”, você concorda com o uso de cookies estatísticos, conforme nossa <a href="/politica-de-privacidade.html">Política de Privacidade</a>.</p>
+        </div>
         <div class="dm-cookie-actions">
           <button type="button" class="dm-cookie-accept">Aceitar</button>
         </div>
