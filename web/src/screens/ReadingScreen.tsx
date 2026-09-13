@@ -410,7 +410,7 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-[#9a6810] dark:text-amber-300">Sobre este roteiro</p>
               <p className="mt-1 text-sm leading-relaxed">
-                Este roteiro segue fielmente o folheto litúrgico da Arquidiocese. A celebração da sua paróquia pode ter homilia, cantos e orientações próprias.
+                Este conteúdo segue fielmente o folheto litúrgico da Arquidiocese. A celebração da sua paróquia pode ter homilia, cantos e orientações próprias.
               </p>
             </div>
             <button
