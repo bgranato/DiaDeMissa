@@ -105,7 +105,7 @@ export function ApoioVoluntarioModal({ missaId, modo = 'automatico', onClose }: 
               <Heart size={22} fill="currentColor" />
             </div>
             <p className="mb-2 text-[10px] font-black uppercase tracking-[0.22em] text-brand-gold">Apoio voluntário</p>
-            <h3 id="apoio-titulo" className="pr-8 text-2xl font-serif font-black text-brand-blue dark:text-brand-white">Ajude a manter o Dia de Missa vivo</h3>
+            <h3 id="apoio-titulo" className="pr-8 text-2xl font-serif font-black text-brand-blue dark:text-brand-white">Se o Dia de Missa te ajudou, ajude a mantê-lo vivo.</h3>
             <p className="mt-3 text-sm leading-relaxed text-brand-gray-dark/70 dark:text-brand-white/70">
               O Dia de Missa é gratuito. Sua contribuição ajuda a manter o projeto vivo e permite que mais pessoas tenham acesso às liturgias.
             </p>
