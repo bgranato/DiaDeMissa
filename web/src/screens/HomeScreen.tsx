@@ -410,9 +410,9 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
             <span className="p-3 rounded-2xl bg-brand-gold/10 text-brand-gold">
               <CalendarClock size={28} />
             </span>
-            <span className="ds-section-label">Não há missa hoje</span>
+            <span className="ds-section-label">O conteúdo de hoje não está disponível</span>
             <p className="ds-body text-brand-text/70 dark:text-brand-white/70 max-w-sm">
-              O conteúdo da próxima missa ainda não está disponível. O folheto é publicado aos sábados (à noite), domingos e solenidades.
+              Hoje há missa. O Dia de Missa publica apenas as celebrações de domingos e solenidades cujo conteúdo litúrgico é fornecido pela Arquidiocese. O conteúdo da próxima celebração ainda não está disponível.
             </p>
             {ultimaMissa ? (
               <button
