@@ -38,6 +38,7 @@ interface BlocoLeitura {
 
 export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, missaId, missaDataAlvo, registrarProgresso = true }: Props) => {
   const [todosBlocos, setTodosBlocos] = useState<BlocoLeitura[]>([])
+  const [missaIdCarregada, setMissaIdCarregada] = useState<number | null>(null)
   const [missaData, setMissaData] = useState<string | null>(null)
   const [missaTitulo, setMissaTitulo] = useState<string | null>(null)
   const [missaCategoria, setMissaCategoria] = useState<string | null>(null)
@@ -62,6 +63,7 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
   const indiceSalvoRef = useRef(0)
   const indiceAtualRef = useRef(0)
   const missaDataRef = useRef<string | null>(null)
+  const missaIdParaHistorico = missaIdCarregada ?? missaId
 
   useEffect(() => { indiceAtualRef.current = currentIndex }, [currentIndex])
   useEffect(() => { missaDataRef.current = missaData }, [missaData])
@@ -112,6 +114,7 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
       : getMissaAtual()
     fetcher
       .then((missa: any) => {
+        setMissaIdCarregada(typeof missa.id === 'number' && missa.id > 0 ? missa.id : null)
         setTodosBlocos((missa.blocos || []) as BlocoLeitura[])
         const data = missa.data || null
         setMissaData(data)
@@ -224,17 +227,17 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
     if (loading || blocos.length === 0) return
     if (missaData) sessionStorage.setItem(`@missa_bloco_${missaData}`, String(currentIndex))
     if (currentIndex > 0) marcarIniciada()
-    if (!registrarProgresso || !missaId) return
+    if (!registrarProgresso || !missaIdParaHistorico) return
     const t = setTimeout(() => {
       const bloco = blocos[currentIndex]
       const pct = Math.round(((currentIndex + 1) / blocos.length) * 100)
-      salvarProgressoMissa(missaId, bloco?.id ?? bloco?.ordem ?? currentIndex, pct).catch(err =>
+      salvarProgressoMissa(missaIdParaHistorico, bloco?.id ?? bloco?.ordem ?? currentIndex, pct).catch(err =>
         logError('salvarProgressoMissa', err),
       )
     }, 800)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex])
+  }, [currentIndex, loading, blocos.length, missaData, missaIdParaHistorico, registrarProgresso])
 
   const jumpTo = (index: number) => {
     setShowIndex(false)
@@ -243,7 +246,7 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
   }
 
   const concluir = () => {
-    if (registrarProgresso && missaId) concluirMissa(missaId).catch(err => logError('concluirMissa', err))
+    if (registrarProgresso && missaIdParaHistorico) concluirMissa(missaIdParaHistorico).catch(err => logError('concluirMissa', err))
     if (missaData) {
       localStorage.setItem(`@missa_concluida_${missaData}`, 'true')
       localStorage.removeItem(`@missa_iniciada_${missaData}`)
@@ -653,9 +656,9 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
                     }
                     setCurrentIndex(0)
                     setShowReiniciar(false)
-                    if (registrarProgresso && missaId) {
+                    if (registrarProgresso && missaIdParaHistorico) {
                       import('../services/api').then(({ default: api }) => {
-                        api.post(`/usuarios/me/historico/${missaId}/desconcluir`).catch(() => { })
+                        api.post(`/usuarios/me/historico/${missaIdParaHistorico}/desconcluir`).catch(() => { })
                       })
                     }
                     window.scrollTo({ top: 0, behavior: 'smooth' })
