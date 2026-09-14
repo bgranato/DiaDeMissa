@@ -217,7 +217,7 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
                 aria-label="Abrir menu da conta"
                 aria-expanded={showMenuConta}
                 onClick={() => setShowMenuConta(!showMenuConta)}
-                className="absolute -bottom-2 left-1/2 z-50 flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full border border-brand-white bg-brand-blue text-white shadow-soft active:scale-90"
+                className="absolute -right-2 top-1/2 z-50 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full border border-brand-white bg-brand-blue text-white shadow-soft active:scale-90"
               >
                 <ChevronDown size={14} strokeWidth={3} />
               </button>
