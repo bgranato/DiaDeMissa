@@ -42,6 +42,11 @@ export const HistoryScreen = ({ setScreen }: Props) => {
       .finally(() => setLoading(false))
   }, [])
 
+  function abrirMissa(data: string) {
+    localStorage.setItem('@missa_data_alvo', data)
+    setScreen('reading')
+  }
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-brand-bg dark:bg-slate-900 ds-bottom-nav-padding">
       <AppHeader title="Histórico" onBack={() => setScreen('home')} />
@@ -82,7 +87,7 @@ export const HistoryScreen = ({ setScreen }: Props) => {
               <Card key={h.missa_id} className={`p-5 ${meta.cardClass}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div
-                    onClick={() => setScreen('reading')}
+                    onClick={() => abrirMissa(h.data)}
                     className="flex-1 cursor-pointer active:opacity-70 transition-opacity"
                   >
                     <p className="font-bold text-brand-blue dark:text-brand-gold capitalize">
@@ -106,7 +111,7 @@ export const HistoryScreen = ({ setScreen }: Props) => {
                 </div>
 
                 <div
-                  onClick={() => setScreen('reading')}
+                  onClick={() => abrirMissa(h.data)}
                   className="cursor-pointer active:opacity-70 transition-opacity"
                 >
                   <div className="mt-3 flex items-center gap-3">

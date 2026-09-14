@@ -50,6 +50,13 @@ function AbaHistorico({ setScreen, onRestricted }: { setScreen: (s: string) => v
       .finally(() => setLoading(false))
   }, [])
 
+  function abrirMissa(data: string) {
+    // A Jornada pode listar missas passadas. Sem esta data, a tela de leitura
+    // tenta carregar a missa de hoje e falha quando não há folheto publicado.
+    localStorage.setItem('@missa_data_alvo', data)
+    setScreen('reading')
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <BuscaMissas setScreen={setScreen} titulo="Buscar missas anteriores" />
@@ -89,7 +96,7 @@ function AbaHistorico({ setScreen, onRestricted }: { setScreen: (s: string) => v
         return (
           <Card key={h.missa_id} className={`p-5 ${meta.cardClass}`}>
             <div className="flex items-start justify-between gap-3">
-              <div onClick={() => setScreen('reading')} className="flex-1 cursor-pointer active:opacity-70 transition-opacity">
+              <div onClick={() => abrirMissa(h.data)} className="flex-1 cursor-pointer active:opacity-70 transition-opacity">
                 <p className="font-bold text-brand-blue dark:text-brand-gold capitalize">
                   {new Date(h.data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
                 </p>
@@ -104,7 +111,7 @@ function AbaHistorico({ setScreen, onRestricted }: { setScreen: (s: string) => v
                 </button>
               </div>
             </div>
-            <div onClick={() => setScreen('reading')} className="cursor-pointer active:opacity-70 transition-opacity">
+            <div onClick={() => abrirMissa(h.data)} className="cursor-pointer active:opacity-70 transition-opacity">
               <div className="mt-3 flex items-center gap-3">
                 <div className="flex-1 h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
                   <div className={`h-full ${meta.barClass} rounded-full`} style={{ width: `${h.percentual_lido}%` }} />
