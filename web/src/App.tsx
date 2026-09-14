@@ -32,6 +32,7 @@ export default function App() {
   const [screen, setScreen] = useState('splash')
   const [lastScreen, setLastScreen] = useState('home')
   const [missa, setMissa] = useState<Missa | null>(null)
+  const [missaConcluida, setMissaConcluida] = useState<{ id: number | null; data: string | null } | null>(null)
   const [loginAberto, setLoginAberto] = useState(false)
   const [conteudoRestrito, setConteudoRestrito] = useState(false)
   const [agradecimentoApoioAberto, setAgradecimentoApoioAberto] = useState(false)
@@ -166,7 +167,11 @@ export default function App() {
           {screen === 'reading' && (
             <ReadingScreen
               onBack={() => navigateTo('home')}
-              onFinish={() => navigateTo('conclusion')}
+              onFinish={(missaFinalizada) => {
+                setMissaConcluida(missaFinalizada)
+                setLastScreen('reading')
+                setScreen('conclusion')
+              }}
               onFeedback={() => navigateTo('feedback')}
               onRestricted={() => {
                 setScreen('home')
@@ -196,7 +201,14 @@ export default function App() {
             <LembretesScreen onBack={() => navigateTo(lastScreen)} />
           )}
           {screen === 'profile' && <ProfileScreen setScreen={navigateTo} usuario={usuario} onLogout={logoutEVoltarAoInicio} />}
-          {screen === 'conclusion' && <ConclusionScreen setScreen={navigateTo} missaId={missa?.id} missaData={missa?.data} estaAutenticado={estaAutenticado} />}
+          {screen === 'conclusion' && (
+            <ConclusionScreen
+              setScreen={navigateTo}
+              missaId={missaConcluida?.id ?? missa?.id}
+              missaData={missaConcluida?.data ?? missa?.data}
+              estaAutenticado={estaAutenticado}
+            />
+          )}
           {screen === 'design-system' && <DesignSystemScreen onBack={() => navigateTo('profile')} />}
           {screen === 'meus-dados' && <MeusDadosScreen onBack={() => navigateTo('profile')} />}
           {screen === 'alterar-senha' && <AlterarSenhaScreen onBack={() => navigateTo('profile')} />}

@@ -13,7 +13,7 @@ import { List as ListIcon, X, Check, RotateCcw, MessageCircleHeart, Info } from 
 
 interface Props {
   onBack: () => void
-  onFinish: () => void
+  onFinish: (missa: { id: number | null; data: string | null }) => void
   onRestricted?: () => void
   onFeedback?: () => void
   missaId?: number
@@ -270,7 +270,7 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
       localStorage.removeItem(`@missa_iniciada_${missaData}`)
       sessionStorage.removeItem(`@missa_bloco_${missaData}`)
     }
-    onFinish()
+    onFinish({ id: missaIdParaHistorico ?? null, data: missaData })
   }
 
   // Navegação: só os blocos que o folheto NUMERA (nunca inventa número).
