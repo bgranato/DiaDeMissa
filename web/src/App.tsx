@@ -181,7 +181,17 @@ export default function App() {
           {screen === 'oracoes' && <OracoesScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
           {screen === 'feedback' && <FeedbackScreen onBack={() => navigateTo(lastScreen)} telaOrigem={lastScreen} />}
           {screen === 'calendar' && <CalendarScreen setScreen={navigateTo} estaAutenticado={estaAutenticado} />}
-          {screen === 'history' && <JornadaScreen setScreen={navigateTo} />}
+          {screen === 'history' && (
+            <JornadaScreen
+              setScreen={navigateTo}
+              onRestricted={() => {
+                void logout()
+                setScreen('home')
+                setConteudoRestrito(true)
+                setLoginAberto(true)
+              }}
+            />
+          )}
           {screen === 'reminders' && (
             <LembretesScreen onBack={() => navigateTo(lastScreen)} />
           )}

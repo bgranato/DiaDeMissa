@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { rotaExigeConta } from './acesso'
+import { erroExigeLogin, rotaExigeConta } from './acesso'
 
 describe('acesso de visitante', () => {
   it('permite a missa já disponível sem login', () => {
@@ -18,5 +18,11 @@ describe('acesso de visitante', () => {
   it('não impõe a barreira a uma conta autenticada', () => {
     expect(rotaExigeConta('calendar', true, false)).toBe(false)
     expect(rotaExigeConta('reading', true, false)).toBe(false)
+  })
+
+  it('reconhece respostas sem sessão válida', () => {
+    expect(erroExigeLogin({ response: { status: 401 } })).toBe(true)
+    expect(erroExigeLogin({ response: { status: 403 } })).toBe(true)
+    expect(erroExigeLogin({ response: { status: 500 } })).toBe(false)
   })
 })

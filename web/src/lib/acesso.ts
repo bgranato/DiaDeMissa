@@ -17,3 +17,9 @@ export function rotaExigeConta(destino: string, estaAutenticado: boolean, missaD
     || ROTAS_EXCLUSIVAS_DA_CONTA.has(destino)
     || (destino === 'reading' && !missaDisponivelPublicamente)
 }
+
+/** Distingue ausência de sessão de um histórico realmente vazio. */
+export function erroExigeLogin(erro: unknown): boolean {
+  const status = (erro as { response?: { status?: number } } | undefined)?.response?.status
+  return status === 401 || status === 403
+}

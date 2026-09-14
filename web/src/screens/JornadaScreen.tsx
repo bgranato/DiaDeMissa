@@ -11,8 +11,9 @@ import {
 import { AppHeader, Card } from '../components/UI'
 import api from '../services/api'
 import type { HistoricoEntry, HistoricoStatus } from '../types/usuario'
+import { erroExigeLogin } from '../lib/acesso'
 
-interface Props { setScreen: (s: string) => void }
+interface Props { setScreen: (s: string) => void; onRestricted: () => void }
 
 type Aba = 'historico' | 'relatorio'
 
@@ -35,14 +36,17 @@ const STATUS_META: Record<HistoricoStatus, { label: string; Icon: typeof CheckCi
   },
 }
 
-function AbaHistorico({ setScreen }: { setScreen: (s: string) => void }) {
+function AbaHistorico({ setScreen, onRestricted }: { setScreen: (s: string) => void; onRestricted: () => void }) {
   const [historico, setHistorico] = useState<HistoricoEntry[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     api.get<HistoricoEntry[]>('/usuarios/me/historico')
       .then(r => setHistorico(r.data))
-      .catch(() => setHistorico([]))
+      .catch(erro => {
+        if (erroExigeLogin(erro)) onRestricted()
+        else setHistorico([])
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -179,7 +183,7 @@ function BarraProgresso({ label, pct, count, total, sufixo }: { label: string; p
   )
 }
 
-function AbaRelatorio() {
+function AbaRelatorio({ onRestricted }: { onRestricted: () => void }) {
   const [data, setData] = useState<Relatorio | null>(null)
   const [loading, setLoading] = useState(true)
   const [editandoMeta, setEditandoMeta] = useState(false)
@@ -191,7 +195,10 @@ function AbaRelatorio() {
         setData(r.data)
         setNovaMeta(String(r.data.meta_missas_mensal ?? ''))
       })
-      .catch(() => setData(null))
+      .catch(erro => {
+        if (erroExigeLogin(erro)) onRestricted()
+        else setData(null)
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -440,7 +447,7 @@ function AbaRelatorio() {
 // Wrapper com tabs
 // ============================================================================
 
-export const JornadaScreen = ({ setScreen }: Props) => {
+export const JornadaScreen = ({ setScreen, onRestricted }: Props) => {
   const [aba, setAba] = useState<Aba>('historico')
 
   return (
@@ -468,7 +475,7 @@ export const JornadaScreen = ({ setScreen }: Props) => {
           ))}
         </div>
 
-        {aba === 'historico' ? <AbaHistorico setScreen={setScreen} /> : <AbaRelatorio />}
+        {aba === 'historico' ? <AbaHistorico setScreen={setScreen} onRestricted={onRestricted} /> : <AbaRelatorio onRestricted={onRestricted} />}
       </div>
     </motion.div>
   )
