@@ -312,7 +312,7 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
       )}
 
       {missa ? (
-        <Card className="ds-card-feature overflow-hidden relative">
+        <Card className="ds-card-feature -my-2 overflow-hidden relative">
           <div className="relative z-10">
             <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
               <span className="ds-section-label">{missaEhDoDia ? 'Missa do Dia' : 'Missa disponível'}</span>
@@ -408,7 +408,7 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
           <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-brand-blue opacity-5 rounded-full blur-3xl" />
         </Card>
       ) : (
-        <Card className="ds-card-feature ds-card-unavailable overflow-hidden relative">
+        <Card className="ds-card-feature ds-card-unavailable -my-2 overflow-hidden relative">
           <div className="relative z-10 flex flex-col items-center text-center gap-2 py-0.5">
             <span className="p-2.5 rounded-2xl bg-brand-gold/10 text-brand-gold">
               <CalendarClock size={24} />
