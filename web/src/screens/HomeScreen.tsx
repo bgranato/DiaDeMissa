@@ -411,7 +411,7 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
               <CalendarClock size={24} />
             </span>
             <span className="ds-section-label">O Conteúdo da missa de hoje não está disponível</span>
-            <p className="ds-body text-brand-text/70 dark:text-brand-white/70 max-w-sm">
+            <p className="ds-body-sm text-brand-text/70 dark:text-brand-white/70 max-w-none px-1">
               O Dia de Missa publica apenas as celebrações de domingos e solenidades cujo conteúdo litúrgico é fornecido pela Arquidiocese.
             </p>
             {ultimaMissa ? (
