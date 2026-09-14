@@ -72,8 +72,8 @@ export async function getProximaMissa(): Promise<ProximaMissa> {
 
 // Última missa concluída, para que dias sem folheto ainda deem acesso ao conteúdo recente.
 export async function getUltimaMissaDisponivel(): Promise<MissaDisponivel | null> {
-  const res = await api.get<AgendaMissas>('/missa/agenda')
-  return res.data.anteriores?.[0] ?? null
+  const res = await api.get<MissaDisponivel & { id: number | null; data: string | null }>('/missa/ultima-disponivel')
+  return res.data.id && res.data.data ? res.data as MissaDisponivel : null
 }
 
 export async function getMissaAtual(): Promise<{ blocos: any[] }> {

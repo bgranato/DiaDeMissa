@@ -70,10 +70,9 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
       .catch(() => setLembretesNaoLidos(0))
   }, [estaAutenticado])
 
-  // Conteúdo anterior é exclusivo da conta. Visitantes nunca recebem uma missa
-  // passada como substituta da missa do dia.
+  // A data pode aparecer como convite; o conteúdo anterior continua exclusivo da conta.
   useEffect(() => {
-    if (missa || !estaAutenticado) {
+    if (missa) {
       setUltimaMissa(null)
       return
     }
@@ -415,10 +414,10 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
             <p className="ds-body text-brand-text/70 dark:text-brand-white/70 max-w-sm">
               O conteúdo da próxima missa ainda não está disponível. O folheto é publicado aos sábados (à noite), domingos e solenidades.
             </p>
-            {estaAutenticado && ultimaMissa ? (
+            {ultimaMissa ? (
               <button
                 type="button"
-                onClick={abrirUltimaMissa}
+                onClick={estaAutenticado ? abrirUltimaMissa : () => setScreen('reading')}
                 className="mt-2 inline-flex max-w-full items-center justify-center gap-2 rounded-2xl bg-brand-gold px-4 py-3 text-sm font-black text-white shadow-soft transition-all hover:brightness-95 active:scale-95"
               >
                 <span className="truncate">Ver missa do dia {dataUltimaMissaFormatada}</span>

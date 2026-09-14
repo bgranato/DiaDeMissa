@@ -501,6 +501,19 @@ def missa_proxima(db: Session = Depends(get_db)):
     return {"data": None, "celebracao": None, "categoria": None, "montada": False}
 
 
+@router.get("/missa/ultima-disponivel")
+def ultima_missa_disponivel(db: Session = Depends(get_db)):
+    """Expõe só o rótulo da última edição; o conteúdo continua no acervo."""
+    hoje = _agora_brasilia().date()
+    candidatas = (db.query(Missa).filter(Missa.data < hoje, Missa.status_processamento == "concluido")
+                  .order_by(Missa.data.desc()).all())
+    for missa in candidatas:
+        if missa_publicavel(missa):
+            return {"id": missa.id, "data": missa.data.isoformat(), "celebracao": missa.celebracao,
+                    "categoria": getattr(missa, "categoria", None)}
+    return {"id": None, "data": None, "celebracao": None, "categoria": None}
+
+
 @router.get("/missa/agenda")
 def missa_agenda(
     db: Session = Depends(get_db),
