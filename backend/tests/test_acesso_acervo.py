@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.api import routes
 from app.core.database import get_db
+from app.schemas.usuario import HistoricoCreate
 
 
 def _assert_restrito(chamada) -> None:
@@ -40,3 +41,40 @@ def test_rotas_do_acervo_devolvem_o_aviso_ao_visitante():
             resposta = cliente.get(url)
             assert resposta.status_code == 403
             assert resposta.json()['detail'] == routes.MENSAGEM_CONTEUDO_RESTRITO
+
+
+def test_salvar_progresso_nao_rebaixa_missa_ja_concluida():
+    """Reabrir uma missa não pode trocar a conclusão por progresso parcial."""
+    registro = type('Registro', (), {
+        'percentual_lido': 100.0,
+        'ultimo_bloco_id': 23,
+        'igreja_id': None,
+        'data_ultimo_acesso': None,
+    })()
+
+    class Query:
+        def __init__(self, resultado):
+            self.resultado = resultado
+
+        def filter(self, *_args):
+            return self
+
+        def first(self):
+            return self.resultado
+
+    class Db:
+        def query(self, modelo):
+            return Query(object() if modelo is routes.Missa else registro)
+
+        def commit(self):
+            pass
+
+    resposta = routes.salvar_progresso(
+        HistoricoCreate(missa_id=72, ultimo_bloco_id=1, percentual_lido=7),
+        usuario=type('Usuario', (), {'id': 1})(),
+        db=Db(),
+    )
+
+    assert resposta == {'message': 'Progresso salvo'}
+    assert registro.percentual_lido == 100.0
+    assert registro.ultimo_bloco_id == 23

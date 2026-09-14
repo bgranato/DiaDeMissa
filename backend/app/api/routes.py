@@ -1203,8 +1203,11 @@ def salvar_progresso(dados: HistoricoCreate, usuario: Usuario = Depends(obter_us
         HistoricoUsuario.usuario_id == usuario.id, HistoricoUsuario.missa_id == dados.missa_id,
     ).first()
     if registro:
-        registro.ultimo_bloco_id = dados.ultimo_bloco_id
-        registro.percentual_lido = dados.percentual_lido
+        # A conclusão é um estado explícito. Um salvamento automático disparado
+        # ao reabrir o leitor não pode rebaixar 100% para um percentual parcial.
+        if (registro.percentual_lido or 0) < 100:
+            registro.ultimo_bloco_id = dados.ultimo_bloco_id
+            registro.percentual_lido = dados.percentual_lido
         registro.data_ultimo_acesso = datetime.now(timezone.utc)
         if dados.igreja_id is not None:
             registro.igreja_id = dados.igreja_id

@@ -245,6 +245,9 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
     if (loading || blocos.length === 0) return
     if (missaData) sessionStorage.setItem(`@missa_bloco_${missaData}`, String(currentIndex))
     if (currentIndex > 0) marcarIniciada()
+    // Uma conclusão é definitiva até a pessoa escolhê-la desfazer. Reabrir a
+    // missa não pode transformar 100% em um progresso parcial.
+    if (missaData && localStorage.getItem(`@missa_concluida_${missaData}`) === 'true') return
     if (!registrarProgresso || !missaIdParaHistorico) return
     const t = setTimeout(() => {
       const bloco = blocos[currentIndex]
