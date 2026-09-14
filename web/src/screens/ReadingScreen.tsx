@@ -294,15 +294,24 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
     }
   }, [blocos, currentIndex])
 
+  // Em dias sem folheto da Arquidiocese, a API ainda pode responder com a
+  // celebração do dia, porém sem roteiro. O leitor não é um destino válido
+  // nesse caso: a Home explica a política editorial e oferece a última missa.
+  useEffect(() => {
+    if (!loading && blocos.length === 0) onBack()
+  }, [loading, blocos.length, onBack])
+
   if (loading) return (
     <div className="min-h-screen bg-brand-bg dark:bg-slate-900 flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-brand-gold border-t-transparent rounded-full animate-spin" />
     </div>
   )
 
+  // A transição para a Home é iniciada pelo efeito acima. Enquanto ela não
+  // monta, mantém apenas o carregamento em vez de expor uma mensagem técnica.
   if (blocos.length === 0) return (
-    <div className="min-h-screen bg-brand-bg dark:bg-slate-900 flex items-center justify-center p-8">
-      <p className="text-brand-text/60 text-center">Nenhum bloco disponível para esta missa.</p>
+    <div className="min-h-screen bg-brand-bg dark:bg-slate-900 flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-brand-gold border-t-transparent rounded-full animate-spin" />
     </div>
   )
 
