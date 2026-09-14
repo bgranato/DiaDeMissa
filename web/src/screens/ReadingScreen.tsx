@@ -6,6 +6,7 @@ import { logError } from '../services/logger'
 import BlocoRenderer from '../components/blocos/BlocoRenderer'
 import { ApoioVoluntarioModal } from '../components/ApoioVoluntarioModal'
 import { conviteDeveAparecerAposPaiNosso } from '../lib/apoioLiturgia'
+import { CHAVE_FECHAMENTO_AVISO_FOLHETO, deveExibirAvisoFolheto } from '../lib/avisoFolheto'
 import { EXIBIR_CONVITES_DE_APOIO } from '../lib/recursos'
 import { tituloDuplicaTexto, ordenarBlocos } from '../lib/blocoText'
 import { List as ListIcon, X, Check, RotateCcw, MessageCircleHeart, Info } from 'lucide-react'
@@ -49,7 +50,11 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
   const [showIndex, setShowIndex] = useState(false)
   const [showReiniciar, setShowReiniciar] = useState(false)
   const [apoioAposPaiNosso, setApoioAposPaiNosso] = useState(false)
-  const [avisoFolhetoVisivel, setAvisoFolhetoVisivel] = useState(true)
+  // Avaliado uma única vez por entrada na missa. Assim, não interrompe uma
+  // leitura em andamento ao completar os 15 minutos de pausa.
+  const [avisoFolhetoVisivel, setAvisoFolhetoVisivel] = useState(() =>
+    deveExibirAvisoFolheto(localStorage.getItem(CHAVE_FECHAMENTO_AVISO_FOLHETO)),
+  )
   const [loading, setLoading] = useState(true)
 
   const blocoRefs = useRef<(HTMLDivElement | null)[]>([])
@@ -334,7 +339,10 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
               </p>
               <button
                 type="button"
-                onClick={() => setAvisoFolhetoVisivel(false)}
+                onClick={() => {
+                  localStorage.setItem(CHAVE_FECHAMENTO_AVISO_FOLHETO, String(Date.now()))
+                  setAvisoFolhetoVisivel(false)
+                }}
                 aria-label="Fechar aviso sobre o roteiro"
                 className="absolute right-3 top-3 rounded-full p-2 text-[#806016] transition hover:bg-[#eacb72]/50 hover:text-[#4e3907] focus:outline-none focus:ring-2 focus:ring-[#aa7918]"
               >
