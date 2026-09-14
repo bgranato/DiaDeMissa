@@ -31,6 +31,11 @@ def gerar_hash_senha(senha: str) -> str:
 
 def criar_access_token(data: dict) -> str:
     to_encode = data.copy()
+    # RFC 7519 define `sub` como string. Logins por Google fornecem o id
+    # interno como inteiro; sem esta normalização o token é emitido, porém é
+    # recusado pelo próprio decoder na requisição seguinte.
+    if "sub" in to_encode:
+        to_encode["sub"] = str(to_encode["sub"])
     exp = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": exp})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
