@@ -86,7 +86,7 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
     const data = missaDataRef.current
     if (!data) return
     const indice = indiceAtualRef.current
-    localStorage.setItem(`@missa_bloco_${data}`, String(indice))
+    sessionStorage.setItem(`@missa_bloco_${data}`, String(indice))
     if (indice > 0 && localStorage.getItem(`@missa_concluida_${data}`) !== 'true') {
       localStorage.setItem(`@missa_iniciada_${data}`, 'true')
     }
@@ -126,7 +126,12 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
         setMissaDescricao(ehSoCor ? null : descRaw || null)
         // Guarda o bloco onde o usuário parou pra restaurar o scroll depois.
         if (data && !iniciarDoInicio) {
-          const salvo = Number(localStorage.getItem(`@missa_bloco_${data}`))
+          // O ponto de leitura existe somente na sessão atual. Ao iniciar uma
+          // nova sessão, a missa volta ao começo; conclusão continua persistente.
+          const chaveProgresso = `@missa_bloco_${data}`
+          const salvo = Number(sessionStorage.getItem(chaveProgresso))
+          // Descarta o formato antigo, que mantinha a retomada indefinidamente.
+          localStorage.removeItem(chaveProgresso)
           if (Number.isFinite(salvo) && salvo > 0) indiceSalvoRef.current = salvo
         }
       })
@@ -217,7 +222,7 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
   // Persiste progresso (debounced) sempre que o bloco atual muda.
   useEffect(() => {
     if (loading || blocos.length === 0) return
-    if (missaData) localStorage.setItem(`@missa_bloco_${missaData}`, String(currentIndex))
+    if (missaData) sessionStorage.setItem(`@missa_bloco_${missaData}`, String(currentIndex))
     if (currentIndex > 0) marcarIniciada()
     if (!registrarProgresso || !missaId) return
     const t = setTimeout(() => {
@@ -242,7 +247,7 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
     if (missaData) {
       localStorage.setItem(`@missa_concluida_${missaData}`, 'true')
       localStorage.removeItem(`@missa_iniciada_${missaData}`)
-      localStorage.removeItem(`@missa_bloco_${missaData}`)
+      sessionStorage.removeItem(`@missa_bloco_${missaData}`)
     }
     onFinish()
   }
@@ -642,7 +647,7 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
                 <button
                   onClick={() => {
                     if (missaData) {
-                      localStorage.removeItem(`@missa_bloco_${missaData}`)
+                      sessionStorage.removeItem(`@missa_bloco_${missaData}`)
                       localStorage.removeItem(`@missa_iniciada_${missaData}`)
                       localStorage.removeItem(`@missa_concluida_${missaData}`)
                     }

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
-import { getUsuarioAtual, getToken, logout as logoutService } from '../services/auth'
+import { getUsuarioAtual, getToken, limparProgressoDaSessao, logout as logoutService } from '../services/auth'
 import type { Usuario } from '../types/usuario'
 
 interface AuthContextData {
@@ -21,7 +21,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (token) {
       getUsuarioAtual()
         .then(setUsuario)
-        .catch(() => localStorage.removeItem('@missa_hoje_token'))
+        .catch(() => {
+          localStorage.removeItem('@missa_hoje_token')
+          limparProgressoDaSessao()
+        })
         .finally(() => setEstaCarregando(false))
     } else {
       setEstaCarregando(false)

@@ -55,8 +55,17 @@ export async function atualizarUsuario(dados: Partial<Usuario>): Promise<Usuario
 
 export async function logout(): Promise<void> {
   localStorage.removeItem(TOKEN_KEY)
+  limparProgressoDaSessao()
 }
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY)
+}
+
+/** O ponto de leitura só vale enquanto a sessão da conta estiver ativa. */
+export function limparProgressoDaSessao(): void {
+  for (let i = sessionStorage.length - 1; i >= 0; i -= 1) {
+    const chave = sessionStorage.key(i)
+    if (chave?.startsWith('@missa_bloco_')) sessionStorage.removeItem(chave)
+  }
 }
