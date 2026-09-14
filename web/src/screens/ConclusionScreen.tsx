@@ -117,30 +117,31 @@ export const ConclusionScreen = ({ setScreen, missaId, missaData, estaAutenticad
           <ArrowRight size={18} className="text-brand-gold flex-shrink-0" />
         </button>}
 
+        {estaAutenticado && (
+          <LargeButton
+            variant="primary"
+            onClick={() => setScreen('history')}
+            icon={Bookmark}
+            className="w-full"
+          >
+            Salvar no histórico de missas
+          </LargeButton>
+        )}
+
         <LargeButton
-          variant="primary"
+          variant="outline"
           onClick={() => setScreen('home')}
           icon={House}
-          className="w-full"
+          className="w-full border-brand-blue/20 text-brand-blue dark:border-brand-gold/30 dark:text-brand-gold"
         >
-          Voltar para Início
+          Voltar para o início
         </LargeButton>
 
-        <div className={`grid ${estaAutenticado ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
-          {estaAutenticado && (
-          <button
-            onClick={() => setScreen('history')}
-            className="flex items-center justify-center gap-2 p-5 bg-brand-white dark:bg-slate-800 rounded-[28px] font-bold text-sm text-brand-gray-dark dark:text-brand-white shadow-soft active:scale-95 transition-transform"
-          >
-            <Bookmark size={20} /> Histórico
-          </button>
-          )}
-          <button
-            className="flex items-center justify-center gap-2 p-5 bg-brand-white dark:bg-slate-800 rounded-[28px] font-bold text-sm text-brand-gray-dark dark:text-brand-white shadow-soft active:scale-95 transition-transform"
-          >
-            <Share2 size={20} /> Compartilhar
-          </button>
-        </div>
+        <button
+          className="mx-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold text-brand-gray-dark/60 transition-colors hover:text-brand-blue dark:text-brand-white/60 dark:hover:text-brand-gold"
+        >
+          <Share2 size={17} /> Compartilhar
+        </button>
       </div>
 
       {/* Modal seletor (igual à HomeScreen) */}
