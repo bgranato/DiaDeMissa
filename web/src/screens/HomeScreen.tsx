@@ -415,7 +415,7 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
             <p className="ds-body text-brand-text/70 dark:text-brand-white/70 max-w-sm">
               O folheto está disponível aos sábados (à noite), domingos e solenidades.
             </p>
-            {ultimaMissa ? (
+            {estaAutenticado && ultimaMissa ? (
               <button
                 type="button"
                 onClick={abrirUltimaMissa}
@@ -424,6 +424,20 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
                 <span className="truncate">Ver missa do dia {dataUltimaMissaFormatada}</span>
                 <ArrowRight size={17} className="flex-shrink-0" aria-hidden="true" />
               </button>
+            ) : !estaAutenticado ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setScreen('login')}
+                  className="mt-2 inline-flex max-w-full items-center justify-center gap-2 rounded-2xl bg-brand-gold px-4 py-3 text-sm font-black text-white shadow-soft transition-all hover:brightness-95 active:scale-95"
+                >
+                  <span className="truncate">Acessar a última missa</span>
+                  <ArrowRight size={17} className="flex-shrink-0" aria-hidden="true" />
+                </button>
+                <p className="ds-body-sm italic text-brand-slate mt-1">
+                  Crie uma conta gratuita para abrir a última missa disponível.
+                </p>
+              </>
             ) : (
               <p className="ds-body-sm italic text-brand-slate mt-1">
                 Assim que o próximo folheto for publicado, a missa aparece aqui.

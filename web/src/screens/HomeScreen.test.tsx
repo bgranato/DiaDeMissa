@@ -3,14 +3,17 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HomeScreen } from './HomeScreen'
 
-const { apiGet } = vi.hoisted(() => ({ apiGet: vi.fn() }))
+const { apiGet, getUltimaMissaDisponivel } = vi.hoisted(() => ({
+  apiGet: vi.fn(),
+  getUltimaMissaDisponivel: vi.fn(),
+}))
 
 vi.mock('../services/api', () => ({
   default: { get: apiGet, post: vi.fn() },
 }))
 
 vi.mock('../services/missa', () => ({
-  getUltimaMissaDisponivel: vi.fn().mockResolvedValue(null),
+  getUltimaMissaDisponivel,
 }))
 
 vi.mock('../services/igrejas', () => ({
@@ -22,6 +25,8 @@ describe('HomeScreen — atalhos do cabeçalho', () => {
   beforeEach(() => {
     apiGet.mockReset()
     apiGet.mockResolvedValue({ data: { ativo: false } })
+    getUltimaMissaDisponivel.mockReset()
+    getUltimaMissaDisponivel.mockResolvedValue(null)
   })
 
   it('abre dicas e sugestões pelo ícone ao lado da acessibilidade', () => {
@@ -51,5 +56,26 @@ describe('HomeScreen — atalhos do cabeçalho', () => {
 
     expect(apiGet).toHaveBeenCalledWith('/apoios/configuracao')
     expect(screen.queryByText(/apoio voluntário/i)).not.toBeInTheDocument()
+  })
+
+  it('oferece ao visitante o cadastro para acessar a última missa quando não há missa pública', () => {
+    const setScreen = vi.fn()
+    render(<HomeScreen setScreen={setScreen} missa={null} nome="Visitante" estaAutenticado={false} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Acessar a última missa' }))
+
+    expect(setScreen).toHaveBeenCalledWith('login')
+    expect(screen.getByText('Crie uma conta gratuita para abrir a última missa disponível.')).toBeInTheDocument()
+  })
+
+  it('abre diretamente a última missa para quem já está autenticado', async () => {
+    const setScreen = vi.fn()
+    getUltimaMissaDisponivel.mockResolvedValue({ id: 42, data: '2026-09-13', celebracao: '24º Domingo', categoria: 'Domingo' })
+    render(<HomeScreen setScreen={setScreen} missa={null} nome="Bruno" estaAutenticado />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Ver missa do dia 13\/09\/2026/i }))
+
+    expect(localStorage.getItem('@missa_data_alvo')).toBe('2026-09-13')
+    expect(setScreen).toHaveBeenCalledWith('reading')
   })
 })
