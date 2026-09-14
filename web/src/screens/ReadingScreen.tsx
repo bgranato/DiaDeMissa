@@ -101,7 +101,11 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
     // Prioridade: prop missaDataAlvo → localStorage @missa_data_alvo → missa de hoje.
     const dataDoStorage = localStorage.getItem('@missa_data_alvo')
     const dataParaBuscar = missaDataAlvo || dataDoStorage
+    const iniciarDoInicio = Boolean(
+      dataParaBuscar && localStorage.getItem('@missa_iniciar_do_inicio') === dataParaBuscar,
+    )
     if (dataDoStorage) localStorage.removeItem('@missa_data_alvo')
+    if (iniciarDoInicio) localStorage.removeItem('@missa_iniciar_do_inicio')
 
     const fetcher = dataParaBuscar
       ? getMissaEstruturadaPorData(dataParaBuscar)
@@ -121,7 +125,7 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
         const ehSoCor = /^\s*Cor\s+lit[uú]rgica:/i.test(descRaw)
         setMissaDescricao(ehSoCor ? null : descRaw || null)
         // Guarda o bloco onde o usuário parou pra restaurar o scroll depois.
-        if (data) {
+        if (data && !iniciarDoInicio) {
           const salvo = Number(localStorage.getItem(`@missa_bloco_${data}`))
           if (Number.isFinite(salvo) && salvo > 0) indiceSalvoRef.current = salvo
         }

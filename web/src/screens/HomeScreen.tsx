@@ -160,6 +160,9 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
   function abrirUltimaMissa() {
     if (!ultimaMissa) return
     localStorage.setItem('@missa_data_alvo', ultimaMissa.data)
+    // O CTA da Home é uma nova leitura escolhida pela pessoa: começa no início,
+    // sem reaproveitar um ponto salvo de uma visita anterior.
+    localStorage.setItem('@missa_iniciar_do_inicio', ultimaMissa.data)
     setScreen('reading')
   }
 

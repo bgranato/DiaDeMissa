@@ -77,6 +77,7 @@ describe('HomeScreen — atalhos do cabeçalho', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Ver missa do dia 13\/09\/2026/i }))
 
     expect(localStorage.getItem('@missa_data_alvo')).toBe('2026-09-13')
+    expect(localStorage.getItem('@missa_iniciar_do_inicio')).toBe('2026-09-13')
     expect(setScreen).toHaveBeenCalledWith('reading')
   })
 
