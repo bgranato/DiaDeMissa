@@ -66,6 +66,7 @@ describe('HomeScreen — atalhos do cabeçalho', () => {
 
     expect(setScreen).toHaveBeenCalledWith('reading')
     expect(screen.getByText('A última missa está no acervo. Entre ou crie sua conta grátis para acessá-la.')).toBeInTheDocument()
+    expect(screen.getByText(/O conteúdo da próxima missa ainda não está disponível/i)).toBeInTheDocument()
   })
 
   it('abre diretamente a última missa para quem já está autenticado', async () => {

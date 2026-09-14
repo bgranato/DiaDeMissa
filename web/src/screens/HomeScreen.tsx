@@ -413,7 +413,7 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
             </span>
             <span className="ds-section-label">Não há missa hoje</span>
             <p className="ds-body text-brand-text/70 dark:text-brand-white/70 max-w-sm">
-              O folheto está disponível aos sábados (à noite), domingos e solenidades.
+              O conteúdo da próxima missa ainda não está disponível. O folheto é publicado aos sábados (à noite), domingos e solenidades.
             </p>
             {estaAutenticado && ultimaMissa ? (
               <button
