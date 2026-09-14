@@ -405,10 +405,10 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
           <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-brand-blue opacity-5 rounded-full blur-3xl" />
         </Card>
       ) : (
-        <Card className="ds-card-feature overflow-hidden relative">
-          <div className="relative z-10 flex flex-col items-center text-center gap-3 py-4">
-            <span className="p-3 rounded-2xl bg-brand-gold/10 text-brand-gold">
-              <CalendarClock size={28} />
+        <Card className="ds-card-feature ds-card-unavailable overflow-hidden relative">
+          <div className="relative z-10 flex flex-col items-center text-center gap-2 py-0.5">
+            <span className="p-2.5 rounded-2xl bg-brand-gold/10 text-brand-gold">
+              <CalendarClock size={24} />
             </span>
             <span className="ds-section-label">O Conteúdo da missa de hoje não está disponível</span>
             <p className="ds-body text-brand-text/70 dark:text-brand-white/70 max-w-sm">
@@ -418,7 +418,7 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
               <button
                 type="button"
                 onClick={estaAutenticado ? abrirUltimaMissa : () => setScreen('reading')}
-                className="mt-2 inline-flex max-w-full items-center justify-center gap-2 rounded-2xl bg-brand-gold px-4 py-3 text-sm font-black text-white shadow-soft transition-all hover:brightness-95 active:scale-95"
+                className="mt-1 inline-flex max-w-full items-center justify-center gap-2 rounded-2xl bg-brand-gold px-4 py-2.5 text-sm font-black text-white shadow-soft transition-all hover:brightness-95 active:scale-95"
               >
                 <span className="truncate">Ver missa do dia {dataUltimaMissaFormatada}</span>
                 <ArrowRight size={17} className="flex-shrink-0" aria-hidden="true" />
@@ -428,7 +428,7 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
                 <button
                   type="button"
                   onClick={() => setScreen('reading')}
-                  className="mt-2 inline-flex max-w-full items-center justify-center gap-2 rounded-2xl bg-brand-gold px-4 py-3 text-sm font-black text-white shadow-soft transition-all hover:brightness-95 active:scale-95"
+                  className="mt-1 inline-flex max-w-full items-center justify-center gap-2 rounded-2xl bg-brand-gold px-4 py-2.5 text-sm font-black text-white shadow-soft transition-all hover:brightness-95 active:scale-95"
                 >
                   <span className="truncate">Entrar ou criar conta grátis</span>
                   <ArrowRight size={17} className="flex-shrink-0" aria-hidden="true" />
