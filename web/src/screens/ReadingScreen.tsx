@@ -60,6 +60,7 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
 
   const blocoRefs = useRef<(HTMLDivElement | null)[]>([])
   const restauradoRef = useRef(false)
+  const conclusaoLocalSincronizadaRef = useRef(false)
   const indiceSalvoRef = useRef(0)
   const indiceAtualRef = useRef(0)
   const missaDataRef = useRef<string | null>(null)
@@ -221,6 +222,23 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
       setTimeout(() => blocoRefs.current[salvo]?.scrollIntoView({ block: 'start' }), 120)
     }
   }, [loading, blocos.length])
+
+  // Recupera uma conclusão feita antes de o leitor passar a conhecer o id da
+  // missa do acervo. A marcação local é uma intenção explícita da pessoa;
+  // ao reencontrar a missa com sessão válida, ela entra no histórico remoto.
+  useEffect(() => {
+    if (
+      conclusaoLocalSincronizadaRef.current ||
+      !registrarProgresso ||
+      !missaIdParaHistorico ||
+      !missaData ||
+      localStorage.getItem(`@missa_concluida_${missaData}`) !== 'true'
+    ) return
+    conclusaoLocalSincronizadaRef.current = true
+    concluirMissa(missaIdParaHistorico).catch(err =>
+      logError('sincronizarConclusaoLocal', err),
+    )
+  }, [missaData, missaIdParaHistorico, registrarProgresso])
 
   // Persiste progresso (debounced) sempre que o bloco atual muda.
   useEffect(() => {
