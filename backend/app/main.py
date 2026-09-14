@@ -1,14 +1,17 @@
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.database import engine, Base
-from app.api.routes import router
+from app.core.database import engine, Base, get_db
+from app.api.routes import router, _missa_publica_para_visitante, missa_publicavel
+from app.models.missa import Missa
 from app.services.scheduler import iniciar_scheduler, parar_scheduler
+from app.services.pagina_publica_missa import renderizar_pagina_missa, selecionar_missa_publica
 
 Base.metadata.create_all(bind=engine)
 
@@ -49,6 +52,35 @@ app.add_middleware(
 )
 
 app.include_router(router, prefix="/api/v1")
+
+
+@app.get("/missa-disponivel", response_class=HTMLResponse)
+def missa_disponivel_para_busca(db: Session = Depends(get_db)):
+    """Expõe em HTML somente a mesma missa que um visitante pode abrir no app.
+
+    Não recebe data na URL para que uma edição passada jamais ganhe uma rota
+    pública direta. O predicado de acesso é o mesmo usado pela API do app.
+    """
+    candidatas = (
+        db.query(Missa)
+        .filter(Missa.status_processamento == "concluido")
+        .order_by(Missa.data.asc())
+        .all()
+    )
+    missa = selecionar_missa_publica(
+        candidatas,
+        lambda item: missa_publicavel(item) and _missa_publica_para_visitante(item, db),
+    )
+    if missa is None:
+        return HTMLResponse(
+            "<!doctype html><html lang=\"pt-BR\"><head><meta name=\"robots\" content=\"noindex\"><title>Missa indisponível | Dia de Missa</title></head><body><p>A missa pública não está disponível neste momento.</p><p><a href=\"/\">Ir para o Dia de Missa</a></p></body></html>",
+            status_code=404,
+            headers={"Cache-Control": "no-store"},
+        )
+    return HTMLResponse(
+        renderizar_pagina_missa(missa, missa.blocos, url="https://diademissa.com.br/missa-disponivel"),
+        headers={"Cache-Control": "no-store", "X-Robots-Tag": "noarchive"},
+    )
 
 web_dist = Path(__file__).parent.parent.parent / "web" / "dist"
 if web_dist.exists():

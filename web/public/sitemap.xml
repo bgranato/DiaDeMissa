@@ -13,6 +13,23 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://diademissa.com.br/missa-disponivel</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://diademissa.com.br/folheto-digital-da-missa.html</loc>
+    <lastmod>2026-09-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://diademissa.com.br/como-acompanhar-a-missa-pelo-celular.html</loc>
+    <lastmod>2026-09-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://diademissa.com.br/politica-de-uso.html</loc>
     <lastmod>2026-09-13</lastmod>
     <changefreq>yearly</changefreq>
