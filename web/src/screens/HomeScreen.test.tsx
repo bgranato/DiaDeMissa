@@ -62,10 +62,10 @@ describe('HomeScreen — atalhos do cabeçalho', () => {
     const setScreen = vi.fn()
     render(<HomeScreen setScreen={setScreen} missa={null} nome="Visitante" estaAutenticado={false} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Acessar a última missa' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar ou criar conta grátis' }))
 
-    expect(setScreen).toHaveBeenCalledWith('login')
-    expect(screen.getByText('Crie uma conta gratuita para abrir a última missa disponível.')).toBeInTheDocument()
+    expect(setScreen).toHaveBeenCalledWith('reading')
+    expect(screen.getByText('A última missa está no acervo. Entre ou crie sua conta grátis para acessá-la.')).toBeInTheDocument()
   })
 
   it('abre diretamente a última missa para quem já está autenticado', async () => {

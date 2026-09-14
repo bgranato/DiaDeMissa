@@ -428,14 +428,14 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
               <>
                 <button
                   type="button"
-                  onClick={() => setScreen('login')}
+                  onClick={() => setScreen('reading')}
                   className="mt-2 inline-flex max-w-full items-center justify-center gap-2 rounded-2xl bg-brand-gold px-4 py-3 text-sm font-black text-white shadow-soft transition-all hover:brightness-95 active:scale-95"
                 >
-                  <span className="truncate">Acessar a última missa</span>
+                  <span className="truncate">Entrar ou criar conta grátis</span>
                   <ArrowRight size={17} className="flex-shrink-0" aria-hidden="true" />
                 </button>
                 <p className="ds-body-sm italic text-brand-slate mt-1">
-                  Crie uma conta gratuita para abrir a última missa disponível.
+                  A última missa está no acervo. Entre ou crie sua conta grátis para acessá-la.
                 </p>
               </>
             ) : (
