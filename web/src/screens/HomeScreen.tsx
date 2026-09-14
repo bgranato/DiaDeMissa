@@ -417,7 +417,7 @@ export const HomeScreen = ({ setScreen, missa, nome, estaAutenticado, onLogout }
             {ultimaMissa ? (
               <button
                 type="button"
-                onClick={estaAutenticado ? abrirUltimaMissa : () => setScreen('reading')}
+                onClick={abrirUltimaMissa}
                 className="mt-1 inline-flex max-w-full items-center justify-center gap-2 rounded-2xl bg-brand-gold px-4 py-2.5 text-sm font-black text-white shadow-soft transition-all hover:brightness-95 active:scale-95"
               >
                 <span className="truncate">Ver missa do dia {dataUltimaMissaFormatada}</span>

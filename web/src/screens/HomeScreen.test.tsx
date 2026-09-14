@@ -79,4 +79,15 @@ describe('HomeScreen — atalhos do cabeçalho', () => {
     expect(localStorage.getItem('@missa_data_alvo')).toBe('2026-09-13')
     expect(setScreen).toHaveBeenCalledWith('reading')
   })
+
+  it('guarda a última missa antes de pedir login ao visitante', async () => {
+    const setScreen = vi.fn()
+    getUltimaMissaDisponivel.mockResolvedValue({ id: 42, data: '2026-09-13', celebracao: '24º Domingo', categoria: 'Domingo' })
+    render(<HomeScreen setScreen={setScreen} missa={null} nome="Visitante" estaAutenticado={false} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Ver missa do dia 13\/09\/2026/i }))
+
+    expect(localStorage.getItem('@missa_data_alvo')).toBe('2026-09-13')
+    expect(setScreen).toHaveBeenCalledWith('reading')
+  })
 })

@@ -198,6 +198,18 @@ export default function App() {
             <AuthScreens
               setScreen={navigateTo}
               conteudoRestrito={conteudoRestrito}
+              onAuthenticated={() => {
+                setLoginAberto(false)
+                setConteudoRestrito(false)
+                // O destino só existe quando a pessoa veio do CTA de uma missa
+                // passada. Após login/cadastro, retoma a leitura automaticamente.
+                if (localStorage.getItem('@missa_data_alvo')) {
+                  setLastScreen('home')
+                  setScreen('reading')
+                  return
+                }
+                setScreen('home')
+              }}
               onClose={() => {
                 setLoginAberto(false)
                 setConteudoRestrito(false)

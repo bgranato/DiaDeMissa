@@ -12,12 +12,13 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undef
 interface Props {
   setScreen: (s: string) => void
   onClose?: () => void
+  onAuthenticated?: () => void
   conteudoRestrito?: boolean
 }
 
 type Modo = 'login' | 'cadastro' | 'esqueci' | 'redefinir'
 
-export const AuthScreens = ({ setScreen, onClose, conteudoRestrito = false }: Props) => {
+export const AuthScreens = ({ setScreen, onClose, onAuthenticated, conteudoRestrito = false }: Props) => {
   const { setUsuario } = useAuth()
   // Detecta se a URL tem ?token=... pra ir direto pra redefinição
   const tokenUrl = new URLSearchParams(window.location.search).get('token')
@@ -50,6 +51,10 @@ export const AuthScreens = ({ setScreen, onClose, conteudoRestrito = false }: Pr
   }, [onClose])
 
   function concluirAutenticacao() {
+    if (onAuthenticated) {
+      onAuthenticated()
+      return
+    }
     if (onClose) onClose()
     else setScreen('home')
   }
