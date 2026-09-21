@@ -324,12 +324,41 @@ def _texto_montagem(missa: Missa) -> str:
     cred = getattr(missa, "creditos_cantos", None)
     if isinstance(cred, dict):
         partes.extend([str(x) for x in cred.values() if x])
+
+    def adicionar_textos(valor) -> None:
+        """Percorre o dump Pydantic sem assumir a forma de um bloco."""
+        if isinstance(valor, str) and valor:
+            partes.append(valor)
+        elif isinstance(valor, dict):
+            for item in valor.values():
+                adicionar_textos(item)
+        elif isinstance(valor, (list, tuple)):
+            for item in valor:
+                adicionar_textos(item)
+
     for b in missa.blocos:
-        if b.conteudo:
-            partes.append(b.conteudo)
-        if b.titulo:
-            partes.append(b.titulo)
-        ce = b.conteudo_estruturado or {}
+        # A montagem em memória usa a união Pydantic de blocos: Canto, Oração,
+        # Seção etc. Cada tipo expõe campos próprios (``texto``, ``refrao``,
+        # ``turnos``...), então o dump é a fonte completa e uniforme da
+        # cobertura. O caminho abaixo continua atendendo BlocoLiturgico legado.
+        dump = getattr(b, "model_dump", None)
+        if callable(dump):
+            adicionar_textos(dump())
+            continue
+
+        # ``Secao`` é um divisor estrutural, não herda ``BlocoBase`` e portanto
+        # não possui ``conteudo`` nem ``conteudo_estruturado``. A cobertura deve
+        # incluir seu título/descrição sem transformar o divisor em exceção.
+        conteudo = getattr(b, "conteudo", None)
+        if isinstance(conteudo, str) and conteudo:
+            partes.append(conteudo)
+        titulo = getattr(b, "titulo", None)
+        if isinstance(titulo, str) and titulo:
+            partes.append(titulo)
+        descricao = getattr(b, "descricao", None)
+        if isinstance(descricao, str) and descricao:
+            partes.append(descricao)
+        ce = getattr(b, "conteudo_estruturado", None) or {}
         for campo in ("introducao", "texto", "conclusao", "resposta",
                       "versiculo", "descricao", "subtitulo"):
             if isinstance(ce.get(campo), str):
