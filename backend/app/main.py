@@ -9,7 +9,9 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import engine, Base, get_db
 from app.api.routes import router, _missa_publica_para_visitante, missa_publicavel
-from app.models.missa import Missa
+# Registra todos os modelos antes de ``create_all``. Sem este import, o boot
+# conhece apenas Missa e não cria tabelas adicionadas posteriormente.
+from app.models import Missa
 from app.services.scheduler import iniciar_scheduler, parar_scheduler
 from app.services.pagina_publica_missa import renderizar_pagina_missa, selecionar_missa_publica
 

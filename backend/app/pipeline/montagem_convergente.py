@@ -76,7 +76,16 @@ def _contrato_gauntlet() -> dict:
 
 # ---------------------------------------------------------------- modelos/roteamento
 def _modelo(papel: str) -> str:
-    padrao = os.getenv("ANTHROPIC_MODEL_MM", "claude-sonnet-5")
+    # O default muda com o provider: o Gemini usa seu próprio catálogo de modelos
+    # (gemini-2.0-flash, gemini-3.6-flash) — pedir "claude-sonnet-5" para o Gemini
+    # retorna 404. Anthropic e DeepSeek mantêm o histórico.
+    provider = os.getenv("LLM_PROVIDER", "anthropic").lower()
+    if provider == "gemini":
+        padrao = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+    elif provider == "deepseek":
+        padrao = os.getenv("DEEPSEEK_MODEL_MM", "deepseek-chat")
+    else:
+        padrao = os.getenv("ANTHROPIC_MODEL_MM", "claude-sonnet-5")
     if papel == "mapa":
         return os.getenv("MODELO_MAPA") or padrao
     if papel.startswith("conferente"):
@@ -107,7 +116,12 @@ async def _gerar(papel: str, system: str, user: str, pdf_bytes: bytes) -> str:
     modelo = _modelo(papel)
     pdf_provedor = _pdf_para_provedor(pdf_bytes)
     ehg = ("google/" in modelo) or ("gemini" in modelo.lower())
-    if ehg and os.getenv("OPENROUTER_API_KEY"):
+    # O OpenRouter é compatibilidade para críticos Gemini configurados sobre um
+    # pipeline Anthropic. Quando o provedor escolhido é Gemini, ele tem
+    # precedência e usa a API direta mesmo que uma chave legada do OpenRouter
+    # permaneça no ambiente.
+    provider = os.getenv("LLM_PROVIDER", "anthropic").lower()
+    if ehg and provider != "gemini" and os.getenv("OPENROUTER_API_KEY"):
         from app.llm.openrouter_client import OpenRouterClient
         return await OpenRouterClient().gerar(system, user, pdf_bytes=pdf_provedor, model=modelo, contexto=f"conv:{papel}")
     from app.llm.factory import get_llm_client
