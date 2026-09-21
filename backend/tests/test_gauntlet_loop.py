@@ -15,6 +15,17 @@ class _MissaMinima:
         return {"blocos": []}
 
 
+def test_pdf_para_provedor_remove_apenas_prefixo_branco():
+    bruto = b" \r\n\t%PDF-1.5\nconteudo"
+
+    assert loop._pdf_para_provedor(bruto) == b"%PDF-1.5\nconteudo"
+
+
+def test_pdf_para_provedor_preserva_pdf_valido_e_bytes_desconhecidos():
+    assert loop._pdf_para_provedor(b"%PDF-1.5\nconteudo") == b"%PDF-1.5\nconteudo"
+    assert loop._pdf_para_provedor(b"\x00%PDF-1.5") == b"\x00%PDF-1.5"
+
+
 def test_mapa_invalido_bloqueia_o_loop(monkeypatch):
     async def resposta_invalida(*_args, **_kwargs):
         return '{"categoria_ou_tema": "sem blocos"}'

@@ -132,11 +132,12 @@ def auto_atualizar_montagens(db, hoje: Optional[date] = None) -> dict:
     return resumo
 
 
-def executar_pipeline_diario(forcar: bool = False) -> dict:
+def executar_pipeline_diario(forcar: bool = False, data_referencia: date | None = None) -> dict:
     """Download → parse → persist. Idempotente via hash do PDF.
 
     Args:
         forcar: se True, reprocessa mesmo com hash idêntico.
+        data_referencia: data a processar; omitida, usa a data corrente.
     Returns:
         dict com {status, missa_id, data, hash, motivo}
 
@@ -144,7 +145,8 @@ def executar_pipeline_diario(forcar: bool = False) -> dict:
     processa via tempfile em vez de propagar o erro. O cache é otimização; o
     crítico é a missa chegar no BD — não deve falhar silenciosamente nunca mais.
     """
-    logger.info("Iniciando pipeline diário (forcar=%s)", forcar)
+    data_referencia = data_referencia or date.today()
+    logger.info("Iniciando pipeline diário (forcar=%s, data=%s)", forcar, data_referencia)
 
     # A retenção não depende de rede ou do PDF de hoje. Ela precisa ocorrer até
     # quando o download falha, para que legado sem prova nunca continue público.
@@ -154,7 +156,6 @@ def executar_pipeline_diario(forcar: bool = False) -> dict:
     finally:
         db_retenção.close()
 
-    data_referencia = date.today()
     try:
         fonte_celular, conteudo, fonte_celebrante, conteudo_celebrante = baixar_fontes_oficiais(data_referencia)
     except Exception as e:

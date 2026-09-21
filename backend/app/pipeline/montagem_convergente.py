@@ -84,14 +84,34 @@ def _modelo(papel: str) -> str:
     return padrao  # montagem
 
 
+def _pdf_para_provedor(pdf_bytes: bytes) -> bytes:
+    """Remove só espaço em branco antes do cabeçalho para transporte ao LLM.
+
+    Alguns PDFs oficiais linearizados vêm com CR/LF/espaços antes de ``%PDF``.
+    Isso é aceito pelos leitores de PDF, mas certos provedores multimodais exigem
+    que o cabeçalho esteja no byte zero. A normalização é uma cópia exclusiva do
+    transporte: o PDF bruto continua sendo o que é arquivado, hasheado e usado
+    como referência auditável do Gauntlet.
+    """
+    if pdf_bytes.startswith(b"%PDF-"):
+        return pdf_bytes
+    normalizado = pdf_bytes.lstrip(b"\x09\x0a\x0c\x0d\x20")
+    if normalizado.startswith(b"%PDF-"):
+        logger.info("PDF oficial normalizado para transporte ao provedor (%d bytes de prefixo)",
+                    len(pdf_bytes) - len(normalizado))
+        return normalizado
+    return pdf_bytes
+
+
 async def _gerar(papel: str, system: str, user: str, pdf_bytes: bytes) -> str:
     modelo = _modelo(papel)
+    pdf_provedor = _pdf_para_provedor(pdf_bytes)
     ehg = ("google/" in modelo) or ("gemini" in modelo.lower())
     if ehg and os.getenv("OPENROUTER_API_KEY"):
         from app.llm.openrouter_client import OpenRouterClient
-        return await OpenRouterClient().gerar(system, user, pdf_bytes=pdf_bytes, model=modelo, contexto=f"conv:{papel}")
+        return await OpenRouterClient().gerar(system, user, pdf_bytes=pdf_provedor, model=modelo, contexto=f"conv:{papel}")
     from app.llm.factory import get_llm_client
-    return await get_llm_client().gerar(system, user, pdf_bytes=pdf_bytes, model=modelo, contexto=f"conv:{papel}")
+    return await get_llm_client().gerar(system, user, pdf_bytes=pdf_provedor, model=modelo, contexto=f"conv:{papel}")
 
 
 def _extrair_json(txt: str) -> dict:
