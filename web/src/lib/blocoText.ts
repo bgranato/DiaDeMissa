@@ -40,6 +40,18 @@ export function ehVivencia(titulo?: string | null): boolean {
          (titulo || '').trim().toLowerCase().startsWith('vivencia')
 }
 
+// A7 — Numeração fiel: o número exibido vem SEMPRE do folheto. Blocos sem
+// número impresso (rubricas, antífonas anexadas, apêndices como "Leituras da
+// Semana") não podem ganhar um índice de posição — o Roteiro exibia 21/22/27
+// para blocos que o folheto não numera. Retorna `null` quando não há número
+// real, e quem renderiza decide o marcador (ponto, sem círculo numerado etc.).
+export function numeroFolhetoExibivel(
+  bloco?: { numero_folheto?: number | null } | null,
+): number | null {
+  const n = bloco?.numero_folheto
+  return typeof n === 'number' && Number.isFinite(n) ? n : null
+}
+
 export interface DiaSemana {
   label: string
   santo: string

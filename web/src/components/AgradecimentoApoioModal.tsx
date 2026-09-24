@@ -2,6 +2,8 @@ import { useEffect } from 'react'
 import { motion } from 'motion/react'
 import { HeartHandshake, X } from 'lucide-react'
 
+import { destravarRolagem, travarRolagem } from '../lib/scrollLock'
+
 type Props = {
   onClose: () => void
 }
@@ -9,14 +11,8 @@ type Props = {
 /** Confirmação exibida dentro do app somente após o webhook aprovar o apoio. */
 export function AgradecimentoApoioModal({ onClose }: Props) {
   useEffect(() => {
-    const bodyOverflow = document.body.style.overflow
-    const htmlOverflow = document.documentElement.style.overflow
-    document.body.style.overflow = 'hidden'
-    document.documentElement.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = bodyOverflow
-      document.documentElement.style.overflow = htmlOverflow
-    }
+    travarRolagem()
+    return destravarRolagem
   }, [])
 
   return (

@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { rotuloRubrica, tituloDuplicaTexto, ehVivencia, parseLeiturasSemana } from './blocoText'
+import {
+  rotuloRubrica, tituloDuplicaTexto, ehVivencia, parseLeiturasSemana,
+  numeroFolhetoExibivel,
+} from './blocoText'
 
 describe('A1 — rubrica não re-parentesada', () => {
   it('não envolve texto que já começa com ( e termina com )', () => {
@@ -73,5 +76,30 @@ describe('A6 — Leituras da Semana (parser tolerante)', () => {
 
   it('retorna null quando não há pelo menos 2 dias', () => {
     expect(parseLeiturasSemana('texto qualquer sem dias')).toBeNull()
+  })
+})
+
+describe('A7 — numeração fiel exibível (Roteiro nunca inventa número)', () => {
+  it('mostra o número REAL do folheto quando existe', () => {
+    expect(numeroFolhetoExibivel({ numero_folheto: 20 })).toBe(20)
+    expect(numeroFolhetoExibivel({ numero_folheto: 1 })).toBe(1)
+  })
+  it('retorna null para blocos que o folheto NÃO numera (rubrica/antífona/apêndice)', () => {
+    expect(numeroFolhetoExibivel({ numero_folheto: null })).toBeNull()
+    expect(numeroFolhetoExibivel({ numero_folheto: undefined })).toBeNull()
+    expect(numeroFolhetoExibivel({})).toBeNull()
+    expect(numeroFolhetoExibivel(null)).toBeNull()
+  })
+  it('nunca devolve um índice de posição no lugar do número do folheto', () => {
+    // Regressão: o Roteiro exibia 21/22/20 fora de ordem e "27 Leituras da Semana"
+    // porque caía em (idx+1) para blocos sem número impresso. O helper não recebe idx.
+    const blocos = [
+      { ordem: 23, titulo: 'Canto de Comunhão', numero_folheto: 19 },
+      { ordem: 24, titulo: 'Momento de silêncio', numero_folheto: null },
+      { ordem: 25, titulo: 'Antífona da Comunhão', numero_folheto: null },
+      { ordem: 26, titulo: 'Depois da Comunhão', numero_folheto: 20 },
+      { ordem: 31, titulo: 'Leituras da Semana', numero_folheto: null },
+    ]
+    expect(blocos.map(numeroFolhetoExibivel)).toEqual([19, null, null, 20, null])
   })
 })

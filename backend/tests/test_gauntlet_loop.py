@@ -8,6 +8,7 @@ from __future__ import annotations
 import pytest
 
 from app.pipeline import montagem_convergente as loop
+from app.schema.missa import Antifona, Canto, Missa, Oracao, Secao
 
 
 class _MissaMinima:
@@ -127,3 +128,157 @@ def test_divergencia_do_celebrante_nao_e_publicavel(monkeypatch):
 
     assert meta["conferida"] is False
     assert meta["fontes"] == {"principal": "celular", "secundaria": "celebrante"}
+
+
+# ---------------------------------------------------------------------------
+# Numeração do folheto: o montador nunca inventa e o revisor nunca deixa passar.
+# ---------------------------------------------------------------------------
+
+def _missa_com_titulos(*titulos):
+    blocos = []
+    ordem = 0
+    for t in titulos:
+        ordem += 1
+        if "secao" in t or t.startswith("Ritos") or t.startswith("Liturgia") or t.startswith("Eucarística"):
+            blocos.append(Secao(ordem=ordem, titulo=t))
+        elif "Canto" in t:
+            blocos.append(Canto(ordem=ordem, titulo=t, refrao=["refrão"], estrofes=[["estrofe 1"]]))
+        elif "Antífona" in t:
+            blocos.append(Antifona(ordem=ordem, titulo=t, texto="texto da antífona"))
+        else:
+            blocos.append(Oracao(ordem=ordem, titulo=t, texto="texto da oração"))
+    return Missa(
+        data="2026-09-20", ano_liturgico="A", titulo_celebracao="25º Domingo", categoria="domingo",
+        creditos_cantos={}, blocos=blocos,
+    )
+
+
+def test_numeracao_limpa_quando_fiel_ao_mapa():
+    """Regressão da missa 20/09: números 1..23 com null nas rubricas/apêndice."""
+    missa = _missa_com_titulos(
+        "Canto de Entrada", "Antífona da Entrada", "Depois da Comunhão", "Leituras da Semana",
+    )
+    for b, n in zip(missa.blocos, (1, None, 20, None)):
+        if hasattr(b, "numero_folheto"):
+            b.numero_folheto = n
+    mapa = {"blocos": [
+        {"titulo": "Canto de Entrada", "numero_impresso": 1},
+        {"titulo": "Antífona da Entrada", "numero_impresso": None},
+        {"titulo": "Depois da Comunhão", "numero_impresso": 20},
+        {"titulo": "Leituras da Semana", "numero_impresso": None},
+    ]}
+
+    divs = loop.checar_numeracao_vs_mapa(missa, mapa)
+
+    assert divs == []
+
+
+def test_numeracao_inventada_para_apendice_e_duplicada_e_regressiva():
+    """O 'nunca mais': leituras da semana 27, repetida e fora de ordem é crítico."""
+    missa = _missa_com_titulos(
+        "Canto de Entrada", "Depois da Comunhão", "Leituras da Semana",
+    )
+    for b, n in zip(missa.blocos, (20, 27, 27)):
+        if hasattr(b, "numero_folheto"):
+            b.numero_folheto = n
+    mapa = {"blocos": [
+        {"titulo": "Canto de Entrada", "numero_impresso": 1},
+        {"titulo": "Depois da Comunhão", "numero_impresso": 20},
+        {"titulo": "Leituras da Semana", "numero_impresso": None},
+    ]}
+
+    divs = loop.checar_numeracao_vs_mapa(missa, mapa)
+
+    detalhes = " ".join(d["detalhe"] for d in divs)
+    assert len(divs) >= 3
+    assert "27 inventado" in detalhes
+    assert "27 repetido" in detalhes
+    assert "regride" in detalhes
+    assert all(d["severidade"] == "critica" for d in divs)
+
+
+def test_numeracao_inventada_sem_bloco_no_mapa():
+    missa = _missa_com_titulos("Canto de Entrada")
+    missa.blocos[0].numero_folheto = 3
+    mapa = {"blocos": [{"titulo": "Canto de Entrada", "numero_impresso": 1}]}
+
+    divs = loop.checar_numeracao_vs_mapa(missa, mapa)
+
+    assert [d["detalhe"] for d in divs] == [
+        "número 3 inventado: o mapa não numera este bloco"
+    ]
+
+
+def test_numeracao_apendice_sem_bloco_equivalente_no_mapa():
+    """Apêndice numerado sem entrada no mapa também é crítico (não vaza na omissão)."""
+    missa = _missa_com_titulos("Leituras da Semana")
+    missa.blocos[0].numero_folheto = 27
+    mapa = {"blocos": [{"titulo": "Leituras da Semana", "numero_impresso": None}]}
+
+    divs = loop.checar_numeracao_vs_mapa(missa, mapa)
+
+    assert any("27 inventado" in d["detalhe"] for d in divs)
+
+
+def test_bloco_numerado_no_mapa_ausente_na_montagem():
+    missa = _missa_com_titulos("Canto de Entrada")
+    mapa = {"blocos": [
+        {"titulo": "Canto de Entrada", "numero_impresso": 1},
+        {"titulo": "Depois da Comunhão", "numero_impresso": 20},
+    ]}
+
+    divs = loop.checar_numeracao_vs_mapa(missa, mapa)
+
+    assert any("20 no mapa, ausente na montagem" in d["detalhe"] for d in divs)
+
+
+def test_sincronizar_numero_folheto_realinha_com_o_mapa():
+    """O montador corrige a numeração pela fonte da verdade, sem esperar o laço."""
+    missa = _missa_com_titulos(
+        "Canto de Entrada", "Antífona da Entrada", "Depois da Comunhão", "Leituras da Semana",
+    )
+    for b in missa.blocos:
+        if hasattr(b, "numero_folheto"):
+            b.numero_folheto = 99  # o LLM inventou tudo como 99
+    mapa = {"blocos": [
+        {"titulo": "Canto de Entrada", "numero_impresso": 1},
+        {"titulo": "Antífona da Entrada", "numero_impresso": None},
+        {"titulo": "Depois da Comunhão", "numero_impresso": 20},
+        {"titulo": "Leituras da Semana", "numero_impresso": None},
+    ]}
+
+    loop._sincronizar_numero_folheto(missa, mapa)
+
+    numeros = [getattr(b, "numero_folheto", None) for b in missa.blocos]
+    assert numeros == [1, None, 20, None]
+    assert loop.checar_numeracao_vs_mapa(missa, mapa) == []
+
+
+def test_sincronizar_preserva_bloco_sem_correspondencia_no_mapa():
+    """Bloco legítimo que o mapa omitiu não é zerado; o revisor decide por ele."""
+    missa = _missa_com_titulos("Canto de Entrada", "Rito da Bênção Final")
+    missa.blocos[0].numero_folheto = 23
+    missa.blocos[1].numero_folheto = 24
+    mapa = {"blocos": [{"titulo": "Canto de Entrada", "numero_impresso": 23}]}
+
+    loop._sincronizar_numero_folheto(missa, mapa)
+
+    assert missa.blocos[0].numero_folheto == 23
+    assert missa.blocos[1].numero_folheto == 24
+    assert any("24 sem bloco correspondente no mapa" in d["detalhe"]
+               for d in loop.checar_numeracao_vs_mapa(missa, mapa))
+
+
+def test_checar_estrutural_inclui_numeracao():
+    """A checagem estrutural chamada no laço também valida numeração."""
+    missa = _missa_com_titulos("Canto de Entrada", "Leituras da Semana")
+    missa.blocos[0].numero_folheto = 1
+    missa.blocos[1].numero_folheto = 27
+    mapa = {"blocos": [
+        {"titulo": "Canto de Entrada", "numero_impresso": 1},
+        {"titulo": "Leituras da Semana", "numero_impresso": None},
+    ]}
+
+    divs = loop.checar_estrutural_vs_mapa(missa, mapa)
+
+    assert any("27 inventado" in d["detalhe"] for d in divs)

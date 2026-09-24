@@ -25,7 +25,7 @@ from typing import Optional
 from app.schema.missa import Missa
 from app.llm.prompts import SYSTEM_PROMPT, build_user_prompt_mm
 from app.pipeline.structure_llm import (
-    _run_coro, _montar_missa, _limpar_cercas,
+    _run_coro, _montar_missa, _limpar_cercas, _norm_busca,
     _corrigir_posicao_refrao, _inserir_repeticoes_estrofes,
     _limpar_numero_estrofe_orfao, _dedup_momento_silencio,
 )
@@ -184,6 +184,42 @@ def _mapa_para_contrato(mapa: dict) -> str:
     )
 
 
+def _sincronizar_numero_folheto(missa: Missa, mapa: dict) -> None:
+    """Realinha `numero_folheto` de cada bloco com o `numero_impresso` do mapa.
+
+    DETERMINÍSTICO (independe do LLM): o mapa é a leitura do PDF na etapa 3, então
+    é a fonte de verdade da numeração impressa. Regras:
+    - Bloco do mapa com `numero_impresso` → por título normalizado, o bloco
+      correspondente herda esse número (alinhamento fiel ao mapa).
+    - Bloco do mapa com `numero_impresso: null` (rubrica, antífona anexada, apêndice)
+      → o bloco correspondente fica SEM número (ganha None). Nunca inventamos número.
+    - Bloco da montagem SEM correspondência no mapa é preservado como veio: cabe ao
+      revisor (`checar_numeracao_vs_mapa`) acusar número suspeito — aqui não zeramos
+      nada legítimo que o mapa tenha omitido de propósito.
+    Blocos seção (sem o campo) são ignorados. O vínculo é por título normalizado,
+    com suporte a títulos repetidos (antífonas iguais em cantos diferentes).
+    """
+    if not mapa or not getattr(missa, "blocos", None):
+        return
+    numeros_por_titulo: dict[str, list[Optional[int]]] = {}
+    for mb in mapa.get("blocos") or []:
+        t = _norm_busca(mb.get("titulo") or "")
+        if not t:
+            continue
+        numeros_por_titulo.setdefault(t, []).append(mb.get("numero_impresso"))
+    usados: dict[str, int] = {}
+    for bloco in missa.blocos:
+        if not hasattr(bloco, "numero_folheto"):
+            continue  # bloco de seção não tem numeração de folheto
+        t = _norm_busca(getattr(bloco, "titulo", "") or "")
+        if not t or t not in numeros_por_titulo:
+            continue
+        k = usados.get(t, 0)
+        candidatos = numeros_por_titulo[t]
+        bloco.numero_folheto = candidatos[k % len(candidatos)]
+        usados[t] = k + 1
+
+
 # ------------------------------------------------------- passo 4: MONTAGEM só-MM
 async def _montar_mm(pdf_bytes: bytes, texto_limpo: str, mapa: dict,
                      data_hint: Optional[str]) -> Missa:
@@ -213,15 +249,83 @@ def montar_com_mapa(pdf_bytes: bytes, texto_limpo: str, mapa: dict,
     _inserir_repeticoes_estrofes(missa, texto_limpo)
     _limpar_numero_estrofe_orfao(missa)
     _dedup_momento_silencio(missa)
+    # A numeração vem do mapa (fonte da verdade), nunca da inferência do LLM.
+    _sincronizar_numero_folheto(missa, mapa)
     return missa
 
 
 # --------------------------------------------- passo 5: checagens estruturais vs mapa
+def checar_numeracao_vs_mapa(missa: Missa, mapa: dict) -> list[dict]:
+    """Numeração do folheto: nenhum bloco pode inventar, duplicar ou regredir número.
+
+    O mapa (etapa 3) é a fonte da verdade da numeração impressa. Valida:
+    - número no bloco sem `numero_impresso` correspondente no mapa (inventado);
+    - número duplicado entre blocos (o folheto nunca repete numeração);
+    - numeração em ordem decrescente entre blocos que SÃO numerados (o folheto
+      sempre cresce; blocos sem número no meio não podem quebrar a sequência);
+    - bloco numerado no mapa ausente na montagem (omissão estrutural).
+    Números com pulo (ex.: 1, 2, 4) são aceitos: alguns folhetos pulam números.
+    """
+    if not mapa or not getattr(missa, "blocos", None):
+        return []
+    divs: list[dict] = []
+    blocos = missa.blocos or []
+
+    # 1) números que o mapa conhece, por título normalizado (com repetidos)
+    numeros_mapa: dict[str, list[Optional[int]]] = {}
+    for mb in mapa.get("blocos") or []:
+        t = _norm_busca(mb.get("titulo") or "")
+        if not t:
+            continue
+        numeros_mapa.setdefault(t, []).append(mb.get("numero_impresso"))
+
+    # 2) numeração da montagem: inventada, duplicada, decrescente
+    vistos: dict[int, str] = {}
+    ultimo_numero: Optional[int] = None
+    for bloco in (missa.blocos or []):
+        num = getattr(bloco, "numero_folheto", None)
+        titulo = (bloco.titulo or "")[:60]
+        if num is None:
+            continue
+        t = _norm_busca(bloco.titulo or "")
+        # inventado: o mapa conhece o título mas não o numera
+        if t in numeros_mapa and num not in (numeros_mapa[t] or []):
+            divs.append({"severidade": "critica", "tipo": "bloco", "local": titulo,
+                         "detalhe": f"número {num} inventado: o mapa não numera este bloco"})
+        elif t not in numeros_mapa:
+            divs.append({"severidade": "critica", "tipo": "bloco", "local": titulo,
+                         "detalhe": f"número {num} sem bloco correspondente no mapa (apêndice/rubrica numerada?)"})
+        if num in vistos:
+            divs.append({"severidade": "critica", "tipo": "bloco",
+                         "local": f"{vistos[num]} e {titulo}",
+                         "detalhe": f"número {num} repetido: o folheto não duplica numeração"})
+        else:
+            vistos[num] = titulo
+        if ultimo_numero is not None and num <= ultimo_numero:
+            divs.append({"severidade": "critica", "tipo": "bloco", "local": titulo,
+                         "detalhe": f"número {num} regride (anterior {ultimo_numero}): ordem de numeração quebrada"})
+        ultimo_numero = num
+
+    # 3) bloco numerado no mapa ausente na montagem (omissão de conteúdo numerado)
+    titulos_montagem = {_norm_busca(getattr(b, "titulo", "") or "") for b in (missa.blocos or [])}
+    for mb in mapa.get("blocos") or []:
+        num = mb.get("numero_impresso")
+        if num is None:
+            continue
+        t = _norm_busca(mb.get("titulo") or "")
+        if t and t not in titulos_montagem:
+            divs.append({"severidade": "critica", "tipo": "bloco",
+                         "local": (mb.get("titulo") or "")[:60],
+                         "detalhe": f"bloco numerado {num} no mapa, ausente na montagem"})
+    return divs
+
+
 def checar_estrutural_vs_mapa(missa: Missa, mapa: dict) -> list[dict]:
     """Divergências estruturais determinísticas entre montagem e mapa."""
     if not mapa:
         return []
     divs: list[dict] = []
+    divs.extend(checar_numeracao_vs_mapa(missa, mapa))
     blocos = missa.blocos or []
     def acha(sub):
         sub = sub.lower()
@@ -403,6 +507,7 @@ def _corrigir(pdf_bytes: bytes, texto_limpo: str, mapa: dict, missa: Missa,
     _inserir_repeticoes_estrofes(nova, texto_limpo)
     _limpar_numero_estrofe_orfao(nova)
     _dedup_momento_silencio(nova)
+    _sincronizar_numero_folheto(nova, mapa)
     return nova
 
 
@@ -435,6 +540,7 @@ def montar_com_conferencia(pdf_bytes: bytes, texto_limpo: str,
         # Por isso nenhuma delas é "aceitável": conteúdo/hierarquia só convergem quando
         # a lista fica vazia. Elementos editoriais não entram nessa lista.
         if not divergencias:
+            _sincronizar_numero_folheto(missa, mapa)
             logger.info("conferência convergiu em %d iteração(ões)", i)
             return missa, {"conferida": True, "iteracoes": i,
                            "divergencias_restantes": divergencias, "mapa": mapa,
@@ -449,7 +555,9 @@ def montar_com_conferencia(pdf_bytes: bytes, texto_limpo: str,
         except Exception:
             logger.exception("correção da iteração %d falhou — encerra laço", iteracoes)
             break
-    # Não convergiu
+    # Não convergiu — a montagem retida para revisão humana também sai com a
+    # numeração fiel ao mapa (defesa em profundidade).
+    _sincronizar_numero_folheto(missa, mapa)
     return missa, {"conferida": False, "iteracoes": iteracoes,
                    "divergencias_restantes": divergencias, "mapa": mapa,
                    "contrato": _contrato_gauntlet(),

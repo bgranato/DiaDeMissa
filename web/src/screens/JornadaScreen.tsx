@@ -380,7 +380,7 @@ function AbaRelatorio({ onRestricted }: { onRestricted: () => void }) {
           <p className="ds-section-label">Últimos 12 meses</p>
         </div>
         <div className="h-48 -mx-1">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 600, height: 192 }}>
             <BarChart data={dadosChart} margin={{ top: 4, right: 8, bottom: 0, left: -28 }}>
               <XAxis
                 dataKey="label"

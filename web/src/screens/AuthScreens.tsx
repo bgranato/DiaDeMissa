@@ -4,6 +4,7 @@ import { login, cadastrar, recuperarSenha, redefinirSenha, loginGoogleToken } fr
 import { Card } from '../components/UI'
 import { LogIn, UserPlus, Mail, Lock, Phone, KeyRound, ArrowLeft, Church, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { destravarRolagem, travarRolagem } from '../lib/scrollLock'
 
 // Client ID do Google OAuth (Web) — definido em build via VITE_GOOGLE_CLIENT_ID.
 // Enquanto ausente, o botão fica desabilitado (sem quebrar nada).
@@ -37,17 +38,13 @@ export const AuthScreens = ({ setScreen, onClose, onAuthenticated, conteudoRestr
   // Nos diálogos sobre uma tela pública, a autenticação é uma decisão ativa:
   // enquanto a janela estiver aberta, nada atrás dela deve rolar, receber foco
   // ou responder a cliques. Telas de acesso abertas como rota própria não têm
-  // conteúdo subjacente e, por isso, não precisam desse bloqueio.
+  // conteúdo subjacente e, por isso, não precisam desse bloqueio. A trava é por
+  // contador de referências, para não restaurar overflow obsoleto se outro
+  // modal (ex.: aviso do folheto) estiver abrindo durante a saída do login.
   useEffect(() => {
     if (!onClose) return
-    const bodyOverflow = document.body.style.overflow
-    const htmlOverflow = document.documentElement.style.overflow
-    document.body.style.overflow = 'hidden'
-    document.documentElement.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = bodyOverflow
-      document.documentElement.style.overflow = htmlOverflow
-    }
+    travarRolagem()
+    return destravarRolagem
   }, [onClose])
 
   function concluirAutenticacao() {
@@ -296,7 +293,7 @@ export const AuthScreens = ({ setScreen, onClose, onAuthenticated, conteudoRestr
                 </label>
                 <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-800 rounded-2xl px-4 py-3 border border-gray-200 dark:border-slate-700">
                   <Lock size={20} className="text-brand-gold" />
-                  <input type="password" className="bg-transparent w-full text-lg font-medium outline-none placeholder:text-gray-400 dark:text-white" placeholder="••••••" value={senha} onChange={e => setSenha(e.target.value)} />
+                  <input type="password" autoComplete={modo === 'login' ? 'current-password' : 'new-password'} className="bg-transparent w-full text-lg font-medium outline-none placeholder:text-gray-400 dark:text-white" placeholder="••••••" value={senha} onChange={e => setSenha(e.target.value)} />
                 </div>
               </div>
             )}
@@ -306,7 +303,7 @@ export const AuthScreens = ({ setScreen, onClose, onAuthenticated, conteudoRestr
                 <label className="text-xs font-bold uppercase tracking-widest text-brand-gray-dark/60 mb-1 block">Confirme a senha</label>
                 <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-800 rounded-2xl px-4 py-3 border border-gray-200 dark:border-slate-700">
                   <Lock size={20} className="text-brand-gold" />
-                  <input type="password" className="bg-transparent w-full text-lg font-medium outline-none placeholder:text-gray-400 dark:text-white" placeholder="••••••" value={senhaConfirma} onChange={e => setSenhaConfirma(e.target.value)} />
+                  <input type="password" autoComplete="new-password" className="bg-transparent w-full text-lg font-medium outline-none placeholder:text-gray-400 dark:text-white" placeholder="••••••" value={senhaConfirma} onChange={e => setSenhaConfirma(e.target.value)} />
                 </div>
               </div>
             )}
@@ -365,13 +362,21 @@ export const AuthScreens = ({ setScreen, onClose, onAuthenticated, conteudoRestr
           )}
 
           {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="mt-5 w-full text-center text-sm font-medium text-brand-gray-dark/65 hover:text-brand-blue dark:text-brand-white/65 dark:hover:text-brand-gold"
-            >
-              Continuar sem conta
-            </button>
+            <div className="mt-5">
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full text-center text-sm font-medium text-brand-gray-dark/65 hover:text-brand-blue dark:text-brand-white/65 dark:hover:text-brand-gold"
+              >
+                Continuar sem conta
+              </button>
+              {conteudoRestrito && (
+                <p className="mt-2 text-center text-xs leading-relaxed text-brand-gray-dark/55 dark:text-brand-white/55">
+                  Sem conta você pode navegar pela home, mas a leitura completa da
+                  missa fica bloqueada. Cadastre-se gratuitamente para desbloquear.
+                </p>
+              )}
+            </div>
           )}
 
           {(modo === 'login' || modo === 'cadastro') && (

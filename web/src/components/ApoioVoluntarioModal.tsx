@@ -4,6 +4,7 @@ import { Heart, LoaderCircle, X } from 'lucide-react'
 
 import api from '../services/api'
 import { conviteApoioEmPausa } from '../services/apoioExibicao'
+import { destravarRolagem, travarRolagem } from '../lib/scrollLock'
 
 type ConfiguracaoApoios = {
   ativo: boolean
@@ -48,17 +49,12 @@ export function ApoioVoluntarioModal({ missaId, modo = 'automatico', onClose }: 
   }, [modo])
 
   // Enquanto o convite está aberto, o conteúdo litúrgico não pode receber
-  // rolagem nem cliques. O desbloqueio ocorre somente ao fechar o convite.
+  // rolagem nem cliques. O desbloqueio ocorre somente ao fechar o convite e a
+  // trava é por contador de referências (vide scrollLock).
   useEffect(() => {
     if (!aberto) return
-    const bodyOverflow = document.body.style.overflow
-    const htmlOverflow = document.documentElement.style.overflow
-    document.body.style.overflow = 'hidden'
-    document.documentElement.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = bodyOverflow
-      document.documentElement.style.overflow = htmlOverflow
-    }
+    travarRolagem()
+    return destravarRolagem
   }, [aberto])
 
   function fechar() {

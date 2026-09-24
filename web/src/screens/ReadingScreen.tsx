@@ -7,8 +7,9 @@ import BlocoRenderer from '../components/blocos/BlocoRenderer'
 import { ApoioVoluntarioModal } from '../components/ApoioVoluntarioModal'
 import { conviteDeveAparecerAposPaiNosso } from '../lib/apoioLiturgia'
 import { CHAVE_FECHAMENTO_AVISO_FOLHETO, deveExibirAvisoFolheto } from '../lib/avisoFolheto'
+import { destravarRolagem, travarRolagem } from '../lib/scrollLock'
 import { EXIBIR_CONVITES_DE_APOIO } from '../lib/recursos'
-import { tituloDuplicaTexto, ordenarBlocos } from '../lib/blocoText'
+import { tituloDuplicaTexto, ordenarBlocos, numeroFolhetoExibivel } from '../lib/blocoText'
 import { List as ListIcon, X, Check, RotateCcw, MessageCircleHeart, Info } from 'lucide-react'
 
 interface Props {
@@ -70,18 +71,22 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
   useEffect(() => { missaDataRef.current = missaData }, [missaData])
 
   // O aviso é uma div modal: enquanto estiver aberta, o roteiro não pode ser
-  // rolado ou acionado por trás dela.
+  // rolado ou acionado por trás dela. O travamento é por contador de
+  // referências, para não restaurar um overflow obsoleto quando outro modal
+  // (login, apoio) estiver saindo ao mesmo tempo.
   useEffect(() => {
     if (!avisoFolhetoVisivel) return
-    const bodyOverflow = document.body.style.overflow
-    const htmlOverflow = document.documentElement.style.overflow
-    document.body.style.overflow = 'hidden'
-    document.documentElement.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = bodyOverflow
-      document.documentElement.style.overflow = htmlOverflow
-    }
+    travarRolagem()
+    return destravarRolagem
   }, [avisoFolhetoVisivel])
+
+  // Roteiro (índice) e confirmação de reinício também são overlays: enquanto
+  // abertos, o conteúdo da leitura atrás deles não pode rolar nem responder.
+  useEffect(() => {
+    if (!showIndex && !showReiniciar) return
+    travarRolagem()
+    return destravarRolagem
+  }, [showIndex, showReiniciar])
 
   // Não depende de a renderização seguinte terminar: ao sair pela seta, trocar
   // de aba ou fechar o navegador, o ponto atual continua disponível ao retorno.
@@ -278,7 +283,7 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
 
   // Navegação: só os blocos que o folheto NUMERA (nunca inventa número).
   const navEntries = blocos
-    .map((b, i) => ({ i, n: b.numero_folheto as number | null | undefined }))
+    .map((b, i) => ({ i, n: numeroFolhetoExibivel(b) }))
     .filter(e => e.n != null) as { i: number; n: number }[]
   // Entrada ativa = a do bloco atual, ou a última numerada antes dele (se o
   // atual for rubrica/antífona sem número).
@@ -633,7 +638,7 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
                           currentIndex === idx ? 'bg-white text-brand-blue' : 'bg-gray-200 dark:bg-slate-600 text-gray-500'
                         }`}>
-                          {block.numero_folheto ?? (idx + 1)}
+                          {numeroFolhetoExibivel(block) ?? '·'}
                         </div>
                         <div className="flex-1">
                           <p className="font-bold leading-tight">{block.titulo}</p>
