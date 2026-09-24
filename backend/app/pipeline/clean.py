@@ -40,6 +40,12 @@ def limpar(texto: str) -> str:
     # "2ª-FEIRA"), que vêm seguidos de espaço ou hífen.
     texto = re.sub(r"(\d)ª(?=[).,;:]|$)", r"\1a", texto)
     texto = re.sub(r"(\d)º(?=[).,;:]|$)", r"\1o", texto)
+    # Marcas de versículo coladas à palavra seguinte ("20cCristo", "27aSó",
+    # "16aAssim"): o folheto imprime a letra do versículo sem espaço. Separa
+    # dígito+letra de versículo da palavra quando há camelCase (minúscula→
+    # maiúscula), que é o artefato típico desta extração. Vem depois das regras
+    # de ordinal para não virar "1ª"/"10º".
+    texto = re.sub(r"(\d+[a-záéíóúâêôãõç])(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ])", r"\1 ", texto)
     texto = re.sub(r"[ \t]+", " ", texto)
     texto = re.sub(r"\n{3,}", "\n\n", texto)
     texto = "\n".join(linha.strip() for linha in texto.split("\n"))

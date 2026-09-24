@@ -9,7 +9,10 @@ restantes. `pipeline_version` é gravada pelo próprio `persistir_missa`.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
+import os
 from pathlib import Path
 from datetime import date as _date, datetime, timezone
 
@@ -18,6 +21,82 @@ from sqlalchemy.orm import Session
 from app.models.missa import Missa as MissaModel
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Cache de resultado NÃO-convergido (opção B — corta o custo de retries).
+#
+# Quando uma tentativa com o MESMO PDF (sha256) e a MESMA configuração de
+# modelos NÃO convergiu, refazer é desperdício garantido (~US$ 2+/retry, dia
+# 23/09 queimou US$ 12 em 5 tentativas repetidas). Gravamos o veredito e, em
+# retries subsequentes idênticos, devolvemos o resultado guardado SEM chamar o
+# LLM de novo. O cache NÃO vale para execução nova (config diferente = chave
+# diferente) nem bloqueia resposta humana: é só a repetição idêntica que corta.
+# ---------------------------------------------------------------------------
+
+def _fingerprint_modelos() -> str:
+    """Chave de config: qualquer mudança de modelo/provedor/versão invalida o cache."""
+    from app.core.pipeline_version import pipeline_version
+    pedacos = [os.getenv(k, "") for k in (
+        "LLM_PROVIDER", "ANTHROPIC_MODEL_MM", "MODELO_MAPA", "MODELO_CONFERENTE",
+        "MONTAGEM_PYTHON_PRIMEIRO", "MONTAGEM_SEM_TEXTO_AUXILIAR",
+    )]
+    pedacos.append(f"pipeline_version={pipeline_version()}")
+    return hashlib.sha256("|".join(pedacos).encode()).hexdigest()[:16]
+
+
+def _caminho_cache_naoconv(data_iso: str, pdf_hash: str, celeb_hash: str) -> Path:
+    from app.pipeline.download import CACHE_DIR
+    return Path(CACHE_DIR) / "cache_naoconv" / f"{data_iso}-{pdf_hash[:10]}-{celeb_hash[:10]}.json"
+
+
+def _ler_cache_naoconv(data_iso: str, pdf_hash: str, celeb_hash: str) -> dict | None:
+    """Retorna o veredito anterior não-convergido se PDFs e config forem idênticos.
+
+    Só reutiliza por até CACHE_NAOCONV_HORAS (default 6h) — tempo típico dos
+    retries automáticos. Depois disso, executa de novo (não trava a produção).
+    """
+    try:
+        caminho = _caminho_cache_naoconv(data_iso, pdf_hash, celeb_hash)
+        if not caminho.exists():
+            return None
+        dados = json.loads(caminho.read_text())
+        if dados.get("pdf_sha") != pdf_hash or dados.get("celeb_sha") != celeb_hash:
+            return None
+        if dados.get("fp") != _fingerprint_modelos():
+            logger.info("cache não-conv %s ignorado: config de modelos mudou", data_iso)
+            return None
+        horas = float(os.getenv("CACHE_NAOCONV_HORAS", "6"))
+        criado = datetime.fromisoformat(dados["criado_em"])
+        if (datetime.now(timezone.utc) - criado).total_seconds() > horas * 3600:
+            logger.info("cache não-conv %s expirado (%s)", data_iso, dados["criado_em"])
+            return None
+        return dados
+    except Exception as e:  # noqa: BLE001
+        logger.warning("leitura do cache não-conv %s falhou (%s) — roda de novo", data_iso, str(e)[:120])
+        return None
+
+
+def _gravar_cache_naoconv(data_iso: str, pdf_hash: str, celeb_hash: str, meta: dict) -> None:
+    try:
+        caminho = _caminho_cache_naoconv(data_iso, pdf_hash, celeb_hash)
+        caminho.parent.mkdir(parents=True, exist_ok=True)
+        # Escrita atômica: grava em temp e renomeia — evita que um worker leia
+        # JSON truncado escrevendo concorrente (2 workers uvicorn).
+        tmp = caminho.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps({
+            "data": data_iso,
+            "pdf_sha": pdf_hash,
+            "celeb_sha": celeb_hash,
+            "fp": _fingerprint_modelos(),
+            "conferida": meta["conferida"],
+            "iteracoes": meta["iteracoes"],
+            "divergencias_restantes": meta["divergencias_restantes"],
+            "criado_em": datetime.now(timezone.utc).isoformat(),
+        }, ensure_ascii=False))
+        os.replace(tmp, caminho)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("gravação do cache não-conv %s falhou (%s)", data_iso, str(e)[:120])
 
 
 def _custo_no_intervalo(db: Session, inicio: datetime) -> float:
@@ -93,6 +172,27 @@ def montar_e_publicar(db: Session, data_iso: str, pdf_bytes: bytes,
             db.add(existente); db.commit()
         return {"data": data_iso, "resultado": "bloqueado_por_freio", "conferida": False,
                 "iteracoes": 0, "custo_usd": 0.0, "motivo": motivo}
+    # Cache de não-convergência (opção B): se esta mesma missa (mesmos PDFs e
+    # mesma config) já NÃO convergiu há pouco, devolver o veredito SEM gastar LLM.
+    # Rodado ANTES de registrar_tentativa: retry gratuito não consome o teto diário
+    # de tentativas (só execução real paga consome).
+    from app.pipeline.download import hash_pdf
+    pdf_hash = hash_pdf(pdf_bytes)
+    celeb_hash = hash_pdf(pdf_celebrante_bytes)
+    cache_naoconv = _ler_cache_naoconv(data_iso, pdf_hash, celeb_hash)
+    if cache_naoconv:
+        # Replica o veredito real: se há montagem boa no ar, o resultado foi
+        # reprovada_mantida; senão, pendente_revisao. Sem chamadas LLM.
+        resultado_cache = "reprovada_mantida" if boa_existe else "pendente_revisao"
+        logger.warning("REUTILIZADO cache não-convergido para %s (%d iter, %d divs) — sem chamada LLM",
+                       data_iso, cache_naoconv["iteracoes"], len(cache_naoconv["divergencias_restantes"]))
+        return {
+            "data": data_iso, "resultado": resultado_cache,
+            "conferida": False, "iteracoes": cache_naoconv["iteracoes"],
+            "divergencias_restantes": cache_naoconv["divergencias_restantes"],
+            "custo_usd": 0.0, "do_cache": True,
+        }
+
     freios_gasto.registrar_tentativa(data_iso)
 
     # Passo 4 pode levantar (multimodal falhou) — NÃO cai para texto: agenda retry/alerta.
@@ -152,6 +252,7 @@ def montar_e_publicar(db: Session, data_iso: str, pdf_bytes: bytes,
         _alerta(data_iso, f"Montagem reprovada na conferência ({meta['iteracoes']} iter). "
                           f"MANTIDA a montagem boa existente. Divergências: {meta['divergencias_restantes']}")
         logger.warning("REPROVADA %s — mantida a montagem boa existente", data_iso)
+        _gravar_cache_naoconv(data_iso, pdf_hash, celeb_hash, meta)
         return {"data": data_iso, "resultado": "reprovada_mantida", **conf}
 
     # Sem montagem boa: persiste como pendente_revisao para revisão humana.
@@ -163,6 +264,7 @@ def montar_e_publicar(db: Session, data_iso: str, pdf_bytes: bytes,
     _alerta(data_iso, f"Montagem NÃO convergiu ({meta['iteracoes']} iter) e não havia montagem boa. "
                       f"pendente_revisao. Divergências: {meta['divergencias_restantes']}")
     logger.warning("PENDENTE_REVISAO %s (não convergiu)", data_iso)
+    _gravar_cache_naoconv(data_iso, pdf_hash, celeb_hash, meta)
     return {"data": data_iso, "resultado": "pendente_revisao", **conf}
 
 
