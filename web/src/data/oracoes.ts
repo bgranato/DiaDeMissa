@@ -245,7 +245,7 @@ em união com o Santo Sacrifício da Missa,
 as minhas orações, ações, alegrias e sofrimentos deste dia,
 em reparação das nossas ofensas
 e pelas intenções do Sumo Pontífice neste mês. Amém.`,
-    observacao: 'Apostolado da Oração — feito ao despertar.',
+    observacao: 'Apostolado da Oração, feito ao despertar.',
   },
   {
     id: 'ato-de-contricao',
@@ -330,7 +330,7 @@ em expiação dos nossos pecados e os do mundo inteiro.
 Pela sua dolorosa Paixão, tende misericórdia de nós e do mundo inteiro.
 
 Santo Deus, Santo Forte, Santo Imortal, tende piedade de nós e do mundo inteiro.`,
-    observacao: 'Terço da Misericórdia — rezado às 15h, hora da Misericórdia.',
+    observacao: 'Terço da Misericórdia, rezado às 15h, hora da Misericórdia.',
   },
 ]
 

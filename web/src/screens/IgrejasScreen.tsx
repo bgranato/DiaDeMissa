@@ -481,7 +481,7 @@ export const IgrejasScreen = ({ setScreen, estaAutenticado = true }: Props) => {
                   {ig.endereco && (
                     <p className="text-sm text-brand-gray-dark/60 dark:text-brand-white/60 mt-1 flex items-start gap-1">
                       <MapPin size={14} className="flex-shrink-0 mt-0.5" />
-                      <span>{ig.endereco}{ig.cidade ? ` — ${ig.cidade}/${ig.estado || ''}` : ''}</span>
+                      <span>{ig.endereco}{ig.cidade ? `, ${ig.cidade}/${ig.estado || ''}` : ''}</span>
                     </p>
                   )}
                   <div className="flex flex-wrap gap-3 mt-2 text-xs text-brand-gray-dark/50">

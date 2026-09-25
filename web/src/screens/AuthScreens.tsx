@@ -105,7 +105,7 @@ export const AuthScreens = ({ setScreen, onClose, onAuthenticated, conteudoRestr
   }, [modo])
 
   function entrarComGoogle() {
-    if (!tokenClientRef.current) { setErro('Google ainda carregando — tente de novo em instantes'); return }
+    if (!tokenClientRef.current) { setErro('Google ainda carregando, tente de novo em instantes'); return }
     setErro(''); setInfo('')
     tokenClientRef.current.requestAccessToken()
   }
@@ -149,7 +149,7 @@ export const AuthScreens = ({ setScreen, onClose, onAuthenticated, conteudoRestr
       try {
         await recuperarSenha(email)
         setInfo('Se o e-mail estiver cadastrado, enviaremos um link em até alguns minutos. Verifique sua caixa de entrada e spam.')
-      } catch { setErro('Não foi possível processar agora — tente em alguns minutos') }
+      } catch { setErro('Não foi possível processar agora, tente em alguns minutos') }
       finally { setLoading(false) }
       return
     }

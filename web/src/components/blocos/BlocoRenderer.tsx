@@ -76,7 +76,7 @@ function renderConteudo(bloco: any, tipo: string) {
               <div key={i}>
                 <p className="ds-body text-slate-800 dark:text-slate-200">
                   <span className="font-bold text-brand-text dark:text-slate-100">{d.label}</span>
-                  {d.santo ? ` — ${d.santo}` : ''}
+                  {d.santo ? `, ${d.santo}` : ''}
                 </p>
                 {d.refs && (
                   <p className="ds-body-sm text-slate-600 dark:text-slate-400 pl-4">{d.refs}</p>
