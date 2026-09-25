@@ -46,7 +46,7 @@ export function ehVivencia(titulo?: string | null): boolean {
 // para blocos que o folheto não numera. Retorna `null` quando não há número
 // real, e quem renderiza decide o marcador (ponto, sem círculo numerado etc.).
 export function numeroFolhetoExibivel(
-  bloco?: { numero_folheto?: number | null } | null,
+  bloco?: { numero_folheto?: number | null; [campo: string]: unknown } | null,
 ): number | null {
   const n = bloco?.numero_folheto
   return typeof n === 'number' && Number.isFinite(n) ? n : null

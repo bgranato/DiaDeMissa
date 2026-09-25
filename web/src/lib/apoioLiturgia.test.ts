@@ -1,23 +1,36 @@
 import { describe, expect, it } from 'vitest'
 
-import { conviteDeveAparecerAposPaiNosso } from './apoioLiturgia'
+import { conviteDeveAparecerNoCantoDasOfertas } from './apoioLiturgia'
 
 describe('convite de apoio na liturgia', () => {
   const blocos = [
-    { titulo: 'Oração Eucarística', texto: '...' },
+    { titulo: 'Sobre as Oferendas', texto: '...' },
+    { titulo: 'Canto das Ofertas', texto: '...' },
     { titulo: 'Rito da Comunhão', turnos: [{ falante: 'T', texto: 'Pai nosso... (O Presidente continua)' }] },
-    { titulo: 'Canto de Comunhão', texto: '...' },
   ]
 
-  it('não abre durante o Pai-Nosso', () => {
-    expect(conviteDeveAparecerAposPaiNosso(blocos, 1)).toBe(false)
+  it('não abre antes de alcançar o Canto das Ofertas', () => {
+    expect(conviteDeveAparecerNoCantoDasOfertas(blocos, 0)).toBe(false)
   })
 
-  it('abre no bloco seguinte ao Pai-Nosso', () => {
-    expect(conviteDeveAparecerAposPaiNosso(blocos, 2)).toBe(true)
+  it('abre no bloco do Canto das Ofertas', () => {
+    expect(conviteDeveAparecerNoCantoDasOfertas(blocos, 1)).toBe(true)
   })
 
-  it('não substitui a posição por uma numeração fixa quando não há Pai-Nosso', () => {
-    expect(conviteDeveAparecerAposPaiNosso([{ titulo: 'Canto Final' }], 0)).toBe(false)
+  it('permanece aberto nos blocos seguintes (ex.: Rito da Comunhão)', () => {
+    expect(conviteDeveAparecerNoCantoDasOfertas(blocos, 2)).toBe(true)
+  })
+
+  it('reconhece variação de título (Canto Ofertório)', () => {
+    const comOfertorio = [
+      { titulo: 'Canto de Entrada' },
+      { titulo: 'Canto Ofertório' },
+    ]
+    expect(conviteDeveAparecerNoCantoDasOfertas(comOfertorio, 0)).toBe(false)
+    expect(conviteDeveAparecerNoCantoDasOfertas(comOfertorio, 1)).toBe(true)
+  })
+
+  it('não substitui a posição por uma numeração fixa quando não há Canto das Ofertas', () => {
+    expect(conviteDeveAparecerNoCantoDasOfertas([{ titulo: 'Canto Final' }], 0)).toBe(false)
   })
 })

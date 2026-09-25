@@ -5,8 +5,8 @@ import { getMissaAtual, getMissaEstruturadaPorData, salvarProgressoMissa, conclu
 import { logError } from '../services/logger'
 import BlocoRenderer from '../components/blocos/BlocoRenderer'
 import { ApoioVoluntarioModal } from '../components/ApoioVoluntarioModal'
-import { conviteDeveAparecerAposPaiNosso } from '../lib/apoioLiturgia'
-import { CHAVE_FECHAMENTO_AVISO_FOLHETO, deveExibirAvisoFolheto } from '../lib/avisoFolheto'
+import { conviteDeveAparecerNoCantoDasOfertas } from '../lib/apoioLiturgia'
+import { deveExibirAvisoFolheto } from '../lib/avisoFolheto'
 import { destravarRolagem, travarRolagem } from '../lib/scrollLock'
 import { EXIBIR_CONVITES_DE_APOIO } from '../lib/recursos'
 import { tituloDuplicaTexto, ordenarBlocos, numeroFolhetoExibivel } from '../lib/blocoText'
@@ -51,11 +51,11 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showIndex, setShowIndex] = useState(false)
   const [showReiniciar, setShowReiniciar] = useState(false)
-  const [apoioAposPaiNosso, setApoioAposPaiNosso] = useState(false)
-  // Avaliado uma única vez por entrada na missa. Assim, não interrompe uma
-  // leitura em andamento ao completar os 15 minutos de pausa.
+  const [apoioNoCantoDasOfertas, setApoioNoCantoDasOfertas] = useState(false)
+  // Avaliado uma única vez por entrada na missa. O aviso sobre o conteúdo
+  // litúrgico sempre aparece ao entrar — saiu e voltou, abre novamente.
   const [avisoFolhetoVisivel, setAvisoFolhetoVisivel] = useState(() =>
-    deveExibirAvisoFolheto(localStorage.getItem(CHAVE_FECHAMENTO_AVISO_FOLHETO)),
+    deveExibirAvisoFolheto(),
   )
   const [loading, setLoading] = useState(true)
 
@@ -293,12 +293,13 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
     else break
   }
 
-  // O convite nasce somente depois do Pai-Nosso e permanece montado até uma
-  // decisão explícita. A referência é o conteúdo do bloco, não a numeração:
-  // edições diferentes do folheto podem numerar a sequência de outra forma.
+  // O convite nasce quando o leitor alcança o bloco do Canto das Ofertas e
+  // permanece montado até uma decisão explícita. A referência é o TÍTULO do
+  // bloco, não a numeração: edições diferentes do folheto podem numerar a
+  // sequência de outra forma.
   useEffect(() => {
-    if (EXIBIR_CONVITES_DE_APOIO && conviteDeveAparecerAposPaiNosso(blocos, currentIndex)) {
-      setApoioAposPaiNosso(true)
+    if (EXIBIR_CONVITES_DE_APOIO && conviteDeveAparecerNoCantoDasOfertas(blocos, currentIndex)) {
+      setApoioNoCantoDasOfertas(true)
     }
   }, [blocos, currentIndex])
 
@@ -386,10 +387,7 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
               </p>
               <button
                 type="button"
-                onClick={() => {
-                  localStorage.setItem(CHAVE_FECHAMENTO_AVISO_FOLHETO, String(Date.now()))
-                  setAvisoFolhetoVisivel(false)
-                }}
+                onClick={() => setAvisoFolhetoVisivel(false)}
                 aria-label="Fechar aviso sobre o roteiro"
                 className="absolute right-3 top-3 rounded-full p-2 text-[#806016] transition hover:bg-[#eacb72]/50 hover:text-[#4e3907] focus:outline-none focus:ring-2 focus:ring-[#aa7918]"
               >
@@ -582,7 +580,7 @@ export const ReadingScreen = ({ onBack, onFinish, onRestricted, onFeedback, miss
           )
         })}
 
-        {EXIBIR_CONVITES_DE_APOIO && apoioAposPaiNosso && <ApoioVoluntarioModal missaId={missaId} />}
+        {EXIBIR_CONVITES_DE_APOIO && apoioNoCantoDasOfertas && <ApoioVoluntarioModal missaId={missaId} />}
 
         {/* Concluir missa — no fim da tripa (substitui o antigo botão Próximo/Concluir). */}
         <div className="mt-4 mb-2">

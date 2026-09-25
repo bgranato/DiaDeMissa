@@ -8,7 +8,7 @@ describe('pausa do convite de apoio', () => {
     vi.useRealTimers()
   })
 
-  it('dura 24 horas somente quando registrada após pagamento aprovado', () => {
+  it('dura 1 hora somente quando registrada após pagamento aprovado', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-11T12:00:00Z'))
 
@@ -16,7 +16,7 @@ describe('pausa do convite de apoio', () => {
     pausarConviteApoioAposPagamento()
     expect(conviteApoioEmPausa()).toBe(true)
 
-    vi.advanceTimersByTime(24 * 60 * 60 * 1000)
+    vi.advanceTimersByTime(60 * 60 * 1000)
     expect(conviteApoioEmPausa()).toBe(false)
   })
 

@@ -1,8 +1,5 @@
 type BlocoComConteudo = {
   titulo?: unknown
-  texto?: unknown
-  descricao?: unknown
-  turnos?: unknown
 }
 
 function normalizar(texto: string) {
@@ -13,19 +10,18 @@ function normalizar(texto: string) {
     .toLocaleLowerCase('pt-BR')
 }
 
-function textoDoBloco(bloco: BlocoComConteudo) {
-  const turnos = Array.isArray(bloco.turnos)
-    ? bloco.turnos.map(turno => typeof turno === 'object' && turno !== null && 'texto' in turno
-      ? String((turno as { texto?: unknown }).texto || '')
-      : '')
-    : []
-  return [bloco.titulo, bloco.texto, bloco.descricao, ...turnos]
-    .filter(valor => typeof valor === 'string')
-    .join(' ')
-}
-
-/** O convite só nasce depois que o bloco que contém o Pai-Nosso foi concluído. */
-export function conviteDeveAparecerAposPaiNosso(blocos: BlocoComConteudo[], indiceAtual: number) {
-  const indicePaiNosso = blocos.findIndex(bloco => normalizar(textoDoBloco(bloco)).includes('pai nosso'))
-  return indicePaiNosso >= 0 && indiceAtual > indicePaiNosso
+/**
+ * O convite nasce quando o leitor alcança o bloco do Canto das Ofertas — o
+ * momento litúrgico em que a comunidade faz sua oferta — e permanece montado
+ * até uma decisão explícita. A referência é o TÍTULO do bloco (variações como
+ * "Canto das Ofertas", "Canto Ofertório" ou "Canto das Oferendas" são
+ * contempladas pela raiz "ofert"), não a numeração: edições diferentes do
+ * folheto podem numerar a sequência de outra forma.
+ */
+export function conviteDeveAparecerNoCantoDasOfertas(blocos: BlocoComConteudo[], indiceAtual: number) {
+  const indiceCantoDasOfertas = blocos.findIndex(bloco => {
+    const titulo = normalizar(String(bloco.titulo ?? ''))
+    return titulo.includes('canto') && titulo.includes('ofert')
+  })
+  return indiceCantoDasOfertas >= 0 && indiceAtual >= indiceCantoDasOfertas
 }

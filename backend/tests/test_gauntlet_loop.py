@@ -282,3 +282,48 @@ def test_checar_estrutural_inclui_numeracao():
     divs = loop.checar_estrutural_vs_mapa(missa, mapa)
 
     assert any("27 inventado" in d["detalhe"] for d in divs)
+
+
+def test_refrao_estrutural_no_mapa_nao_e_divergencia():
+    """Regressão da missa 27/09: mapa com repeticoes "Refrão + N estrofes"
+    indica a ESTRUTURA normal do canto (refrão intercalado), que a montagem
+    representa guardando o refrão UMA única vez no campo `refrao`. O
+    INSTR_CONF manda ignorar essa repetição visual — a checagem determinística
+    não pode acusá-la como divergência (senão toda missa com cantos de refrão
+    fica retida em pendente_revisao)."""
+    missa = Missa(
+        data="2026-09-27", ano_liturgico="A", titulo_celebracao="26º Domingo do Tempo Comum",
+        categoria="domingo", creditos_cantos={},
+        blocos=[
+            Canto(ordem=2, titulo="Canto de Entrada",
+                  refrao=["A Bíblia é a palavra de Deus semeada no meio do povo,"],
+                  estrofes=[["Deus é bom, nos ensina a viver.", "Nos revela o caminho a seguir:"],
+                            ["Somos povo, o povo de Deus,", "e formamos o Reino de irmãos."]]),
+        ],
+    )
+    mapa = {"blocos": [{"titulo": "Canto de Entrada", "numero_impresso": 1}],
+            "repeticoes": [{"onde": "Canto de Entrada", "marca": "Refrão + 2 estrofes"}]}
+
+    divs = loop.checar_estrutural_vs_mapa(missa, mapa)
+
+    assert not any("repetição" in d["detalhe"] or "repeticao" in d["detalhe"] for d in divs)
+
+
+def test_repeticao_inline_ainda_e_divergencia():
+    """Regressão 19/07: repetição "//:" impressa DENTRO das estrofes continua
+    sendo divergência quando as estrofes não a repetem (ex.: Canto Final)."""
+    missa = Missa(
+        data="2026-09-27", ano_liturgico="A", titulo_celebracao="26º Domingo do Tempo Comum",
+        categoria="domingo", creditos_cantos={},
+        blocos=[
+            Canto(ordem=2, titulo="Canto Final",
+                  refrao=["Tantas graças temos recebido"],
+                  estrofes=[["Do Pai todo amor e todo dom,", "tudo enfim para nós é presente:"]]),
+        ],
+    )
+    mapa = {"blocos": [{"titulo": "Canto Final", "numero_impresso": 1}],
+            "repeticoes": [{"onde": "Canto Final", "marca": "//: ://"}]}
+
+    divs = loop.checar_estrutural_vs_mapa(missa, mapa)
+
+    assert any("repetição" in d["detalhe"] for d in divs)

@@ -22,7 +22,7 @@ function formatoBRL(valorCentavos: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorCentavos / 100)
 }
 
-/** Oferta discreta. No modo automático, aparece após o bloco do Pai-Nosso. */
+/** Oferta discreta. No modo automático, aparece no bloco do Canto das Ofertas. */
 export function ApoioVoluntarioModal({ missaId, modo = 'automatico', onClose }: Props) {
   const [configuracao, setConfiguracao] = useState<ConfiguracaoApoios | null>(null)
   const [aberto, setAberto] = useState(modo === 'manual')
@@ -59,7 +59,7 @@ export function ApoioVoluntarioModal({ missaId, modo = 'automatico', onClose }: 
 
   function fechar() {
     // Fechar é somente fechar: não grava pausa. Assim, quem não apoiou volta a
-    // receber o convite ao retomar a missa; somente apoio aprovado descansa 24h.
+    // receber o convite na próxima entrada; somente apoio aprovado descansa 1h.
     setAberto(false)
     onClose?.()
   }

@@ -345,7 +345,14 @@ def checar_estrutural_vs_mapa(missa: Missa, mapa: dict) -> list[dict]:
         b = acha(onde) if onde else None
         if b is not None and getattr(b, "tipo", None) == "canto":
             estr = getattr(b, "estrofes", None) or []
-            # heurística: se o mapa diz repetição e nenhuma estrofe repete linha, acusa
+            marca = (rep.get("marca") or "").lower()
+            # Repetição ESTRUTURAL de refrão ("Refrão + N estrofes") está
+            # representada guardando o refrão UMA única vez no campo `refrao`
+            # (contrato: INSTR_CONF manda ignorar essa repetição visual).
+            # Só repetições inline reais ("//: … ://", "2x") exigem linha
+            # duplicada DENTRO de alguma estrofe.
+            if ("refrão" in marca or "refrao" in marca) and getattr(b, "refrao", None):
+                continue
             achou = any(len(e) != len(set(e)) for e in estr)
             if estr and not achou:
                 divs.append({"severidade": "baixa", "tipo": "texto", "local": onde,
