@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import pytest
 
-from app.services.verificador_lexical import verificar_lexico, verificar_aspas
+from app.services.verificador_lexical import verificar_lexico, verificar_aspas, verificar_respostas_literais
 
 
 FONTE = "Curai os doentes, ressuscitai os mortos. De graça recebestes, de graça deveis dar!"
@@ -62,6 +62,53 @@ def test_aspas_preservadas_sem_deficit():
     fonte = 'proclamava Jesus: “Devo anunciar às cidades o Reino de Deus”, e partiu.'
     montagem = [{"titulo": "Canto", "estrofes": [['“Devo anunciar às cidades o Reino de Deus”, proclamava Jesus.']]}]
     assert verificar_aspas(fonte, montagem) == 0
+
+
+# --- Ocorrência LITERAL de respostas curtas (ordem preservada) ---
+
+FONTE_LIT = (
+    "20. Oração Eucarística III\n"
+    "T. Amém.\n"
+    "P. O Senhor esteja convosco.\n"
+    "T. Ele está no meio de nós.\n"
+)
+
+
+def test_resposta_curta_fiel_literal_nao_flagra():
+    montagem = [{"titulo": "Oração Eucarística", "turnos": [
+        {"texto": "Amém."},
+        {"texto": "Ele está no meio de nós."},
+    ]}]
+    assert verificar_respostas_literais(FONTE_LIT, montagem) == []
+
+
+def test_resposta_curta_reordenada_e_flagrada():
+    """'Ele está no meio de nós.' reordenada como 'No meio de nós, ele está.'
+    tem as MESMAS palavras (léxico por palavra passaria) — a ordem tem de ser
+    preservada."""
+    montagem = [{"titulo": "Oração Eucarística", "turnos": [
+        {"texto": "No meio de nós, ele está."},
+    ]}]
+    sus = verificar_respostas_literais(FONTE_LIT, montagem)
+    assert len(sus) == 1, f"esperava 1 suspeita, veio: {sus}"
+    assert "ordem" in sus[0]["detalhe"]
+
+
+def test_resposta_curta_inventada_e_flagrada():
+    montagem = [{"titulo": "Oração Eucarística", "turnos": [
+        {"texto": "Aleluia, venha logo."},  # não consta no fonte
+    ]}]
+    sus = verificar_respostas_literais(FONTE_LIT, montagem)
+    assert len(sus) == 1, f"esperava 1 suspeita, veio: {sus}"
+
+
+def test_texto_longo_fora_da_regra_literal():
+    """Textos longos (>=4 palavras) não são 'respostas curtas' — a cobertura
+    palavra a palavra continua cuidando deles."""
+    montagem = [{"titulo": "Oração", "turnos": [
+        {"texto": "O Senhor esteja convosco e vos guarde no seu amor."},
+    ]}]
+    assert verificar_respostas_literais(FONTE_LIT, montagem) == []
 
 
 # --- Integração: 9 missas do banco (requer DB + PDFs; pula sem eles) ---

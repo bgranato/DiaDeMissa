@@ -379,11 +379,13 @@ def checar_texto_liturgico_vs_fonte(texto_limpo: str, missa: Missa) -> list[dict
     layout, fontes, cores, páginas ou qualquer elemento editorial.
     """
     try:
-        from app.services.verificador_lexical import verificar_lexico
+        from app.services.verificador_lexical import (
+            verificar_lexico, verificar_respostas_literais,
+        )
 
         blocos = [b.model_dump() for b in (missa.blocos or [])]
         suspeitas = verificar_lexico(texto_limpo, blocos, getattr(missa, "descricao", None))
-        return [
+        divs = [
             {
                 "severidade": "critica",
                 "escopo": "conteudo_liturgico",
@@ -394,6 +396,19 @@ def checar_texto_liturgico_vs_fonte(texto_limpo: str, missa: Missa) -> list[dict
             }
             for s in suspeitas
         ]
+        # Respostas curtas (≤3 palavras) precisam aparecer LITERALMENTE no PDF,
+        # na mesma ordem — vocabulário por palavra não basta (reordenação ou
+        # resposta inventada passaria despercebida).
+        for r in verificar_respostas_literais(texto_limpo, blocos):
+            divs.append({
+                "severidade": "critica",
+                "escopo": "conteudo_liturgico",
+                "local": f"{r['bloco']} · {r['campo']}",
+                "esperado_pdf": "resposta curta presente no PDF na mesma ordem",
+                "encontrado_montagem": r["texto"],
+                "detalhe": r["detalhe"],
+            })
+        return divs
     except Exception as e:  # noqa: BLE001
         logger.warning("checagem lexical falhou (%s) — publicação bloqueada", str(e)[:160])
         raise ConferenciaIndisponivel("não foi possível conferir o texto litúrgico contra o PDF") from e

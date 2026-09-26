@@ -168,6 +168,71 @@ def verificar_lexico(texto_limpo: str, blocos: list[dict], descricao: str | None
     return suspeitas
 
 
+# --- Ocorrência LITERAL de respostas curtas (ordem preservada) --------------
+
+# Respostas curtas (≤3 palavras significativas) só provam origem no folheto se
+# aparecerem LITERALMENTE no fonte na MESMA ordem — o vocabulário por palavra
+# não bastaria (ex.: "Glória a vós, Senhor." reordenada como "Senhor, glória a
+# vós." teria as mesmas palavras e não seria flagrada).
+_LIT_CURTA_MAX = 3
+MARCA_LITERAL = "[literal] resposta curta fora do fonte: "
+
+
+def _lit_significativas(texto: str) -> list[str]:
+    """Palavras com >=4 letras (respostas curtas não têm sigla P./T.)."""
+    return [
+        _key(w) for w in _palavras(texto)
+        if len(_key(w)) >= 4
+    ]
+
+
+def _fonte_literal_norm(texto_limpo: str) -> str:
+    """Texto-fonte normalizado para busca literal: minúsculas + espaços únicos."""
+    return re.sub(r"\s+", " ", unicodedata.normalize("NFC", texto_limpo or "").lower())
+
+
+def verificar_respostas_literais(texto_limpo: str, blocos: list[dict]) -> list[dict]:
+    """Respostas curtas da montagem têm de ocorrer LITERALMENTE no texto-fonte.
+
+    Cada suspeita: {bloco, campo, texto, detalhe}. Vazio = todas as respostas
+    curtas de P./T./L. existem no folheto na mesma ordem.
+    """
+    fonte = _fonte_literal_norm(texto_limpo)
+    if len(fonte) < 20:
+        return []
+    suspeitas: list[dict] = []
+    vistos: set[tuple[str, str]] = set()
+    for bd in blocos or []:
+        titulo = bd.get("titulo") or bd.get("tipo") or "?"
+        for campo, texto in _textos_do_bloco(bd):
+            sig = _lit_significativas(texto)
+            # resposta curta: falante (turno) ou resposta/resposta/versiculo
+            if not (1 <= len(sig) <= _LIT_CURTA_MAX):
+                continue
+            chave_norm = re.sub(r"\s+", " ", unicodedata.normalize("NFC", texto or "").lower()).strip()
+            if len(chave_norm) < 4:
+                continue
+            if chave_norm in fonte:
+                continue
+            # quebra de linha/hífen pode separar a resposta no fonte: tenta sem
+            # pontuação estruturada de quebra, mantendo a ordem das palavras
+            chave_so_palavras = " ".join(re.findall(r"[a-zà-ÿ]+", chave_norm))
+            if chave_so_palavras in re.sub(r"\s+", " ", re.sub(r"[^a-zà-ÿ ]+", " ", fonte)):
+                continue
+            par = (str(titulo), chave_norm)
+            if par in vistos:
+                continue
+            vistos.add(par)
+            suspeitas.append({
+                "bloco": str(titulo),
+                "campo": campo,
+                "texto": texto[:80],
+                "detalhe": (f"resposta curta {texto[:60]!r} não consta literal (ordem preservada) "
+                            f"no folheto-fonte"),
+            })
+    return suspeitas
+
+
 def modo() -> str:
     """'bloquear' (pendente_revisao) ou 'alertar' (só log/email). Default: alertar
     (medir falso-positivo antes de bloquear, conforme plano)."""

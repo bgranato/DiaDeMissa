@@ -95,9 +95,11 @@ def test_palavra_fora_do_pdf_e_divergencia_critica():
         "texto litúrgico autêntico do folheto", MissaComBloco()
     )
 
-    assert len(divergencias) == 1
-    assert divergencias[0]["severidade"] == "critica"
-    assert divergencias[0]["escopo"] == "conteudo_liturgico"
+    # Duas camadas acusam o mesmo texto inventado: o léxico (palavra ausente) e o
+    # literal (texto curto fora do fonte). Ambas críticas — publicação bloqueada.
+    assert len(divergencias) >= 1
+    assert all(d["severidade"] == "critica" for d in divergencias)
+    assert all(d["escopo"] == "conteudo_liturgico" for d in divergencias)
 
 
 def test_sem_pdf_celebrante_bloqueia_a_publicacao(monkeypatch):

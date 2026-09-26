@@ -640,6 +640,7 @@ def conferir_cobertura_liturgica(texto_fonte: str, missa: Missa) -> list[Achado]
     _checar_ancoras(src_norm, mont_norm, achados)
     _checar_cobertura_liturgica(src_norm, mont_norm, achados)
     _checar_resposta_preces_no_fonte(missa, src_norm, achados)
+    _checar_fonte_fino(missa, src_norm, achados)
     return achados
 
 
@@ -684,6 +685,167 @@ def _checar_resposta_preces_no_fonte(missa: Missa, src_norm: str, achados: list[
 
 
 # ---------------------------------------------------------------------------
+# Reforço fino: falas P/T/L, refrão, referência e título-número vs PDF-fonte
+# ---------------------------------------------------------------------------
+
+def _montar_verificador_fonte(src_norm: str):
+    """Tokens distintivos do texto-fonte normalizado + teste de presença.
+
+    Mesma normalização da cobertura litúrgica (`_ascii_fold` + descola número de
+    versículo + tolera truncagem de extração). Reutilizável pelas regras finas.
+    """
+    tokens = {
+        _ascii_fold(w.lstrip("0123456789"))
+        for w in src_norm.split()
+        if len(_ascii_fold(w.lstrip("0123456789"))) >= 5
+    }
+    def presente(w: str) -> bool:
+        if w in tokens:
+            return True
+        # fonte truncou o fim da palavra na extração ('aclamaçõ' vs 'aclamacoes'):
+        # um token da fonte começa igual e é até 2 letras mais curto.
+        return any(t.startswith(w) and 0 < len(t) - len(w) <= 2 for t in tokens)
+    return presente
+
+
+def _tokens_texto(texto: str) -> set[str]:
+    """Tokens distintivos (>=5 letras, sem número de versículo) de um texto da montagem."""
+    return {
+        _ascii_fold(w.lstrip("0123456789"))
+        for w in _norm(texto).split()
+        if len(_ascii_fold(w.lstrip("0123456789"))) >= 5
+    }
+
+
+def _checar_falantes_turnos(missa: Missa, src_norm: str, achados: list[Achado]) -> None:
+    """Cada turno de fala (P/T/L) tem de estar no folheto-fonte.
+
+    Duas camadas, ambas determinísticas:
+    - PALAVRAS: nenhum token distintivo do turno pode faltar no fonte (typo/invenção);
+    - LITERAL curta: resposta curta clássica ("Amém.", "Glória a vós, Senhor.",
+      "Ele está no meio de nós.") precisa aparecer literal (ordem preservada) no fonte.
+    """
+    presente = _montar_verificador_fonte(src_norm)
+    for b in missa.blocos:
+        ce = b.conteudo_estruturado or {}
+        turnos = ce.get("turnos") or []
+        for i, t in enumerate(turnos):
+            falante = (t.get("falante") or "").upper().strip()
+            if falante not in ("P", "T", "L"):
+                continue
+            texto = (t.get("texto") or "").strip()
+            tn = _norm(texto)
+            if not tn:
+                continue
+            faltando = sorted(
+                w for w in _tokens_texto(texto)
+                if not presente(w)
+            )
+            if faltando:
+                achados.append(Achado(
+                    SEV_ALTA, b.ordem, b.titulo or "", b.tipo,
+                    "fala_fora_do_folheto",
+                    f"turno {falante} #{i+1} com palavra(s) fora do folheto: "
+                    f"{', '.join(faltando[:6])} — {texto[:80]!r}",
+                ))
+                continue
+            # resposta curta: exige ocorrência LITERAL (ordem + grafia) no fonte
+            significantes = [
+                w for w in tn.split()
+                if len(_ascii_fold(w.lstrip("0123456789"))) >= 4
+            ]
+            if 1 <= len(significantes) <= 3 and len(tn) >= 3 and tn not in src_norm:
+                achados.append(Achado(
+                    SEV_ALTA, b.ordem, b.titulo or "", b.tipo,
+                    "fala_curta_fora_do_folheto",
+                    f"resposta curta {falante} {texto[:60]!r} não consta literal no folheto-fonte",
+                ))
+
+
+def _checar_refrao_no_fonte(missa: Missa, src_norm: str, achados: list[Achado]) -> None:
+    """Cada linha do campo `refrao` de um canto tem de existir no folheto-fonte."""
+    presente = _montar_verificador_fonte(src_norm)
+    for b in missa.blocos:
+        ce = b.conteudo_estruturado or {}
+        ref = ce.get("refrao")
+        if isinstance(ref, str):
+            ref = [ref]
+        if not ref:
+            continue
+        for i, linha in enumerate(ref):
+            tn = _norm(linha)
+            if not tn or len(tn) < 10:
+                continue
+            if tn in src_norm:
+                continue
+            faltando = sorted(w for w in _tokens_texto(linha) if not presente(w))
+            if faltando:
+                achados.append(Achado(
+                    SEV_ALTA, b.ordem, b.titulo or "", b.tipo,
+                    "refrao_fora_do_folheto",
+                    f"linha {i+1} do refrão fora do folheto: {linha[:60]!r} "
+                    f"(faltam {', '.join(faltando[:6])})",
+                ))
+
+
+def _checar_referencia_no_fonte(missa: Missa, src_norm: str, achados: list[Achado]) -> None:
+    """A referência bíblica do bloco (normalizada) precisa existir no folheto-fonte.
+
+    Tolerância de extração: o extrator do PDF lê '10' como 'l0' (L minúsculo +
+    zero, caso real Sl 84(85),9ab-10). Dobramos 'l'→'1' do LADO DA REFERÊNCIA
+    apenas, nas duas pontas, pra casar sem afrouxar a checagem de palavras."""
+    src_l1 = src_norm.replace("l", "1")
+    for b in missa.blocos:
+        ce = b.conteudo_estruturado or {}
+        ref = ce.get("referencia")
+        if not ref:
+            continue
+        rn = _norm(ref)
+        if not rn:
+            continue
+        if rn in src_norm:
+            continue
+        if rn.replace("l", "1") in src_l1:
+            continue  # só artefato 'l'→'1' da extração do PDF
+        achados.append(Achado(
+            SEV_ALTA, b.ordem, b.titulo or "", b.tipo,
+            "referencia_fora_do_folheto",
+            f"referência {ref!r} não consta no folheto-fonte",
+        ))
+
+
+def _checar_numero_titulo_vs_fonte(missa: Missa, src_norm: str, achados: list[Achado]) -> None:
+    """Título do bloco numerado (numero_folheto N) aparece literal no fonte (1:1)."""
+    for b in missa.blocos:
+        ce = b.conteudo_estruturado or {}
+        num = ce.get("numero_folheto")
+        if not isinstance(num, int) or num < 1:
+            continue
+        tn = _norm(b.titulo or "")
+        if not tn or len(tn) < 5:
+            continue
+        if tn in src_norm:
+            continue
+        achados.append(Achado(
+            SEV_ALTA, b.ordem, b.titulo or "", b.tipo,
+            "titulo_fora_do_folheto",
+            f"título #{num} {b.titulo!r} não consta no folheto-fonte",
+        ))
+
+
+def _checar_fonte_fino(missa: Missa, src_norm: str, achados: list[Achado]) -> None:
+    """Conjunto das checagens finas contra o folheto-fonte (SEM LLM).
+
+    Cobre a fidelidade que antes dependia do conferente multimodal: falas P/T/L
+    (palavras + resposta curta literal), refrão, referência bíblica e título-número.
+    """
+    _checar_falantes_turnos(missa, src_norm, achados)
+    _checar_refrao_no_fonte(missa, src_norm, achados)
+    _checar_referencia_no_fonte(missa, src_norm, achados)
+    _checar_numero_titulo_vs_fonte(missa, src_norm, achados)
+
+
+# ---------------------------------------------------------------------------
 # Auditoria de uma missa
 # ---------------------------------------------------------------------------
 
@@ -721,6 +883,7 @@ def auditar_missa(missa: Missa, texto_fonte: str | None = None) -> RelatorioMiss
         _checar_cobertura(src_norm, mont_norm, rel.achados)
         _checar_cobertura_liturgica(src_norm, mont_norm, rel.achados)
         _checar_resposta_preces_no_fonte(missa, src_norm, rel.achados)
+        _checar_fonte_fino(missa, src_norm, rel.achados)
     return rel
 
 
