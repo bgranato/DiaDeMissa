@@ -79,6 +79,27 @@ class RelatorioMissa:
 # Regras de auditoria
 # ---------------------------------------------------------------------------
 
+def _ce(b) -> dict:
+    """Estrutura rica do bloco, uniforme entre SQLAlchemy e Pydantic.
+
+    ``BlocoLiturgico`` (persistido) guarda o dump completo do bloco em
+    ``conteudo_estruturado``. Os blocos da montagem em memória são a união
+    Pydantic (``Dialogo``, ``Oracao``, ``Canto``...) e NÃO têm esse atributo —
+    cada tipo expõe ``turnos``, ``refrao``, ``texto``... direto no modelo, e o
+    ``model_dump()`` devolve exatamente a mesma forma do JSON persistido.
+    Sem essa ponte, qualquer checagem levanta AttributeError e BLOQUEIA a
+    publicação (regressão real de 2026-10-04).
+    """
+    ce = getattr(b, "conteudo_estruturado", None)
+    if isinstance(ce, dict):
+        return ce
+    dump = getattr(b, "model_dump", None)
+    if callable(dump):
+        d = dump()
+        return d if isinstance(d, dict) else {}
+    return {}
+
+
 def _conteudo_vazio(b: BlocoLiturgico) -> bool:
     """Bloco sem conteúdo nem turnos nem estrutura útil.
 
@@ -86,16 +107,16 @@ def _conteudo_vazio(b: BlocoLiturgico) -> bool:
     """
     if (b.tipo or "").lower() == "secao":
         return False
-    if (b.conteudo or "").strip():
+    if (getattr(b, "conteudo", None) or "").strip():
         return False
-    ce = b.conteudo_estruturado or {}
+    ce = _ce(b)
     if any(ce.get(k) for k in ("turnos", "refrao", "estrofes", "texto", "versiculos")):
         return False
     return True
 
 
 def _turnos_lista(b: BlocoLiturgico) -> list[dict]:
-    return (b.conteudo_estruturado or {}).get("turnos") or []
+    return _ce(b).get("turnos") or []
 
 
 def _eh_oracao_dos_fieis(b: BlocoLiturgico) -> bool:
@@ -157,11 +178,12 @@ def _checar_artefatos_texto(b: BlocoLiturgico, achados: list[Achado]) -> None:
         (r"Entrada:\s*\w+;\s*Ofertas:", "creditos_no_texto", SEV_ALTA),
     ]
     textos = []
-    if b.conteudo:
-        textos.append(("conteudo", b.conteudo))
+    conteudo = getattr(b, "conteudo", None) or ""
+    if conteudo:
+        textos.append(("conteudo", conteudo))
     for t in _turnos_lista(b):
         textos.append(("turno", t.get("texto") or ""))
-    ce = b.conteudo_estruturado or {}
+    ce = _ce(b)
     if ce.get("texto"):
         textos.append(("texto", ce["texto"]))
     for est in (ce.get("estrofes") or []):
@@ -198,10 +220,10 @@ def _checar_tamanho_minimo(b: BlocoLiturgico, achados: list[Achado]) -> None:
     minimo = minimos_por_tipo.get(tipo_lower)
     if not minimo:
         return
-    tamanho = len(b.conteudo or "") + sum(
+    tamanho = len(getattr(b, "conteudo", None) or "") + sum(
         len(t.get("texto", "") or "") for t in _turnos_lista(b)
     )
-    ce = b.conteudo_estruturado or {}
+    ce = _ce(b)
     if ce.get("texto"):
         tamanho += len(ce["texto"])
     for v in (ce.get("versiculos") or []):
@@ -219,10 +241,10 @@ def _checar_canto_vazio(b: BlocoLiturgico, achados: list[Achado]) -> None:
     if (b.tipo or "").lower() not in ("canto", "canto_entrada", "canto_comunhao",
                                        "canto_ofertorio", "canto_final"):
         return
-    ce = b.conteudo_estruturado or {}
+    ce = _ce(b)
     tem_refrao = bool(ce.get("refrao"))
     tem_estrofe = bool(ce.get("estrofes"))
-    tem_conteudo = bool((b.conteudo or "").strip())
+    tem_conteudo = bool((getattr(b, "conteudo", None) or "").strip())
     if not (tem_refrao or tem_estrofe or tem_conteudo):
         achados.append(Achado(
             SEV_MEDIA, b.ordem, b.titulo or "", b.tipo,
@@ -253,7 +275,7 @@ def _checar_template_generico(missa: Missa, achados: list[Achado]) -> None:
         if (b.tipo or "").lower() != "canto":
             continue
         cantos_total += 1
-        ce = b.conteudo_estruturado or {}
+        ce = _ce(b)
         if not (ce.get("refrao") or ce.get("estrofes")):
             cantos_vazios += 1
     if cantos_total >= 3 and cantos_vazios >= cantos_total - 1:
@@ -415,7 +437,7 @@ def _checar_tipo_renderizavel(b: BlocoLiturgico, achados: list[Achado]) -> None:
 def _checar_posicao_refrao(b: BlocoLiturgico, achados: list[Achado]) -> None:
     if (b.tipo or "").lower() != "canto":
         return
-    ce = b.conteudo_estruturado or {}
+    ce = _ce(b)
     pos = ce.get("posicao_refrao_apos")
     if pos is None or not (ce.get("refrao")):
         return
@@ -433,8 +455,8 @@ def _checar_referencia_leitura(b: BlocoLiturgico, achados: list[Achado]) -> None
     if tipo not in ("leitura", "primeira_leitura", "segunda_leitura",
                     "evangelho", "salmo", "salmo_responsorial"):
         return
-    ce = b.conteudo_estruturado or {}
-    if not (ce.get("referencia") or b.referencia):
+    ce = _ce(b)
+    if not (ce.get("referencia") or getattr(b, "referencia", None)):
         achados.append(Achado(
             SEV_ALTA, b.ordem, b.titulo or "", b.tipo,
             "leitura_sem_referencia", "Leitura/Salmo/Evangelho sem referência bíblica",
@@ -443,7 +465,7 @@ def _checar_referencia_leitura(b: BlocoLiturgico, achados: list[Achado]) -> None
 
 def _checar_numeracao(missa: Missa, achados: list[Achado]) -> None:
     nums = [ce.get("numero_folheto") for b in missa.blocos
-            for ce in [b.conteudo_estruturado or {}]
+            for ce in [_ce(b)]
             if isinstance(ce.get("numero_folheto"), int)]
     if len(nums) < 5:  # missa sem numeração (ex.: liturgia diária CNBB) — não checa
         return
@@ -727,7 +749,7 @@ def _checar_falantes_turnos(missa: Missa, src_norm: str, achados: list[Achado]) 
     """
     presente = _montar_verificador_fonte(src_norm)
     for b in missa.blocos:
-        ce = b.conteudo_estruturado or {}
+        ce = _ce(b)
         turnos = ce.get("turnos") or []
         for i, t in enumerate(turnos):
             falante = (t.get("falante") or "").upper().strip()
@@ -766,7 +788,7 @@ def _checar_refrao_no_fonte(missa: Missa, src_norm: str, achados: list[Achado]) 
     """Cada linha do campo `refrao` de um canto tem de existir no folheto-fonte."""
     presente = _montar_verificador_fonte(src_norm)
     for b in missa.blocos:
-        ce = b.conteudo_estruturado or {}
+        ce = _ce(b)
         ref = ce.get("refrao")
         if isinstance(ref, str):
             ref = [ref]
@@ -796,7 +818,7 @@ def _checar_referencia_no_fonte(missa: Missa, src_norm: str, achados: list[Achad
     apenas, nas duas pontas, pra casar sem afrouxar a checagem de palavras."""
     src_l1 = src_norm.replace("l", "1")
     for b in missa.blocos:
-        ce = b.conteudo_estruturado or {}
+        ce = _ce(b)
         ref = ce.get("referencia")
         if not ref:
             continue
@@ -817,7 +839,7 @@ def _checar_referencia_no_fonte(missa: Missa, src_norm: str, achados: list[Achad
 def _checar_numero_titulo_vs_fonte(missa: Missa, src_norm: str, achados: list[Achado]) -> None:
     """Título do bloco numerado (numero_folheto N) aparece literal no fonte (1:1)."""
     for b in missa.blocos:
-        ce = b.conteudo_estruturado or {}
+        ce = _ce(b)
         num = ce.get("numero_folheto")
         if not isinstance(num, int) or num < 1:
             continue
