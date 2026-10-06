@@ -157,7 +157,11 @@ P. EVANGELHO — PREÂMBULO COMPLETO (NUNCA descarte, sem inventar). No bloco do
    trazer a saudação e a proclamação EXATAMENTE como no folheto, na ordem:
    "O Senhor esteja convosco. Ele está no meio de nós. <FÓRMULA> do Evangelho de
    Jesus Cristo segundo [Mateus/Marcos/Lucas/João]. Glória a vós, Senhor."
-   (inclua só o que o folheto tiver). ATENÇÃO à <FÓRMULA>: o folheto imprime
+   (inclua só o que o folheto tiver). ATENÇÃO: quando o folheto imprimir os
+   turnos com falante P./T. ("P. O Senhor esteja convosco." / "T. Ele está no
+   meio de nós."), PRESERVE cada fala como linha própria com o marcador de
+   falante — não funda o diálogo num parágrafo corrido sem os marcadores.
+   ATENÇÃO à <FÓRMULA>: o folheto imprime
    "Proclamação do Evangelho…" OU "Conclusão do Evangelho…" (esta última quando a
    perícope é o TRECHO FINAL daquele Evangelho, ex.: Mt 28,16-20). COPIE a palavra
    EXATAMENTE como está impressa — "Proclamação" ou "Conclusão" — NUNCA normalize
@@ -165,6 +169,10 @@ P. EVANGELHO — PREÂMBULO COMPLETO (NUNCA descarte, sem inventar). No bloco do
    ("Naquele tempo, ...", "Naquela ocasião, ...") NÃO pode sumir: coloque-a no
    INÍCIO do texto do PRIMEIRO versículo, mantendo o número.
    Ex.: {"numero":25,"texto":"Naquele tempo, Jesus pôs-se a dizer: Eu te louvo..."}.
+    O `numero` do versículo pode levar SUFIXO DE LETRA como o folheto imprime
+   (ex.: "20c", "24-27a", "16a"); nesses casos, represente-o como STRING, com a
+   letra exata do folheto, e separe o número do texto (nunca cole "20c" ao texto:
+   "20cCristo" é erro de extração; emita {"numero":"20c","texto":"Cristo ..."}).
 
 Q. "OREMOS:" — nas orações que COMEÇAM com "OREMOS:" (tipicamente Coleta e
    Depois da Comunhão), PRESERVE o "OREMOS:" no início do texto/turno; nunca
@@ -253,7 +261,7 @@ tipos:
 - {"tipo":"canto",...,"refrao":[str],"estrofes":[[str]],"referencia":str|null,"posicao_refrao_apos":int|null}
 - {"tipo":"salmo",...,"referencia":str,"refrao":[str],"estrofes":[[str]]}
 - {"tipo":"aclamacao",...,"referencia":str,"refrao":[str],"versiculo":str}
-- {"tipo":"leitura",...,"categoria":"primeira_leitura"|"segunda_leitura"|"evangelho","referencia":str,"introducao":str,"versiculos":[{"numero":int,"texto":str}],"conclusao":str|null,"resposta":str|null}
+- {"tipo":"leitura",...,"categoria":"primeira_leitura"|"segunda_leitura"|"evangelho","referencia":str,"introducao":str,"versiculos":[{"numero":int|string,"texto":str}],"conclusao":str|null,"resposta":str|null}
 - {"tipo":"antifona",...,"referencia":str|null,"texto":str}
 - {"tipo":"oracao",...,"texto":str,"resposta":str|null,"referencia":str|null}
 - {"tipo":"dialogo",...,"turnos":[{"falante":"P"|"T"|"L"|"V"|"R"|"rubrica","texto":str}],"referencia":str|null}
@@ -278,10 +286,17 @@ def build_user_prompt(texto_limpo: str, data_hint: str | None = None) -> str:
     )
 
 
-def build_user_prompt_mm(texto_ocr: str, data_hint: str | None = None) -> str:
-    """Prompt multimodal: o PDF anexado é a FONTE DA VERDADE; o texto é só auxílio."""
+def build_user_prompt_mm(texto_ocr: str, data_hint: str | None = None,
+                         incluir_texto: bool = True) -> str:
+    """Prompt multimodal: o PDF anexado é a FONTE DA VERDADE; o texto é só auxílio.
+
+    incluir_texto=False é experimental (MONTAGEM_SEM_TEXTO_AUXILIAR=1): economiza
+    ~6-9k tokens por chamada, mas reduz a confiabilidade do JSON da montagem em
+    Sonnet (pode emitir blocos com tipo nulo). Mantido como opção auditável;
+    default permanece com texto.
+    """
     hint = f"\nDica de data (use se o cabeçalho não trouxer): {data_hint}\n" if data_hint else ""
-    return (
+    base = (
         f"{REGRAS_FOLHETO}\n\n{SCHEMA_SPEC}\n{hint}\n"
         "O PDF ANEXADO é o folheto OFICIAL e é a FONTE DA VERDADE. Leia o PDF e "
         "estruture-o em JSON seguindo TODAS as regras acima. Preserve fielmente, "
@@ -289,7 +304,16 @@ def build_user_prompt_mm(texto_ocr: str, data_hint: str | None = None) -> str:
         "de intervalo, ex.: 'Ct 3,1-4a' — nunca 'Ct 3,14a'); rubricas entre "
         "parênteses; a nota '(mais breve X,Y-Z)' na referência do Evangelho; a caixa "
         "(maiúsculas/minúsculas) da consagração; e todos os versículos/estrofes.\n"
-        "O TEXTO abaixo é apenas um AUXÍLIO de extração automática e PODE CONTER "
+    )
+    if not incluir_texto:
+        return (
+            base
+            + "Nesta execução não há texto auxiliar: leia e extraia tudo "
+            "diretamente do PDF anexado.\nRetorne só o JSON."
+        )
+    return (
+        base
+        + "O TEXTO abaixo é apenas um AUXÍLIO de extração automática e PODE CONTER "
         "ERROS (hífens perdidos, acentos trocados, palavras coladas). Quando o texto "
         "divergir do PDF, CONFIE NO PDF.\nRetorne só o JSON.\n\n"
         "=== TEXTO (auxílio, pode conter erros) ===\n"

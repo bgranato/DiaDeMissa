@@ -88,7 +88,9 @@ class Canto(BlocoBase):
 
 
 class Versiculo(BaseModel):
-    numero: int
+    # Aceita sufixo de letra de versículo do folheto ("20c", "27a", "16a").
+    # Fonte de verdade: PDF oficial; o número com letra é conteúdo litúrgico.
+    numero: int | str
     texto: str
 
     @field_validator("texto", mode="after")
