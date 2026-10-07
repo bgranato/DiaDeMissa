@@ -1,6 +1,7 @@
 """Freios de gasto de LLM — nenhum processo automático pode gastar ilimitado.
 
-Três freios, todos consultados por `pode_montar(data_missa)` antes de qualquer montagem:
+Duas barreiras BLOQUEANTES + um alerta, consultados por `pode_montar(data_missa)`
+antes de qualquer montagem:
 
   a) DISJUNTOR DE CRÉDITO (402): ao detectar erro de crédito/quota, `bloquear_credito()`
      trava novas montagens até `liberar_credito()` — que só acontece após o SUCESSO de
@@ -8,8 +9,10 @@ Três freios, todos consultados por `pode_montar(data_missa)` antes de qualquer 
      pendente_revisao (o alerta de emergência já avisou).
   b) TETO DE TENTATIVAS/DIA POR MISSA: no máx. MONITOR_MAX_TENTATIVAS_MISSA_DIA (default 2)
      montagens por (missa, dia). Evita retry em loop da mesma missa.
-  c) ORÇAMENTO DIÁRIO: se o gasto do dia em custo_llm passar de MONITOR_TETO_DIARIO
-     (default US$ 3), pausa montagens automáticas + e-mail de alerta.
+  c) ORÇAMENTO DIÁRIO: APENAS ALERTA (e-mail com cooldown), NUNCA bloqueia montagem.
+     A montagem da missa do dia é prioridade; se o gasto passar de MONITOR_TETO_DIARIO
+     (default US$ 3), o dono é avisado e a montagem segue (pode_montar retorna True
+     com motivo "orçamento..." para o chamador disparar o alerta).
 
 Estado persistido em data/freios_gasto.json (compartilhado pelos workers). Path via
 FREIOS_STATE_FILE (usado nos testes).
@@ -132,14 +135,17 @@ def liberar_credito() -> None:
 
 # ------------------------------------------------------------------ decisão
 def pode_montar(data_missa: str) -> tuple[bool, str]:
-    """(pode, motivo). Ordem: disjuntor de crédito → orçamento diário → teto/missa."""
+    """(pode, motivo). Ordem: disjuntor de crédito → teto/missa.
+    Orçamento diário NÃO bloqueia: se estourado, retorna (True, "orçamento...")
+    para o chamador disparar o alerta e montar mesmo assim (montagem é prioridade)."""
     if credito_bloqueado():
         return False, "disjuntor de crédito ativo (402) — aguardando recarga/sonda ou liberação manual"
-    gasto = gasto_do_dia()
-    teto = teto_diario()
-    if gasto >= teto:
-        return False, f"orçamento diário estourado: US$ {gasto:.2f} ≥ teto US$ {teto:.2f}"
     n = tentativas_hoje(data_missa)
     if n >= max_tentativas_dia():
         return False, f"teto de tentativas/dia atingido para {data_missa}: {n}/{max_tentativas_dia()}"
+    if orcamento_estourado():
+        return True, (
+            f"orçamento diário estourado: US$ {gasto_do_dia():.2f} ≥ teto US$ {teto_diario():.2f}"
+            " — montagem segue (prioridade); dispare alerta"
+        )
     return True, "ok"

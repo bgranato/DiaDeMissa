@@ -157,16 +157,18 @@ def montar_e_publicar(db: Session, data_iso: str, pdf_bytes: bytes,
         return {"data": data_iso, "resultado": "bloqueado_sem_fontes_oficiais", "conferida": False,
                 "iteracoes": 0, "custo_usd": 0.0}
     # FREIOS DE GASTO — nenhum processo automático gasta ilimitado. Consulta antes de
-    # qualquer chamada LLM: disjuntor de crédito (402), orçamento diário, teto/missa.
+    # qualquer chamada LLM: disjuntor de crédito (402), teto/missa. Orçamento diário é
+    # APENAS alerta: a montagem da missa do dia é prioridade e nunca é bloqueada por ele.
     from app.services import freios_gasto
     pode, motivo = freios_gasto.pode_montar(data_iso)
+    if pode and "orçamento" in motivo:
+        # orçamento estourado: alerta (cooldown 24h) mas monta mesmo assim
+        logger.warning("AVISO de orçamento em %s (%s) — montando mesmo assim (prioridade)",
+                       data_iso, motivo)
+        from app.services import monitor_llm
+        monitor_llm.alerta_orcamento_diario(freios_gasto.gasto_do_dia(), freios_gasto.teto_diario())
     if not pode:
         logger.warning("montagem BLOQUEADA por freio (%s) para %s", motivo, data_iso)
-        # orçamento estourado dispara e-mail (com cooldown); demais motivos já foram
-        # sinalizados no seu próprio canal (emergência/alerta).
-        if "orçamento" in motivo:
-            from app.services import monitor_llm
-            monitor_llm.alerta_orcamento_diario(freios_gasto.gasto_do_dia(), freios_gasto.teto_diario())
         if not boa_existe and existente is not None:
             existente.status_processamento = "pendente_revisao"
             db.add(existente); db.commit()

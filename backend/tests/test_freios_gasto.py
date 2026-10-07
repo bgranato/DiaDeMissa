@@ -32,16 +32,17 @@ def _gasto(Session, usd):
     s.commit(); s.close()
 
 
-# --- 2b: orçamento diário ---
-def test_orcamento_diario_bloqueia(env):
+# --- 2b: orçamento diário — APENAS alerta, NUNCA bloqueia (montagem é prioridade) ---
+def test_orcamento_diario_alerta_sem_bloquear(env):
     Session = env
     _gasto(Session, 1.5)
     assert fg.gasto_do_dia() == 1.5
-    ok, _ = fg.pode_montar("2026-07-27")
-    assert ok is True
+    ok, motivo = fg.pode_montar("2026-07-27")
+    assert ok is True and motivo == "ok"
     _gasto(Session, 2.0)  # total 3.5 >= 3
     ok, motivo = fg.pode_montar("2026-07-27")
-    assert ok is False and "orçamento" in motivo
+    # estourou o teto → AINDA PODE montar, mas o motivo sinaliza o alerta
+    assert ok is True and "orçamento" in motivo
 
 
 # --- 2a: teto de tentativas/dia por missa ---
