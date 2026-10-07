@@ -34,6 +34,20 @@ backend/.venv/bin/python backend/scripts/verificar_regressao.py YYYY-MM-DD
 
 O crítico não deve ser ignorado via configuração. Quando o provedor estiver indisponível, corrija a disponibilidade ou faça revisão humana; não publique fallback textual.
 
+## Sentinela do crítico (health-check e recomeço)
+
+Uma revisão de crítico delegada a um agente (desenvolvimento/edição de código, não a conferência da missa) segue esta rotina para não travar o andamento:
+
+1. **Deadline declarado antes de lançar** — o prompt do crítico declara: escopo exato (arquivos/diff), referência para julgar, formato da saída e tempo-alvo (5 minutos; resposta parcial vale e deve ser marcada `PARCIAL`).
+2. **Sentinela** — junto com o crítico, disparar um agente mínimo de verificação: ele apenas faz `resume` da sessão do crítico (`task_id`) e reporta a saúde.
+   - **Travado** = não retorna no deadline; é cancelado/abortado sem saída; o `resume` devolve erro ou silêncio além do prazo; ou auto-reporta bloqueio.
+   - **Trabalhando** = retorno parcial, resumo de progresso ou saída verificável → aguardar mais um ciclo (no máximo o dobro do deadline).
+3. **Cancelar e recomeçar de onde parou** — se travado, o orquestrador:
+   - primeiro tenta `resume` com o mesmo `task_id`, anexando a saída parcial já obtida;
+   - se o `resume` não produzir revisão em um ciclo, relança um crítico NOVO com o mesmo prompt + contexto já coletado (diff, testes, achados parciais), marcado `relancado` — nunca recomeça do zero sem esse contexto.
+4. **Limite** — no máximo 2 relançamentos por rodada. Se ainda assim não houver revisão verificável, a rodada é registrada como `critico_indisponivel` e a decisão passa à revisão humana. Para diffs pequenos, um teste de regressão que reproduz o defeito e passa é evidência objetiva para seguir adiante, com a ressalva registrada — nunca como "revisado".
+5. **Registro** — todo cancelamento/relançamento entra no relatório final ao usuário sob `evidencias_de_revisao`: tarefa, motivo, n.º de relançamentos e saídas parciais.
+
 ## Frontends
 
 O painel de revisão mostra as divergências e bloqueia a ação de publicar enquanto houver crítica, não houver conferência aprovada ou o limite tiver sido atingido. O servidor repete essa regra e devolve `409` se alguém tentar contornar a interface. Antes de um release web, execute `npm --prefix web run typecheck`, `npm --prefix web test` e `npm --prefix web run build`.

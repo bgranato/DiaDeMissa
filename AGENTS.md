@@ -9,3 +9,5 @@ Use este protocolo em toda mudança não trivial de código, comportamento, dado
 5. Antes de deploy, registre a evidência adequada ao risco: testes, typecheck/build, revisão independente e verificação pública.
 
 Para montagem de missas, o PDF oficial é a referência. O gate cobre exclusivamente conteúdo e hierarquia litúrgicos; projeto editorial, diagramação e paginação ficam fora do escopo. Consulte `docs/GAUNTLET_LOOP.md` para o contrato operacional completo.
+
+Se um crítico delegado a um agente (revisão de mudança de código) travar, cancelar ou não retornar no deadline: use a rotina de **sentinela do crítico** em `docs/GAUNTLET_LOOP.md` — verificar saúde, cancelar, recomeçar de onde parou (resume/relançamento com contexto) e registrar — em vez de travar o andamento ou ignorar a revisão.
