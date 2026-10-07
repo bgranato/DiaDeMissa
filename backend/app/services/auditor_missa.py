@@ -339,13 +339,26 @@ def _texto_montagem(missa: Missa) -> str:
     """
     partes: list[str] = []
     # Nível da missa (casa com masthead/créditos/parágrafo de abertura do folheto).
+    # A montagem em memória é Pydantic (``titulo_celebracao`` + ``Creditos``);
+    # o legado ORM usa ``celebracao`` + dict de créditos. Aceita os DOIS — senão
+    # a cobertura acusa 'faltando' (cardeal, kolling, tempesta, comum...) em toda
+    # montagem nova: nenhuma missa com créditos/celebração passaria no gate.
     for campo in ("celebracao", "descricao", "observacoes", "categoria"):
         v = getattr(missa, campo, None)
         if isinstance(v, str):
             partes.append(v)
+    v_celebracao = getattr(missa, "titulo_celebracao", None)
+    if isinstance(v_celebracao, str):
+        partes.append(v_celebracao)
     cred = getattr(missa, "creditos_cantos", None)
     if isinstance(cred, dict):
         partes.extend([str(x) for x in cred.values() if x])
+    elif cred is not None:
+        dump = getattr(cred, "model_dump", None)
+        if callable(dump):
+            valores = dump()
+            if isinstance(valores, dict):
+                partes.extend([str(x) for x in valores.values() if x])
 
     def adicionar_textos(valor) -> None:
         """Percorre o dump Pydantic sem assumir a forma de um bloco."""

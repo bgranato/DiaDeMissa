@@ -271,6 +271,71 @@ def test_conferente_ignora_posicao_do_refrao():
     assert "nunca é divergência por si só" in loop.INSTR_CONF
 
 
+def test_cobertura_enxerga_celebracao_e_creditos_pydantic():
+    """Regressão 07/10: a cobertura nunca pode acusar 'faltando' os créditos e
+    a celebração quando eles ESTÃO na montagem.
+
+    A montagem em memória é Pydantic (``titulo_celebracao`` + ``Creditos``);
+    antes, ``_texto_montagem`` só lia campos ORM (``celebracao`` + dict) — e a
+    cobertura marcava cardeal/kolling/tempesta/comum como omissos em TODA
+    montagem nova (falso-positivo MÉDIA que bloqueava a publicação).
+    """
+    from app.schema.missa import Creditos, Missa, Oracao
+    from app.services.auditor_missa import conferir_cobertura_liturgica
+
+    historia = (
+        "Hoje celebramos o vigésimo oitavo domingo do tempo comum "
+        "e ouvimos a parábola das bodas do filho do rei quando Jesus "
+        "voltou a falar em parábolas aos sumos sacerdotes e aos anciãos "
+        "do povo dizendo que o reino dos céus é semelhante a um rei que "
+        "preparou a festa de casamento do seu filho e enviou os seus servos "
+        "para chamar os convidados mas eles não quiseram vir então mandou "
+        "outros servos dizendo que o banquete estava pronto com bois e "
+        "animais cevados e os convidados porém não deram atenção e foram "
+        "um para o seu campo outro para o seu negócio e os demais agarraram "
+        "os servos e os maltrataram e os mataram o rei então indignado "
+        "enviou as suas tropas e depois disse aos servos que a festa estava "
+        "pronta mas os convidados não eram dignos ide pois às encruzilhadas "
+        "dos caminhos e convidai todos os que encontrardes tanto maus como "
+        "bons e a sala encheu-se de convidados quando o rei entrou viu um "
+        "homem sem o traje de festa e mandou amarrá-lo lá fora ali haverá "
+        "choro e ranger de dentes "
+    )
+    montagem = Missa(
+        data="2026-10-11",
+        ano_liturgico="C",
+        titulo_celebracao="28º Domingo do Tempo Comum",
+        categoria="Domingo",
+        creditos_cantos=Creditos(
+            entrada="Ir. Míria T. Kolling",
+            ofertas="Fr. Luiz Turra",
+            comunhao="Ir. Míria T. Kolling",
+            final="Orani João Cardeal Tempesta, O. Cist. e Maestro Marcos Paulo Mendes",
+        ),
+        blocos=[
+            Oracao(
+                tipo="oracao", ordem=1,
+                titulo="Canto de Entrada",
+                texto=historia,
+            )
+        ],
+    )
+    fonte = (
+        historia
+        + "Míria Kolling Turra Orani Cardeal Tempesta Marcos Paulo Mendes "
+        + "comum celebrante religiosamente arquidiocesano este convite é para todos"
+    )
+    achados = conferir_cobertura_liturgica(fonte, montagem)
+    detalhes = " ".join(a.detalhe for a in achados).lower()
+
+    # Créditos e celebração estão na montagem → não podem constar como omissos.
+    for palavra in ("kolling", "tempesta", "cardeal", "orani", "comum", "mendes"):
+        assert palavra not in detalhes, f"falso positivo de cobertura para {palavra!r}: {detalhes}"
+
+    # Controle positivo: palavra verdadeiramente ausente continua sendo acusada.
+    assert "religiosamente" in detalhes
+
+
 # ---------------------------------------------------------------------------
 # Numeração do folheto: o montador nunca inventa e o revisor nunca deixa passar.
 # ---------------------------------------------------------------------------

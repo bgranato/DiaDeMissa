@@ -199,14 +199,22 @@ T. RUBRICAS ENTRE PARÊNTESES (gestos/indicações) — preserve, no MESMO ponto
    A nota de perícope curta do Evangelho "(mais breve X,Y-Z)" também deve ser
    preservada: acrescente-a ao final do campo "referencia" do Evangelho, exatamente
    como no folheto (ex.: "Mt 13,24-43 (mais breve 13,24-30)").
+   Símbolos de gesto impressos NO TEXTO também fazem parte dele: preserve o "="
+   (sinal da cruz que o presidente traça) — ex.: "Pai e Filho = e Espírito Santo,
+   desça sobre vós" (copie o "=" no mesmo ponto do folheto; nunca o troque por
+   vírgula nem o omita).
 
 U. FORMA BREVE DO EVANGELHO — COLCHETES: além da nota "(mais breve X,Y-Z)" na
    referência (regra T), PRESERVE os colchetes "[" e "]" que o folheto imprime no
    CORPO do Evangelho para delimitar o trecho da leitura mais breve. Mantenha-os
-   DENTRO do texto dos versículos: o "[" abre no início do primeiro versículo da
-   forma breve e o "]" fecha no fim do último (ex.: o versículo começa com
-   "[Jesus contou outra parábola…" e o versículo final termina "…no meu celeiro!']").
-   Não invente colchetes onde o folheto não os traz.
+   DENTRO do texto dos versículos: o "[" abre EXATAMENTE no ponto impresso —
+   tipicamente antes do número do primeiro versículo da forma breve, com a
+   locução introdutória impressa fora (ex.: "NAQUELE TEMPO, [¹Jesus voltou a
+   falar em parábolas…" → o "[" vem antes do ¹ e "NAQUELE TEMPO," fica FORA do
+   colchete) — e o "]" fecha no fim do último versículo da forma breve
+   (ex.: …"…no meu celeiro!']"). Não desloque o colchete para incluir/excluir
+   partes que o folheto mantém fora dele, e não invente colchetes onde o folheto
+   não os traz.
 
 V. ORAÇÃO DOS FIÉIS — NUMERAÇÃO DAS INTENÇÕES: preserve a numeração impressa das
    intenções ("1.", "2.", "3.", "4."). Cada intenção é um turno próprio cujo texto

@@ -505,7 +505,7 @@ INSTR_CONF = (
     "Também ignore uma repetição visual do refrão ou resposta quando a montagem a guarda "
     "corretamente uma única vez. Ignore também a posição do refrão dentro do canto: o "
     "campo `posicao_refrao_apos` é recalculado por código a partir do texto do PDF "
-    "sempre que o refrão é localizado nele; 0 significa "
+    "sempre que o refrão é localizado nele; 0 "
     "significa 'refrão antes das estrofes' — nunca é divergência por si só.\n"
     'Responda SOMENTE JSON: {"divergencias":[{"severidade":"critica|baixa","escopo":"conteudo_liturgico|hierarquia_liturgica","local":"onde",'
     '"esperado_pdf":"...","encontrado_montagem":"...","detalhe":"..."}]}'
