@@ -88,6 +88,8 @@ def _modelo(papel: str) -> str:
         padrao = os.getenv("ANTHROPIC_MODEL_MM", "claude-sonnet-5")
     if papel == "mapa":
         return os.getenv("MODELO_MAPA") or padrao
+    if papel == "conferente_celebrante":
+        return os.getenv("MODELO_CONFERENTE_CELEBRANTE") or os.getenv("MODELO_MAPA") or padrao
     if papel.startswith("conferente"):
         return os.getenv("MODELO_CONFERENTE") or padrao
     return padrao  # montagem
