@@ -272,7 +272,7 @@ def montar_e_publicar(db: Session, data_iso: str, pdf_bytes: bytes,
 
 def _alerta(data_iso: str, msg: str) -> None:
     try:
-        from app.services.verificador_lexical import enviar_alerta_lexical
-        enviar_alerta_lexical(data_iso, [{"palavra": msg, "bloco": "conferência", "campo": "-", "contexto": ""}])
+        from app.services.verificador_lexical import enviar_alerta_conferencia
+        enviar_alerta_conferencia(data_iso, msg)
     except Exception:
         logger.warning("alerta conferência %s: %s", data_iso, msg)

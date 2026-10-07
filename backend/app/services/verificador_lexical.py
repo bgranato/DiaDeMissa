@@ -16,6 +16,7 @@ Uso:
 """
 from __future__ import annotations
 
+import html
 import logging
 import os
 import re
@@ -281,3 +282,35 @@ def enviar_alerta_lexical(data_iso: str, suspeitas: list[dict]) -> None:
             enviar_email(e, f"[Dia de Missa] Verificação léxica — {data_iso}", corpo)
     except Exception:
         logger.exception("Falha ao enviar alerta léxico (não bloqueante) %s", data_iso)
+
+
+def enviar_alerta_conferencia(data_iso: str, motivo: str) -> None:
+    """Best-effort: e-mail para os admins quando a montagem/conferência falha.
+
+    Template HONESTO: assunto e corpo dizem o que aconteceu e o que o pipeline
+    faz em seguida. Diferente de :func:`enviar_alerta_lexical`, este alerta NÃO
+    é sobre verificação léxico (a confusão de 11/10 mandava "suspeita de typo"
+    num e-mail de falha de montagem).
+    """
+    try:
+        from app.core.database import SessionLocal
+        from app.models.usuario import Usuario
+        from app.services.email_sender import enviar_email
+        db = SessionLocal()
+        try:
+            admins = db.query(Usuario).filter(Usuario.is_admin == True).all()  # noqa: E712
+            emails = [a.email for a in admins if a.email]
+        finally:
+            db.close()
+        if not emails:
+            return
+        corpo = (
+            f"<p>A montagem da missa <b>{data_iso}</b> precisa de atenção:</p>"
+            f"<p>{html.escape(motivo)}</p>"
+            "<p>O pipeline tenta de novo sozinho nos próximos ticks (a cada hora, "
+            "das 6h às 22h). Se a falha se repetir, revise em Perfil → Revisão de Missas.</p>"
+        )
+        for e in emails:
+            enviar_email(e, f"[Dia de Missa] Falha na montagem — {data_iso}", corpo)
+    except Exception:
+        logger.exception("Falha ao enviar alerta de conferência (não bloqueante) %s", data_iso)

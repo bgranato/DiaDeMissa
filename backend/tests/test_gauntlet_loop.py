@@ -5,6 +5,8 @@ pode ser convertida em aprovação implícita.
 """
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from app.pipeline import montagem_convergente as loop
@@ -329,3 +331,60 @@ def test_repeticao_inline_ainda_e_divergencia():
     divs = loop.checar_estrutural_vs_mapa(missa, mapa)
 
     assert any("repetição" in d["detalhe"] for d in divs)
+
+
+# ------------------------------------------------------- _extrair_json (regressão 11/10)
+#
+# Em produção (2026-10-11), o conferente Celebrante devolveu o objeto JSON
+# completo e TEXTO DEPOIS: json.loads estrito levantou "Extra data: line 4
+# column 1 (char 25)" e derrubou uma montagem já paga (US$1,67 por tentativa).
+
+def test_extrair_json_tolerante_a_texto_depois_do_objeto():
+    txt = '{\n  "divergencias": []\n}\nConferência concluída sem divergências.'
+    assert loop._extrair_json(txt) == {"divergencias": []}
+
+
+def test_extrair_json_tolerante_a_texto_antes_do_objeto():
+    txt = 'Segue o resultado em JSON:\n{"divergencias": [{"campo": "x"}]}'
+    assert loop._extrair_json(txt) == {"divergencias": [{"campo": "x"}]}
+
+
+def test_extrair_json_cerca_markdown_com_texto_extra():
+    # _limpar_cercas só remove a cerca quando o texto TERMINA com ``` — aqui
+    # há texto depois, então o fallback de raw_decode precisa resolver.
+    txt = '```json\n{"divergencias": []}\n```\nObrigado!'
+    assert loop._extrair_json(txt) == {"divergencias": []}
+
+
+def test_extrair_json_sem_json_propaga_erro():
+    with pytest.raises(json.JSONDecodeError):
+        loop._extrair_json("nada de json neste texto")
+
+
+def test_extrair_json_lista_nao_passa_como_objeto():
+    with pytest.raises(ValueError, match="objeto"):
+        loop._extrair_json('[{"divergencias": []}]')
+
+
+def test_extrair_json_ignora_chave_invalida_antes_do_json_real():
+    """Crítico 11/10: `{` inválido em texto explicativo antes do JSON real
+    não pode derrubar a extração (raw_decode precisa varrer candidatos)."""
+    txt = 'Exemplo de saída: { ... } e o JSON: {"divergencias": []}'
+    assert loop._extrair_json(txt) == {"divergencias": []}
+
+
+def test_extrair_json_lista_com_texto_extra_nao_vira_objeto():
+    """Crítico 11/10: `[{...}] + texto` não pode decodificar o elemento INTERNO
+    da lista como se fosse o objeto raiz (contrato: lista → erro claro)."""
+    with pytest.raises(ValueError, match="objeto"):
+        loop._extrair_json('[{"divergencias": []}] fim de texto')
+
+
+def test_extrair_json_exemplo_no_texto_perde_para_o_payload_real():
+    """Crítico 11/10 (mascaramento): um EXEMPLO de JSON completo no texto
+    antes da resposta real não pode vencer — aceitaria divergências vazias e
+    publicaria sem conferir. O payload maior (a resposta real) deve vencer."""
+    txt = ('Formato esperado: {"divergencias": []} (exemplo). Resposta real: '
+           '{"divergencias": [{"campo": "x", "detalhe": "divergência real"}]}')
+    assert loop._extrair_json(txt) == {
+        "divergencias": [{"campo": "x", "detalhe": "divergência real"}]}

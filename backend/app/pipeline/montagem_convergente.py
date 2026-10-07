@@ -130,9 +130,54 @@ async def _gerar(papel: str, system: str, user: str, pdf_bytes: bytes) -> str:
     return await get_llm_client().gerar(system, user, pdf_bytes=pdf_provedor, model=modelo, contexto=f"conv:{papel}")
 
 
+def _maior_valor_json(t: str):
+    """Decodifica o MAIOR valor JSON completo (iniciado em `{` ou `[`) em `t`.
+
+    Varre todos os candidatos e fica com o de maior extensão textual. Assim o
+    texto explicativo não atrapalha: um `{` inválido é descartado, e um EXEMPLO
+    de JSON antes da resposta real perde para o payload maior — o lado seguro
+    do contrato: divergência inventada leva à conferência/revisão humana,
+    enquanto silenciar divergência publicaria a missa sem conferir de verdade.
+    Retorna None se nenhum candidato decodificar (o caller propaga o erro
+    original; o retry fica para o tick horário).
+    """
+    dec = json.JSONDecoder()
+    melhor: tuple[int, object] | None = None
+    for i, ch in enumerate(t):
+        if ch not in "{[":
+            continue
+        try:
+            obj, fim = dec.raw_decode(t, i)
+        except json.JSONDecodeError:
+            continue
+        if melhor is None or (fim - i) > melhor[0]:
+            melhor = (fim - i, obj)
+    return None if melhor is None else melhor[1]
+
+
 def _extrair_json(txt: str) -> dict:
     t = _limpar_cercas(txt or "")
-    return json.loads(t)
+    try:
+        obj = json.loads(t)
+    except json.JSONDecodeError as erro:
+        # Regressão 11/10: o provedor devolveu o objeto JSON completo e TEXTO
+        # DEPOIS ("Extra data") — json.loads estrito derrubava uma montagem já
+        # paga. Usa o maior valor completo e ignora o resto; sem nenhum
+        # candidato válido, propaga o erro original (retry no tick horário).
+        #
+        # RISCO RESIDUAL ACEITO (revisão humana 07/10, opção B): se a resposta
+        # contiver DOIS JSONs completos com a mesma chave (ex.: um exemplo
+        # maior antes da resposta real), o maior vence e um dos checks LLM de
+        # conferência pode ser substituído pelo exemplo. Cenário nunca observado
+        # em produção; a montagem continua gateada por conferente independente
+        # + estrutural + léxico + mapa. Observar os logs: se ocorrer, migrar
+        # para extração por esquema (chave esperada por call site).
+        obj = _maior_valor_json(t)
+        if obj is None:
+            raise erro
+    if not isinstance(obj, dict):
+        raise ValueError(f"JSON da montagem deveria ser objeto, veio {type(obj).__name__}")
+    return obj
 
 
 # ------------------------------------------------------------------- passo 3: MAPA
