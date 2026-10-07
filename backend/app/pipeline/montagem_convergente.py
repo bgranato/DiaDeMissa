@@ -507,6 +507,12 @@ INSTR_CONF = (
     "campo `posicao_refrao_apos` é recalculado por código a partir do texto do PDF "
     "sempre que o refrão é localizado nele; 0 "
     "significa 'refrão antes das estrofes' — nunca é divergência por si só.\n"
+    "Créditos dos cantos também são EDITORIAIS: os campos `creditos_cantos` "
+    "(entrada/ofertas/comunhao/final) e a sua separação são projeto editorial. "
+    "Mesmo que o PDF agrupe em uma linha ('Entrada e Comunhão: Ir. Míria') e a "
+    "montagem separe por campo (ou o contrário), a informação é a mesma — NUNCA "
+    "aponte isso como divergência litúrgica. Se só restarem itens editoriais "
+    "desse tipo, devolva a lista vazia.\n"
     'Responda SOMENTE JSON: {"divergencias":[{"severidade":"critica|baixa","escopo":"conteudo_liturgico|hierarquia_liturgica","local":"onde",'
     '"esperado_pdf":"...","encontrado_montagem":"...","detalhe":"..."}]}'
 )

@@ -271,6 +271,16 @@ def test_conferente_ignora_posicao_do_refrao():
     assert "nunca é divergência por si só" in loop.INSTR_CONF
 
 
+def test_conferente_trata_creditos_de_cantos_como_editorial():
+    """Créditos (e a separação entrada/comunhao) são editoriais — o conferente
+    não pode acusá-los, nem mesmo 'por estrutura' ('Entrada e Comunhão' numa
+    linha do PDF vs campos separados)."""
+    assert "creditos_cantos" in loop.INSTR_CONF
+    assert "EDITORIAIS" in loop.INSTR_CONF
+    assert "Entrada e Comunhão" in loop.INSTR_CONF
+    assert "devolva a lista vazia" in loop.INSTR_CONF
+
+
 def test_cobertura_enxerga_celebracao_e_creditos_pydantic():
     """Regressão 07/10: a cobertura nunca pode acusar 'faltando' os créditos e
     a celebração quando eles ESTÃO na montagem.
