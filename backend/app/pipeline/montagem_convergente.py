@@ -503,7 +503,10 @@ INSTR_CONF = (
     "colunas, alinhamento, espaçamento, quebras de linha ou página, cabeçalhos/rodapés "
     "gráficos, numeração de páginas, selos de postura e outros elementos editoriais. "
     "Também ignore uma repetição visual do refrão ou resposta quando a montagem a guarda "
-    "corretamente uma única vez.\n"
+    "corretamente uma única vez. Ignore também a posição do refrão dentro do canto: o "
+    "campo `posicao_refrao_apos` é recalculado por código a partir do texto do PDF "
+    "sempre que o refrão é localizado nele; 0 significa "
+    "significa 'refrão antes das estrofes' — nunca é divergência por si só.\n"
     'Responda SOMENTE JSON: {"divergencias":[{"severidade":"critica|baixa","escopo":"conteudo_liturgico|hierarquia_liturgica","local":"onde",'
     '"esperado_pdf":"...","encontrado_montagem":"...","detalhe":"..."}]}'
 )
@@ -598,7 +601,12 @@ def montar_com_conferencia(pdf_bytes: bytes, texto_limpo: str,
 
     iteracoes = 0
     divergencias: list[dict] = []
-    for i in range(MAX_ITER_CONFERENCIA):
+    # REVALIDAÇÃO OBRIGATÓRIA (regressão 07/10): o laço só sai DEPOIS de um
+    # check do estado final. Antes, o ``for`` consumia as iterações e retornava
+    # com a lista do check ANTERIOR à última correção — uma montagem já corrigida
+    # era registrada como pendente (veredito defasado). O ``divergencias`` usado
+    # no veredito é sempre o de um check executado sobre a missa atual.
+    while True:
         estruturais = checar_estrutural_vs_mapa(missa, mapa)      # passo 5 (vs mapa)
         textuais = checar_texto_liturgico_vs_fonte(texto_limpo, missa)
         cobertura = checar_cobertura_palavra_a_palavra(texto_limpo, missa)
@@ -610,12 +618,16 @@ def montar_com_conferencia(pdf_bytes: bytes, texto_limpo: str,
         # a lista fica vazia. Elementos editoriais não entram nessa lista.
         if not divergencias:
             _sincronizar_numero_folheto(missa, mapa)
-            logger.info("conferência convergiu em %d iteração(ões)", i)
-            return missa, {"conferida": True, "iteracoes": i,
+            logger.info("conferência convergiu em %d iteração(ões)", iteracoes)
+            return missa, {"conferida": True, "iteracoes": iteracoes,
                            "divergencias_restantes": divergencias, "mapa": mapa,
                            "contrato": _contrato_gauntlet(),
                            "fontes": {"principal": "celular", "secundaria": "celebrante"}}
-        iteracoes = i + 1
+        if iteracoes >= MAX_ITER_CONFERENCIA:
+            # Limite de correções atingido: ``divergencias`` acima é o check do
+            # estado FINAL (pós-última correção) — nunca um veredito defasado.
+            break
+        iteracoes += 1
         logger.info("iteração %d: %d divergência(s) litúrgica(s) — corrigindo",
                     iteracoes, len(divergencias))
         try:

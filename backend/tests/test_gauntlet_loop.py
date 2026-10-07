@@ -135,6 +135,143 @@ def test_divergencia_do_celebrante_nao_e_publicavel(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# Revalidação do estado final (regressão 07/10): o veredito nunca pode vir de
+# um check anterior à última correção.
+# ---------------------------------------------------------------------------
+
+def _fakes_de_loop(monkeypatch, missa):
+    monkeypatch.setattr(loop, "gerar_mapa", lambda _pdf: {"blocos": []})
+    monkeypatch.setattr(loop, "montar_com_mapa", lambda *_a, **_k: missa)
+    monkeypatch.setattr(loop, "checar_estrutural_vs_mapa", lambda *_a, **_k: [])
+    monkeypatch.setattr(loop, "checar_texto_liturgico_vs_fonte", lambda *_a, **_k: [])
+    monkeypatch.setattr(loop, "checar_cobertura_palavra_a_palavra", lambda *_a, **_k: [])
+    monkeypatch.setattr(loop, "conferir_celebrante", lambda *_a, **_k: [])
+    monkeypatch.setattr(loop, "_corrigir", lambda *_a, **_k: missa)
+
+
+def test_ultima_correcao_eh_revalidada_antes_do_veredito(monkeypatch):
+    """Montagem corrigida com sucesso NÃO pode sair como pendente.
+
+    Antes da correção, o laço esgotava as iterações e retornava com a lista do
+    check ANTERIOR à última correção: a correção era aplicada, nunca verificada,
+    e um estado final limpo era reportado como divergente.
+    """
+    missa = _MissaMinima()
+    chamadas = {"conferir": 0}
+    _fakes_de_loop(monkeypatch, missa)
+    monkeypatch.setattr(loop, "MAX_ITER_CONFERENCIA", 1)
+
+    def conferir_diverge_depois_limpa(*_a, **_k):
+        chamadas["conferir"] += 1
+        if chamadas["conferir"] == 1:
+            return [{"severidade": "baixa", "escopo": "conteudo_liturgico",
+                     "detalhe": "divergência que a correção resolve"}]
+        return []
+
+    monkeypatch.setattr(loop, "conferir", conferir_diverge_depois_limpa)
+
+    _resultado, meta = loop.montar_com_conferencia(
+        b"%PDF-teste", "texto", pdf_celebrante=b"%PDF-celebrante"
+    )
+
+    assert chamadas["conferir"] == 2  # revalidou o estado pós-correção
+    assert meta["conferida"] is True
+    assert meta["iteracoes"] == 1
+    assert meta["divergencias_restantes"] == []
+
+
+def test_veredito_nao_convergido_reflete_o_check_final(monkeypatch):
+    """No limite de correções, divergencias_restantes é o estado FINAL, fresco."""
+    missa = _MissaMinima()
+    chamadas = {"conferir": 0}
+    _fakes_de_loop(monkeypatch, missa)
+    monkeypatch.setattr(loop, "MAX_ITER_CONFERENCIA", 1)
+
+    def conferir_mudando(*_a, **_k):
+        chamadas["conferir"] += 1
+        if chamadas["conferir"] == 1:
+            return [{"severidade": "baixa", "escopo": "conteudo_liturgico",
+                     "detalhe": "divergência antiga (check anterior)"}]
+        return [{"severidade": "critica", "escopo": "conteudo_liturgico",
+                 "detalhe": "divergência do estado final"}]
+
+    monkeypatch.setattr(loop, "conferir", conferir_mudando)
+
+    _resultado, meta = loop.montar_com_conferencia(
+        b"%PDF-teste", "texto", pdf_celebrante=b"%PDF-celebrante"
+    )
+
+    assert meta["conferida"] is False
+    assert chamadas["conferir"] == 2
+    assert meta["iteracoes"] == 1
+    assert meta["divergencias_restantes"][0]["detalhe"] == "divergência do estado final"
+
+
+def test_falha_na_correcao_encerra_com_veredito_fresco(monkeypatch):
+    """Se `_corrigir` lança exceção, o veredito é a lista do check que motivou
+    a correção (estado não mutado), nunca uma lista vazia ou defasada."""
+    missa = _MissaMinima()
+    _fakes_de_loop(monkeypatch, missa)
+    monkeypatch.setattr(loop, "MAX_ITER_CONFERENCIA", 1)
+    monkeypatch.setattr(
+        loop, "conferir",
+        lambda *_a, **_k: [{"severidade": "baixa", "escopo": "conteudo_liturgico",
+                            "detalhe": "divergência que motivou a correção"}],
+    )
+
+    def corrigir_falhando(*_a, **_k):
+        raise RuntimeError("correção falhou")
+
+    monkeypatch.setattr(loop, "_corrigir", corrigir_falhando)
+
+    _resultado, meta = loop.montar_com_conferencia(
+        b"%PDF-teste", "texto", pdf_celebrante=b"%PDF-celebrante"
+    )
+
+    assert meta["conferida"] is False
+    assert meta["iteracoes"] == 1
+    assert meta["divergencias_restantes"][0]["detalhe"] == "divergência que motivou a correção"
+
+
+# ---------------------------------------------------------------------------
+# Contratos de prompt: regra X (silêncio como bloco próprio) e escopo do
+# conferente (posição do refrão é derivada por código, não divergência LLM).
+# ---------------------------------------------------------------------------
+
+def test_regra_x_manda_silencio_oracao_como_bloco_proprio():
+    import re
+
+    from app.llm.prompts import REGRAS_FOLHETO
+
+    m = re.search(
+        r'^X\. "MOMENTO DE SILÊNCIO PARA ORAÇÃO PESSOAL".*?(?=^Y\.)',
+        REGRAS_FOLHETO, re.S | re.M,
+    )
+    assert m, "regra X (Momento de silêncio) não encontrada em REGRAS_FOLHETO"
+    regra_x = m.group(0)
+    assert "BLOCO PRÓPRIO" in regra_x
+    assert "numero_folheto null" in regra_x
+    # Alinhamento com o gate _tem_silencio e com a convenção das publicadas:
+    # título deve conter "silêncio" para o gate achá-lo como bloco.
+    assert 'titulo "Momento de silêncio para oração pessoal"' in regra_x
+
+
+def test_regra_l_nao_contradiz_mais_a_regra_x():
+    from app.llm.prompts import REGRAS_FOLHETO
+
+    assert 'Rubricas curtas no fim de um canto ("Momento de silêncio para oração pessoal")' not in REGRAS_FOLHETO
+    assert "Única exceção: o \"Momento de silêncio para oração pessoal\" vira" in REGRAS_FOLHETO
+
+
+def test_conferente_ignora_posicao_do_refrao():
+    """posicao_refrao_apos=0 significa refrão ANTES (regra K) — o conferente
+    não pode acusar essa posição como divergência litúrgica."""
+    assert "posicao_refrao_apos" in loop.INSTR_CONF
+    assert "refrão antes das estrofes" in loop.INSTR_CONF
+    assert "nunca é divergência por si só" in loop.INSTR_CONF
+
+
+# ---------------------------------------------------------------------------
 # Numeração do folheto: o montador nunca inventa e o revisor nunca deixa passar.
 # ---------------------------------------------------------------------------
 

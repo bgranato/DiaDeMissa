@@ -133,8 +133,9 @@ L. ASPAS DO DISCURSO DIRETO — PRESERVE SEMPRE, EXATAMENTE como no folheto, TOD
    Reino de Deus”, proclamava Jesus."). NÃO remova a aspa de abertura nem a de
    fechamento; copie-as no MESMO ponto. É ERRO comum dropar as aspas de discurso
    direto em cantos e parábolas ("“Assim como a chuva…”") — não faça isso.
-   Rubricas curtas no fim de um canto ("Momento de silêncio para oração pessoal")
-   ficam como rubrica/anexo do bloco, não viram seção nova.
+    Rubricas curtas no fim de um canto ficam como rubrica/anexo do bloco, não viram
+    seção nova. Única exceção: o "Momento de silêncio para oração pessoal" vira
+    bloco próprio (regra X).
 
 M. DESCRIÇÃO vs OBSERVAÇÕES (não confunda):
    - O parágrafo de reflexão de abertura (ex.: "Hoje celebramos...", "Reunidos em
@@ -223,10 +224,13 @@ W. REPETIÇÕES NOS CANTOS ("//: … ://"): quando um verso/refrão vier marcado
    Nunca descarte essas repetições.
 
 X. "MOMENTO DE SILÊNCIO PARA ORAÇÃO PESSOAL": esta rubrica aparece UMA única vez
-   no folheto (após o Canto de Comunhão, ANTES da Antífona da Comunhão). Coloque-a
-   uma só vez, no bloco da Comunhão, nessa posição — NUNCA a duplique nem a repita
-   em outro bloco. (É distinta do "Momento de silêncio para meditação pessoal" da
-   Homilia, que é outra rubrica e permanece no seu lugar.)
+   no folheto (após o Canto de Comunhão, ANTES da Antífona da Comunhão) e vira um
+   BLOCO PRÓPRIO: tipo "oracao", titulo "Momento de silêncio para oração pessoal",
+   numero_folheto null, texto "Momento de silêncio para oração pessoal.", colocado
+   EXATAMENTE entre o Canto de Comunhão e a Antífona da Comunhão. NUNCA a embuta
+   dentro de um canto nem a duplique em outro bloco. (É distinta do "Momento de
+   silêncio para meditação pessoal" da Homilia, que é outra rubrica e permanece no
+   campo `texto` do bloco Homilia — regra I.)
 
 Y. MARCADORES LITÚRGICOS MENORES — preserve EXATAMENTE como o folheto imprime,
    quando (e só quando) aparecem:
