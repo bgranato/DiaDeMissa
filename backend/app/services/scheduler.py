@@ -58,7 +58,9 @@ def iniciar_scheduler() -> BackgroundScheduler | None:
 
     sched = BackgroundScheduler(timezone="America/Sao_Paulo")
 
-    # Folheto Arquidiocese (PDF). Roda 5h da manhã.
+    # Verificador barato da página de folhetos (Arquidiocese). Roda 5h da manhã.
+    # Custo em regime normal: 1 GET da página. Baixa PDFs e monta (LLM) só para
+    # edições completas ainda não publicadas; missas concluídas+conferidas pulam.
     sched.add_job(
         executar_pipeline_diario,
         CronTrigger(hour=5, minute=0),
@@ -67,10 +69,12 @@ def iniciar_scheduler() -> BackgroundScheduler | None:
         max_instances=1,
         coalesce=True,
     )
-    # Re-tentativa do Arquidiocese de hora em hora durante o dia.
-    # Se o cron das 5h falhou (filesystem read-only, rede, etc.) OU se o folheto
-    # foi publicado após esse horário, tentamos de novo a cada hora.
-    # Idempotente: se hash não mudou (já temos), o pipeline retorna 'ignorado'.
+    # Re-tentativa de hora em hora durante o dia. A página de folhetos é rotativa
+    # (serve só a edição vigente): se o folheto novo aparecer depois das 5h, o
+    # próximo tick o detecta e monta; se tudo já está publicado, cada tick custa
+    # só o GET (sem download, sem LLM) e não gera mais FonteFolhetoIndisponivel
+    # em dia sem folheto. Datas passadas e edições incompletas são ignoradas.
+    # Idempotente: publicada → 'ja_publicada'; hash inalterado → 'ignorado'.
     # Sobrescreve missa CNBB se Arquidiocese chega depois (proteção interna inverte:
     # CNBB nunca sobrescreve Arquidiocese, mas Arquidiocese sempre sobrescreve CNBB).
     sched.add_job(

@@ -94,6 +94,39 @@ class _LeitorFolhetos(HTMLParser):
             self.links.append((href, identificador, titulo))
 
 
+def obter_pagina_folhetos() -> str:
+    """Lê a página oficial de folhetos UMA vez (único GET necessário por ciclo).
+
+    O verificador diário usa esta função uma única vez e reaproveita o HTML para
+    listar as datas disponíveis e para resolver cada edição — sem refetch.
+    """
+    with httpx.Client(timeout=httpx.Timeout(TIMEOUT), follow_redirects=True, headers=HTTP_HEADERS) as client:
+        resposta = client.get(FOLHETOS_URL)
+        resposta.raise_for_status()
+        return resposta.text
+
+
+def datas_disponiveis(html: str) -> list[date]:
+    """Datas com edição COMPLETA (Celular + Celebrante) na página já lida.
+
+    Edições incompletas (só Assembleia, por exemplo) e datas malformadas ficam de
+    fora: sem as duas fontes do contrato não há montagem possível, e o verificador
+    não deve tentar (nem alertar) por uma edição parcial.
+    """
+    leitor = _LeitorFolhetos()
+    leitor.feed(html)
+    tipos: dict[date, set[str]] = {}
+    for _href, identificador, titulo in leitor.links:
+        data_link = _data_do_link(identificador) or _data_do_link(titulo)
+        if data_link is None:
+            continue
+        tipo = _tipo_folheto(f"{identificador} {titulo}")
+        if tipo in ("celular", "celebrante"):
+            tipos.setdefault(data_link, set()).add(tipo)
+    completas = [d for d, encontrados in tipos.items() if {"celular", "celebrante"} <= encontrados]
+    return sorted(completas)
+
+
 def resolver_fontes_oficiais(data_edicao: date, *, html: str | None = None) -> tuple[FonteFolheto, FonteFolheto]:
     """Resolve **somente** Celular e Celebrante na página oficial.
 
@@ -102,10 +135,7 @@ def resolver_fontes_oficiais(data_edicao: date, *, html: str | None = None) -> t
     extração. A falta de qualquer uma das duas fontes exigidas fecha o gate.
     """
     if html is None:
-        with httpx.Client(timeout=httpx.Timeout(TIMEOUT), follow_redirects=True, headers=HTTP_HEADERS) as client:
-            resposta = client.get(FOLHETOS_URL)
-            resposta.raise_for_status()
-            html = resposta.text
+        html = obter_pagina_folhetos()
 
     leitor = _LeitorFolhetos()
     leitor.feed(html)
@@ -132,13 +162,14 @@ def resolver_fontes_oficiais(data_edicao: date, *, html: str | None = None) -> t
     return encontradas["celular"], encontradas["celebrante"]
 
 
-def baixar_fontes_oficiais(data_edicao: date) -> tuple[FonteFolheto, bytes, FonteFolheto, bytes]:
+def baixar_fontes_oficiais(data_edicao: date, *, html: str | None = None) -> tuple[FonteFolheto, bytes, FonteFolheto, bytes]:
     """Baixa as duas referências do contrato em uma mesma execução.
 
     A ordem do retorno é intencional e auditável: Celular (construtor) primeiro,
-    Celebrante (crítico secundário) depois.
+    Celebrante (crítico secundário) depois. O HTML opcional evita um refetch da
+    página quando o verificador diário já a leu uma vez.
     """
-    celular, celebrante = resolver_fontes_oficiais(data_edicao)
+    celular, celebrante = resolver_fontes_oficiais(data_edicao, html=html)
     with httpx.Client(timeout=httpx.Timeout(TIMEOUT), follow_redirects=True, headers=HTTP_HEADERS) as client:
         resposta_celular = client.get(celular.url)
         resposta_celular.raise_for_status()
